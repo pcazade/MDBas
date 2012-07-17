@@ -1,6 +1,6 @@
 #include <math.h>
 #include "global.h"
-#include "dSFMT/dSFMT.h"
+#include "dSFMT.h"
 
 static dsfmt_t dsfmt;
 
