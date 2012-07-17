@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <math.h>
 #include <string.h>
 #include <ctype.h>
@@ -100,7 +99,7 @@ void init_vel(ATOM *atom,SIMULPARAMS *simulCond)
   
   tempKin=0.5*simulCond->temp*simulCond->degfree*rboltzui;
   
-  factor=sqrt(tempKin/initKin); 
+  factor=sqrt(tempKin/initKin);
   
   for(i=0;i<atom->natom;i++)
   {
@@ -152,7 +151,7 @@ double kinetic(ATOM *atom)
     ekin+=atom->m[i]*(X2(atom->vx[i])+X2(atom->vy[i])+X2(atom->vz[i]));
   }
   
-  return ekin*0.5;
+  return ( ekin*0.5 );
 }
 
 void get_degfree(ATOM *atom,SIMULPARAMS *simulCond)
