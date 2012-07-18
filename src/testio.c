@@ -1045,3 +1045,332 @@ void read_PAR2(INPUTS *inp)
     fclose(parFile);
 }
 
+void setup2(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
+{
+  int i,j,k,ia,ib,ic,id,i0,i1,i2,i3,ii,jj,itype;
+  
+  if(ff->nBond>0)
+  {
+    ff->parmBond=(double**)malloc(ff->nBond*sizeof(*(ff->parmBond)));
+    for(i=0;i<ff->nBond;i++)
+      ff->parmBond[i]=(double*)malloc(2*sizeof(**(ff->parmBond)));
+  }
+  
+  if(ff->nAngle>0)
+  {
+    ff->parmAngle=(double**)malloc(ff->nAngle*sizeof(*(ff->parmAngle)));
+    for(i=0;i<ff->nAngle;i++)
+      ff->parmAngle[i]=(double*)malloc(3*sizeof(**(ff->parmAngle)));
+  }
+  
+  if(ff->nDihedral>0)
+  {
+    simulCond->diheType=(int*)malloc(ff->nDihedral*sizeof(*(simulCond->diheType)));
+    for(i=0;i<ff->nDihedral;i++)
+      simulCond->diheType[i]=0;
+    
+    ff->parmDihe=(double**)malloc(ff->nDihedral*sizeof(*(ff->parmDihe)));
+    
+    ff->nParmDihe=(int*)malloc(ff->nDihedral*sizeof(*(ff->nParmDihe)));
+  }
+  
+  if(ff->nImproper>0)
+  {
+    simulCond->imprType=(int*)malloc(ff->nImproper*sizeof(*(simulCond->imprType)));
+    for(i=0;i<ff->nImproper;i++)
+      simulCond->imprType[i]=0;
+    
+    ff->parmImpr=(double**)malloc(ff->nImproper*sizeof(*(ff->parmImpr)));
+    for(i=0;i<ff->nImproper;i++)
+      ff->parmImpr[i]=(double*)malloc(3*sizeof(**(ff->parmImpr)));
+  }
+  
+  ff->parmVdw=(double**)malloc(atom->natom*sizeof(*(ff->parmVdw)));
+  for(i=0;i<atom->natom;i++)
+    ff->parmVdw[i]=(double*)malloc(6*sizeof(**(ff->parmVdw)));
+  
+  for(i=0;i<ff->nBond;i++)
+  {
+    ia=atom->atomType[simulCond->iBond[i][0]];
+    ib=atom->atomType[simulCond->iBond[i][1]];
+    
+    if(ib<ia)
+    {
+      i0=ib;
+      i1=ia;
+    }
+    else
+    {
+      i0=ia;
+      i1=ib;
+    }
+    
+    itype=-1;
+    for(j=0;j<inp->nBondTypes;j++)
+    {
+      if( (i0==inp->bondTypes[j][0]) && (i1==inp->bondTypes[j][1]) )
+      {
+	itype=j;
+	break;
+      }
+    }
+    
+    if(itype==-1)
+      error(71);
+    
+    ff->parmBond[i][0]=inp->bondTypesParm[itype][0]*2.*kcaltoiu;
+    ff->parmBond[i][1]=inp->bondTypesParm[itype][1];
+    
+  }
+  
+  ff->nUb=0;
+  for(i=0;i<ff->nAngle;i++)
+  {
+    ia=atom->atomType[simulCond->iAngle[i][0]];
+    ib=atom->atomType[simulCond->iAngle[i][1]];
+    ic=atom->atomType[simulCond->iAngle[i][2]];
+    
+    if(ib<ia)
+    {
+      i0=ic;
+      i1=ib;
+      i2=ia;
+    }
+    else
+    {
+      i0=ia;
+      i1=ib;
+      i2=ic;
+    }
+    
+    itype=-1;
+    for(j=0;j<inp->nAngTypes;j++)
+    {
+      if( (i0==inp->angTypes[j][0]) && (i1==inp->angTypes[j][1]) && (i2==inp->angTypes[j][2]) )
+      {
+	itype=j;
+	break;
+      }
+    }
+    
+    if(itype==-1)
+      error(72);
+    
+    ff->parmAngle[i][0]=inp->angTypesParm[itype][0]*2.*kcaltoiu;
+    ff->parmAngle[i][1]=inp->angTypesParm[itype][1]*PI/180.;
+    
+    for(j=0;j<inp->nUbTypes;j++)
+    {
+      if( (i0==inp->ubTypes[j][0]) && (i1==inp->ubTypes[j][1]) && (i2==inp->ubTypes[j][2]) )
+      {
+	ff->nUb++;
+	break;
+      }
+    }
+  }
+  
+  if(ff->nUb>0)
+  {
+    ff->parmUb=(double**)malloc(ff->nUb*sizeof(*(ff->parmUb)));
+    for(i=0;i<ff->nUb;i++)
+      ff->parmUb[i]=(double*)malloc(2*sizeof(**(ff->parmUb)));
+    
+    simulCond->iUb=(int**)malloc(ff->nUb*sizeof(*(simulCond->iUb)));
+    for(i=0;i<ff->nUb;i++)
+      simulCond->iUb[i]=(int*)malloc(2*sizeof(**(simulCond->iUb)));
+  }
+  
+  j=0;
+  for(i=0;i<ff->nAngle;i++)
+  {
+    ia=atom->atomType[simulCond->iAngle[i][0]];
+    ib=atom->atomType[simulCond->iAngle[i][1]];
+    ic=atom->atomType[simulCond->iAngle[i][2]];
+    
+    if(ib<ia)
+    {
+      i0=ic;
+      i1=ib;
+      i2=ia;
+    }
+    else
+    {
+      i0=ia;
+      i1=ib;
+      i2=ic;
+    }
+    
+    itype=-1;
+    for(j=0;j<inp->nUbTypes;j++)
+    {
+      if( (i0==inp->ubTypes[j][0]) && (i1==inp->ubTypes[j][1]) && (i2==inp->ubTypes[j][2]) )
+      {
+	itype=j;
+	break;
+      }
+    }
+    
+    if(itype==-1)
+      continue;
+    
+    simulCond->iUb[k][0]=simulCond->iAngle[i][0];
+    simulCond->iUb[k][1]=simulCond->iAngle[i][2];
+    ff->parmUb[k][0]=inp->ubTypesParm[itype][0]*2.*kcaltoiu;
+    ff->parmUb[k][1]=inp->ubTypesParm[itype][1];
+    k++;
+  }
+  
+  for(i=0;i<ff->nDihedral;i++)
+  {
+    ia=atom->atomType[simulCond->iDihedral[i][0]];
+    ib=atom->atomType[simulCond->iDihedral[i][1]];
+    ic=atom->atomType[simulCond->iDihedral[i][2]];
+    id=atom->atomType[simulCond->iDihedral[i][3]];
+    
+    if(id<ia)
+    {
+      i0=id;
+      i1=ic;
+      i2=ib;
+      i3=ia;
+    }
+    else if(ia<id)
+    {
+      i0=ia;
+      i1=ib;
+      i2=ic;
+      i3=id;
+    }
+    else if(ic<ib)
+    {
+      i0=id;
+      i1=ic;
+      i2=ib;
+      i3=ia;
+    }
+    else
+    {
+      i0=ia;
+      i1=ib;
+      i2=ic;
+      i3=id;
+    }
+    
+    itype=-1;
+    for(j=0;j<inp->nDiheTypes;j++)
+    {
+      if( (i0==inp->diheTypes[j][0]) && (i1==inp->diheTypes[j][1]) && (i2==inp->diheTypes[j][2]) && (i3==inp->diheTypes[j][3]) )
+      {
+	itype=j;
+	break;
+      }
+    }
+    
+    if(itype==-1)
+    {
+      if(ic<ib)
+      {
+	i0=inp->nTypes;
+	i1=ic;
+	i2=ib;
+	i3=inp->nTypes;
+      }
+      else
+      {
+	i0=inp->nTypes;
+	i1=ib;
+	i2=ic;
+	i3=inp->nTypes;
+      }
+    
+      for(j=0;j<inp->nDiheTypes;j++)
+      {
+	if( (i0==inp->diheTypes[j][0]) && (i1==inp->diheTypes[j][1]) && (i2==inp->diheTypes[j][2]) && (i3==inp->diheTypes[j][3]) )
+	{
+	  itype=j;
+	  break;
+	}
+      }
+    }
+    
+    if(itype==-1)
+      error(73);
+    
+    ff->nParmDihe[i]=inp->nDiheTypesParm[itype];
+    
+    ff->parmDihe[i]=(double*)malloc(3*inp->nDiheTypesParm[itype]*sizeof(**(ff->parmDihe)));
+    
+    for(j=0;j<ff->nParmDihe[i];j++)
+    {
+      k=3*j;
+      ff->parmDihe[i][k]=inp->diheTypesParm[itype][k]*kcaltoiu;
+      ff->parmDihe[i][k+1]=inp->diheTypesParm[itype][k+1];
+      ff->parmDihe[i][k+2]=inp->diheTypesParm[itype][k+2]*PI/180.;
+    }
+    
+    if(ff->nParmDihe[i]==1&&ff->parmDihe[i][1]<0.5)
+    {
+      ff->parmDihe[i][0]=ff->parmDihe[i][0]*2.;
+      ff->parmDihe[i][1]=ff->parmDihe[i][2];
+      simulCond->diheType[i]=2;
+    }
+    else if(ff->nParmDihe[i]>1&&ff->parmDihe[i][1]<0.5)
+      error(50);
+    else
+      simulCond->diheType[i]=1;
+  }
+  
+  for(i=0;i<ff->nImproper;i++)
+  {
+    ia=atom->atomType[simulCond->iImproper[i][0]-1]+1;
+    ib=atom->atomType[simulCond->iImproper[i][1]-1];
+    ic=atom->atomType[simulCond->iImproper[i][2]-1];
+    id=atom->atomType[simulCond->iImproper[i][3]-1]+1;
+    
+    if(id<ia)
+    {
+      ii=id+(ia*(ia-1))/2;
+      ff->parmImpr[i][0]=inp->imprTypesParm[inp->imprTypes[ic][ib][ii-1]][0]*kcaltoiu;
+      ff->parmImpr[i][1]=inp->imprTypesParm[inp->imprTypes[ic][ib][ii-1]][1];
+      ff->parmImpr[i][2]=inp->imprTypesParm[inp->imprTypes[ic][ib][ii-1]][2]*PI/180.;
+    }
+    else
+    {
+      ii=ia+(id*(id-1))/2;
+      ff->parmImpr[i][0]=inp->imprTypesParm[inp->imprTypes[ib][ic][ii-1]][0]*kcaltoiu;
+      ff->parmImpr[i][1]=inp->imprTypesParm[inp->imprTypes[ib][ic][ii-1]][1];
+      ff->parmImpr[i][2]=inp->imprTypesParm[inp->imprTypes[ib][ic][ii-1]][2]*PI/180.;
+    }
+    
+    if(ff->parmImpr[i][1]<0.5)
+    {
+      ff->parmImpr[i][0]=ff->parmImpr[i][0]*2.;
+      ff->parmImpr[i][1]=ff->parmImpr[i][2];
+      simulCond->imprType[i]=2;
+    }
+    else
+      simulCond->imprType[i]=1;
+  }
+  
+  for(i=0;i<atom->natom;i++)
+  {
+    
+    ff->parmVdw[i][0]=sqrt(-kcaltoiu*inp->nonBondedTypesParm[atom->atomType[i]][1]);
+    ff->parmVdw[i][1]=inp->nonBondedTypesParm[atom->atomType[i]][2]/sq6rt2;
+    ff->parmVdw[i][2]=inp->nonBondedTypesParm[atom->atomType[i]][0];
+    
+    if(inp->nonBondedTypesParm[atom->atomType[i]][5]>=0.)
+    {
+      ff->parmVdw[i][3]=sqrt(-kcaltoiu*inp->nonBondedTypesParm[atom->atomType[i]][4]);
+      ff->parmVdw[i][4]=inp->nonBondedTypesParm[atom->atomType[i]][5]/sq6rt2;
+      ff->parmVdw[i][5]=inp->nonBondedTypesParm[atom->atomType[i]][3];
+    }
+    else
+    {
+      ff->parmVdw[i][3]=ff->parmVdw[i][0];
+      ff->parmVdw[i][4]=ff->parmVdw[i][1];
+      ff->parmVdw[i][5]=ff->parmVdw[i][2];
+    }
+  }
+  
+}
