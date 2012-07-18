@@ -222,7 +222,7 @@ void dihedral_energy(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS 
       fdx=ddihe*((-pb[1]*dbc[2]+pb[2]*dbc[1])-pbpc*(-pc[1]*dbc[2]+pc[2]*dbc[1])/r2pc);
       fdy=ddihe*(( pb[0]*dbc[2]-pb[2]*dbc[0])-pbpc*( pc[0]*dbc[2]-pc[2]*dbc[0])/r2pc);
       fdz=ddihe*((-pb[0]*dbc[1]+pb[1]*dbc[0])-pbpc*(-pc[0]*dbc[1]+pc[1]*dbc[0])/r2pc);
-          
+
       atom->fx[i]+=fax;
       atom->fy[i]+=fay;
       atom->fz[i]+=faz;

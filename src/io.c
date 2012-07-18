@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <ctype.h>
 #include "global.h"
 #include "io.h"
 #include "memory.h"
@@ -18,6 +19,8 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
   {
     error(60);
   }
+  
+  simulCond->keymd=1;
   
   simulCond->step=0;
   simulCond->firstener=1;
@@ -45,6 +48,9 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
   simulCond->ens=0;
   simulCond->enstime=1.0;
   
+  simulCond->keyener=0;
+  simulCond->keytraj=0;
+  simulCond->keyforf=0;
   simulCond->printo=1000;
   simulCond->printtr=1000;
   
@@ -71,6 +77,9 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
     
     else if(!strcmp(buff2,"namd"))
       simulCond->mdNature=2;
+    
+    else if(!strcmp(buff2,"nomd"))
+      simulCond->keymd=0;
     
     else if(!strcmp(buff2,"timestep"))
     {
@@ -227,6 +236,7 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
       if(buff3==NULL)
 	error(63);
       
+      simulCond->keyener=1;
       simulCond->printo=atoi(buff3);
     }
     else if(!strcmp(buff2,"traj"))
@@ -235,7 +245,21 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
       if(buff3==NULL)
 	error(63);
       
+      simulCond->keytraj=1;
       simulCond->printtr=atoi(buff3);
+    }
+    else if(!strcmp(buff2,"write"))
+    {
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	error(63);
+      
+      nocase(buff3);
+      
+      if(!strcmp(buff3,"field"))
+	simulCond->keyforf=1;
+      else
+	error(62);
     }
     else if(!strcmp(buff2,"pbc"))
     {
@@ -495,30 +519,33 @@ void read_PSF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPA
     }
   }
   
-  simulCond->iBond=(int**)malloc(ff->nBond*sizeof(*(simulCond->iBond)));
-  for(i=0;i<ff->nBond;i++)
-    simulCond->iBond[i]=(int*)malloc(2*sizeof(**(simulCond->iBond)));
-  
-  i=0;
-  while(fgets(buff1,1024,psfFile)!=NULL)
+  if(ff->nBond>0)
   {
-    buff2=strtok(buff1," \n\t");
-    buff3=strtok(NULL," \n\t");
+    simulCond->iBond=(int**)malloc(ff->nBond*sizeof(*(simulCond->iBond)));
+    for(i=0;i<ff->nBond;i++)
+      simulCond->iBond[i]=(int*)malloc(2*sizeof(**(simulCond->iBond)));
     
-    while(buff2!=NULL && buff3!=NULL)
+    i=0;
+    while(fgets(buff1,1024,psfFile)!=NULL)
     {
-      
-      simulCond->iBond[i][0]=atoi(buff2);
-      simulCond->iBond[i][1]=atoi(buff3);
-      
-      buff2=strtok(NULL," \n\t");
+      buff2=strtok(buff1," \n\t");
       buff3=strtok(NULL," \n\t");
-      i++;
+      
+      while(buff2!=NULL && buff3!=NULL)
+      {
+	
+	simulCond->iBond[i][0]=atoi(buff2);
+	simulCond->iBond[i][1]=atoi(buff3);
+	
+	buff2=strtok(NULL," \n\t");
+	buff3=strtok(NULL," \n\t");
+	i++;
+      }
+      if(buff2!=NULL && buff3==NULL)
+	error(23);
+      if(i==ff->nBond)
+	break;
     }
-    if(buff2!=NULL && buff3==NULL)
-      error(23);
-    if(i==ff->nBond)
-      break;
   }
   
   while(fgets(buff1,1024,psfFile)!=NULL)
@@ -531,33 +558,36 @@ void read_PSF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPA
     }
   }
   
-  simulCond->iAngle=(int**)malloc(ff->nAngle*sizeof(*(simulCond->iAngle)));
-  for(i=0;i<ff->nAngle;i++)
-    simulCond->iAngle[i]=(int*)malloc(3*sizeof(**(simulCond->iAngle)));
-  
-  i=0;
-  while(fgets(buff1,1024,psfFile)!=NULL)
+  if(ff->nAngle>0)
   {
-    buff2=strtok(buff1," \n\t");
-    buff3=strtok(NULL," \n\t");
-    buff4=strtok(NULL," \n\t");
+    simulCond->iAngle=(int**)malloc(ff->nAngle*sizeof(*(simulCond->iAngle)));
+    for(i=0;i<ff->nAngle;i++)
+      simulCond->iAngle[i]=(int*)malloc(3*sizeof(**(simulCond->iAngle)));
     
-    while(buff2!=NULL && buff3!=NULL && buff4!=NULL)
+    i=0;
+    while(fgets(buff1,1024,psfFile)!=NULL)
     {
-      
-      simulCond->iAngle[i][0]=atoi(buff2);
-      simulCond->iAngle[i][1]=atoi(buff3);
-      simulCond->iAngle[i][2]=atoi(buff4);
-      
-      buff2=strtok(NULL," \n\t");
+      buff2=strtok(buff1," \n\t");
       buff3=strtok(NULL," \n\t");
       buff4=strtok(NULL," \n\t");
-      i++;
+      
+      while(buff2!=NULL && buff3!=NULL && buff4!=NULL)
+      {
+	
+	simulCond->iAngle[i][0]=atoi(buff2);
+	simulCond->iAngle[i][1]=atoi(buff3);
+	simulCond->iAngle[i][2]=atoi(buff4);
+	
+	buff2=strtok(NULL," \n\t");
+	buff3=strtok(NULL," \n\t");
+	buff4=strtok(NULL," \n\t");
+	i++;
+      }
+      if((buff2!=NULL && buff3==NULL)||(buff2!=NULL && buff4==NULL))
+	error(24);
+      if(i==ff->nAngle)
+	break;
     }
-    if((buff2!=NULL && buff3==NULL)||(buff2!=NULL && buff4==NULL))
-      error(24);
-    if(i==ff->nAngle)
-      break;
   }
   
   while(fgets(buff1,1024,psfFile)!=NULL)
@@ -570,36 +600,39 @@ void read_PSF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPA
     }
   }
   
-  simulCond->iDihedral=(int**)malloc(ff->nAngle*sizeof(*(simulCond->iDihedral)));
-  for(i=0;i<ff->nDihedral;i++)
-    simulCond->iDihedral[i]=(int*)malloc(4*sizeof(**(simulCond->iDihedral)));
-  
-  i=0;
-  while(fgets(buff1,1024,psfFile)!=NULL)
+  if(ff->nDihedral>0)
   {
-    buff2=strtok(buff1," \n\t");
-    buff3=strtok(NULL," \n\t");
-    buff4=strtok(NULL," \n\t");
-    buff5=strtok(NULL," \n\t");
+    simulCond->iDihedral=(int**)malloc(ff->nAngle*sizeof(*(simulCond->iDihedral)));
+    for(i=0;i<ff->nDihedral;i++)
+      simulCond->iDihedral[i]=(int*)malloc(4*sizeof(**(simulCond->iDihedral)));
     
-    while(buff2!=NULL && buff3!=NULL && buff4!=NULL)
+    i=0;
+    while(fgets(buff1,1024,psfFile)!=NULL)
     {
-      
-      simulCond->iDihedral[i][0]=atoi(buff2);
-      simulCond->iDihedral[i][1]=atoi(buff3);
-      simulCond->iDihedral[i][2]=atoi(buff4);
-      simulCond->iDihedral[i][3]=atoi(buff5);
-      
-      buff2=strtok(NULL," \n\t");
+      buff2=strtok(buff1," \n\t");
       buff3=strtok(NULL," \n\t");
       buff4=strtok(NULL," \n\t");
       buff5=strtok(NULL," \n\t");
-      i++;
+      
+      while(buff2!=NULL && buff3!=NULL && buff4!=NULL)
+      {
+	
+	simulCond->iDihedral[i][0]=atoi(buff2);
+	simulCond->iDihedral[i][1]=atoi(buff3);
+	simulCond->iDihedral[i][2]=atoi(buff4);
+	simulCond->iDihedral[i][3]=atoi(buff5);
+	
+	buff2=strtok(NULL," \n\t");
+	buff3=strtok(NULL," \n\t");
+	buff4=strtok(NULL," \n\t");
+	buff5=strtok(NULL," \n\t");
+	i++;
+      }
+      if((buff2!=NULL && buff3==NULL)||(buff2!=NULL && buff4==NULL)||(buff2!=NULL && buff5==NULL))
+	error(25);
+      if(i==ff->nDihedral)
+	break;
     }
-    if((buff2!=NULL && buff3==NULL)||(buff2!=NULL && buff4==NULL)||(buff2!=NULL && buff5==NULL))
-      error(25);
-    if(i==ff->nDihedral)
-      break;
   }
   
   while(fgets(buff1,1024,psfFile)!=NULL)
@@ -612,36 +645,39 @@ void read_PSF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPA
     }
   }
   
-  simulCond->iImproper=(int**)malloc(ff->nAngle*sizeof(*(simulCond->iImproper)));
-  for(i=0;i<ff->nImproper;i++)
-    simulCond->iImproper[i]=(int*)malloc(4*sizeof(**(simulCond->iImproper)));
-  
-  i=0;
-  while(fgets(buff1,1024,psfFile)!=NULL)
+  if(ff->nImproper>0)
   {
-    buff2=strtok(buff1," \n\t");
-    buff3=strtok(NULL," \n\t");
-    buff4=strtok(NULL," \n\t");
-    buff5=strtok(NULL," \n\t");
+    simulCond->iImproper=(int**)malloc(ff->nAngle*sizeof(*(simulCond->iImproper)));
+    for(i=0;i<ff->nImproper;i++)
+      simulCond->iImproper[i]=(int*)malloc(4*sizeof(**(simulCond->iImproper)));
     
-    while(buff2!=NULL && buff3!=NULL && buff4!=NULL)
+    i=0;
+    while(fgets(buff1,1024,psfFile)!=NULL)
     {
-      
-      simulCond->iImproper[i][0]=atoi(buff2);
-      simulCond->iImproper[i][1]=atoi(buff3);
-      simulCond->iImproper[i][2]=atoi(buff4);
-      simulCond->iImproper[i][3]=atoi(buff5);
-      
-      buff2=strtok(NULL," \n\t");
+      buff2=strtok(buff1," \n\t");
       buff3=strtok(NULL," \n\t");
       buff4=strtok(NULL," \n\t");
       buff5=strtok(NULL," \n\t");
-      i++;
+      
+      while(buff2!=NULL && buff3!=NULL && buff4!=NULL)
+      {
+	
+	simulCond->iImproper[i][0]=atoi(buff2);
+	simulCond->iImproper[i][1]=atoi(buff3);
+	simulCond->iImproper[i][2]=atoi(buff4);
+	simulCond->iImproper[i][3]=atoi(buff5);
+	
+	buff2=strtok(NULL," \n\t");
+	buff3=strtok(NULL," \n\t");
+	buff4=strtok(NULL," \n\t");
+	buff5=strtok(NULL," \n\t");
+	i++;
+      }
+      if((buff2!=NULL && buff3==NULL)||(buff2!=NULL && buff4==NULL)||(buff2!=NULL && buff5==NULL))
+	error(26);
+      if(i==ff->nImproper)
+	break;
     }
-    if((buff2!=NULL && buff3==NULL)||(buff2!=NULL && buff4==NULL)||(buff2!=NULL && buff5==NULL))
-      error(26);
-    if(i==ff->nImproper)
-      break;
   }
   
   fclose(psfFile);
@@ -1531,35 +1567,45 @@ void read_CONF(INPUTS *inp, ATOM *atom)
     fclose(confFile);
 }
 
-void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
+void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
 {
   int i,j,k,ia,ib,ic,id,ii,jj;
   
-  ff->parmBond=(double**)malloc(ff->nBond*sizeof(*(ff->parmBond)));
-  for(i=0;i<ff->nBond;i++)
-    ff->parmBond[i]=(double*)malloc(2*sizeof(**(ff->parmBond)));
+  if(ff->nBond>0)
+  {
+    ff->parmBond=(double**)malloc(ff->nBond*sizeof(*(ff->parmBond)));
+    for(i=0;i<ff->nBond;i++)
+      ff->parmBond[i]=(double*)malloc(2*sizeof(**(ff->parmBond)));
+  }
   
-  ff->parmAngle=(double**)malloc(ff->nAngle*sizeof(*(ff->parmAngle)));
-  for(i=0;i<ff->nAngle;i++)
-    ff->parmAngle[i]=(double*)malloc(3*sizeof(**(ff->parmAngle)));
+  if(ff->nAngle>0)
+  {
+    ff->parmAngle=(double**)malloc(ff->nAngle*sizeof(*(ff->parmAngle)));
+    for(i=0;i<ff->nAngle;i++)
+      ff->parmAngle[i]=(double*)malloc(3*sizeof(**(ff->parmAngle)));
+  }
   
-  simulCond->diheType=(int*)malloc(ff->nDihedral*sizeof(*(simulCond->diheType)));
-  for(i=0;i<ff->nDihedral;i++)
-    simulCond->diheType[i]=0;
+  if(ff->nDihedral>0)
+  {
+    simulCond->diheType=(int*)malloc(ff->nDihedral*sizeof(*(simulCond->diheType)));
+    for(i=0;i<ff->nDihedral;i++)
+      simulCond->diheType[i]=0;
+    
+    ff->parmDihe=(double**)malloc(ff->nDihedral*sizeof(*(ff->parmDihe)));
+    
+    ff->nParmDihe=(int*)malloc(ff->nDihedral*sizeof(*(ff->nParmDihe)));
+  }
   
-  ff->parmDihe=(double**)malloc(ff->nDihedral*sizeof(*(ff->parmDihe)));
-//   for(i=0;i<ff->nDihedral;i++)
-//     ff->parmDihe[i]=(double*)malloc(3*sizeof(**(ff->parmDihe)));
-  
-  ff->nParmDihe=(int*)malloc(ff->nDihedral*sizeof(*(ff->nParmDihe)));
-  
-  simulCond->imprType=(int*)malloc(ff->nImproper*sizeof(*(simulCond->imprType)));
-  for(i=0;i<ff->nImproper;i++)
-    simulCond->imprType[i]=0;
-  
-  ff->parmImpr=(double**)malloc(ff->nImproper*sizeof(*(ff->parmImpr)));
-  for(i=0;i<ff->nImproper;i++)
-    ff->parmImpr[i]=(double*)malloc(3*sizeof(**(ff->parmImpr)));
+  if(ff->nImproper>0)
+  {
+    simulCond->imprType=(int*)malloc(ff->nImproper*sizeof(*(simulCond->imprType)));
+    for(i=0;i<ff->nImproper;i++)
+      simulCond->imprType[i]=0;
+    
+    ff->parmImpr=(double**)malloc(ff->nImproper*sizeof(*(ff->parmImpr)));
+    for(i=0;i<ff->nImproper;i++)
+      ff->parmImpr[i]=(double*)malloc(3*sizeof(**(ff->parmImpr)));
+  }
   
   ff->parmVdw=(double**)malloc(atom->natom*sizeof(*(ff->parmVdw)));
   for(i=0;i<atom->natom;i++)
@@ -1599,13 +1645,16 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAM
       ff->nUb++;
   }
   
-  ff->parmUb=(double**)malloc(ff->nUb*sizeof(*(ff->parmUb)));
-  for(i=0;i<ff->nUb;i++)
-    ff->parmUb[i]=(double*)malloc(2*sizeof(**(ff->parmUb)));
-  
-  simulCond->iUb=(int**)malloc(ff->nUb*sizeof(*(simulCond->iUb)));
-  for(i=0;i<ff->nUb;i++)
-    simulCond->iUb[i]=(int*)malloc(2*sizeof(**(simulCond->iUb)));
+  if(ff->nUb>0)
+  {
+    ff->parmUb=(double**)malloc(ff->nUb*sizeof(*(ff->parmUb)));
+    for(i=0;i<ff->nUb;i++)
+      ff->parmUb[i]=(double*)malloc(2*sizeof(**(ff->parmUb)));
+    
+    simulCond->iUb=(int**)malloc(ff->nUb*sizeof(*(simulCond->iUb)));
+    for(i=0;i<ff->nUb;i++)
+      simulCond->iUb[i]=(int*)malloc(2*sizeof(**(simulCond->iUb)));
+  }
   
   j=0;
   for(i=0;i<ff->nAngle;i++)
@@ -1724,6 +1773,131 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAM
     }
   }
   
+}
+
+void write_FORF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
+{
+  FILE *forfFile;
+  int i,j,k,l,ia,ib,ic,id,nd;
+  double kf,r0,ncos;
+  
+  forfFile=fopen("FORF","w");
+  
+  fprintf(forfFile,"ATOMS %d\n",atom->natom);
+  
+  for(i=0;i<atom->natom;i++)
+  {
+    k=atom->atomType[i];
+    fprintf(forfFile,"%s %lf %lf 1\n",inp->types[k],atom->m[i],ff->q[i]);
+  }
+  
+  fprintf(forfFile,"BONDS %d\n",ff->nBond+ff->nUb);
+  
+  for(i=0;i<ff->nBond;i++)
+  {
+    ia=simulCond->iBond[i][0];
+    ib=simulCond->iBond[i][1];
+    kf=ff->parmBond[i][0]/kcaltoiu;
+    r0=ff->parmBond[i][1];
+    
+    fprintf(forfFile,"harm %d %d %lf %lf\n",ia,ib,kf,r0);
+       
+  }
+  
+  for(i=0;i<ff->nUb;i++)
+  {
+    ia=simulCond->iUb[i][0];
+    ib=simulCond->iUb[i][1];
+    kf=ff->parmUb[i][0]/kcaltoiu;
+    r0=ff->parmUb[i][1];
+    
+    fprintf(forfFile,"harm %d %d %lf %lf\n",ia,ib,kf,r0);
+       
+  }
+  
+  fprintf(forfFile,"ANGLES %d\n",ff->nAngle);
+  
+  for(i=0;i<ff->nAngle;i++)
+  {
+    ia=simulCond->iAngle[i][0];
+    ib=simulCond->iAngle[i][1];
+    ic=simulCond->iAngle[i][2];
+    kf=ff->parmAngle[i][0]/kcaltoiu;
+    r0=ff->parmAngle[i][1]*180./PI;
+    
+    fprintf(forfFile,"harm %d %d %d %lf %lf\n",ia,ib,ic,kf,r0);
+  }
+  
+  nd=0;
+  for(i=0;i<ff->nDihedral;i++)
+  {
+    for(j=0;j<ff->nParmDihe[i];j++)
+    {
+      nd++;
+    }
+  }
+  
+  fprintf(forfFile,"DIHEDRALS %d\n",nd+ff->nImproper);
+  
+  for(i=0;i<ff->nDihedral;i++)
+  {
+    ia=simulCond->iDihedral[i][0];
+    ib=simulCond->iDihedral[i][1];
+    ic=simulCond->iDihedral[i][2];
+    id=simulCond->iDihedral[i][3];
+    
+    if(simulCond->diheType[i]==1)
+    {
+      for(j=0;j<ff->nParmDihe[i];j++)
+      {
+	k=3*j;
+	kf=ff->parmDihe[i][k]/kcaltoiu;
+	ncos=ff->parmDihe[i][k+1];
+	r0=ff->parmDihe[i][k+2]*180./PI;
+	
+	fprintf(forfFile,"cos %d %d %d %d %lf %lf %lf\n",ia,ib,ic,id,kf,r0,ncos);
+      }
+    }
+    else if(simulCond->diheType[i]==2)
+    {
+      kf=ff->parmDihe[i][0]/kcaltoiu;
+      r0=ff->parmDihe[i][1]*180./PI;
+      
+      fprintf(forfFile,"harm %d %d %d %d %lf %lf\n",ia,ib,ic,id,kf,r0);
+    }
+    
+  }
+  
+  for(i=0;i<ff->nImproper;i++)
+  {
+    ia=simulCond->iImproper[i][0];
+    ib=simulCond->iImproper[i][1];
+    ic=simulCond->iImproper[i][2];
+    id=simulCond->iImproper[i][3];
+    
+    kf=ff->parmDihe[i][0]/kcaltoiu;
+    r0=ff->parmDihe[i][1]*180./PI;
+    
+    fprintf(forfFile,"harm %d %d %d %d %lf %lf\n",ia,ib,ic,id,kf,r0);
+  }
+  
+  nd=atom->natom*(atom->natom+1)/2;
+  fprintf(forfFile,"VDW %d\n",nd);
+  
+  for(i=0;i<atom->natom;i++)
+  {
+    for(j=i;j<atom->natom;j++)
+    {
+      k=atom->atomType[i];
+      l=atom->atomType[j];
+      kf=ff->parmVdw[i][0]*ff->parmVdw[j][0]/kcaltoiu;
+      r0=ff->parmVdw[i][1]+ff->parmVdw[j][1];
+      
+      fprintf(forfFile,"%s %s %lf %lf 1\n",inp->types[k],inp->types[l],kf,r0);
+    }
+  }
+  
+  fclose(forfFile);
 }
 
 void free_temp_array(INPUTS *inp)

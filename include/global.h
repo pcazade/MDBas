@@ -73,7 +73,7 @@ typedef struct
 {
   int lqpoly,nb14,step,nsteps,degfree,firstener;
   int printo,printtr,integrator,ens,enstime;
-  int keyrand,seed;
+  int keyrand,seed,keytraj,keyener,keyforf,keymd;
   int *excludeNum,*excludeAtom;
   int **iBond,**iUb,**iAngle,**iDihedral,**iImproper;
   int elecType,vdwType,periodicType,mdNature,numDeriv;

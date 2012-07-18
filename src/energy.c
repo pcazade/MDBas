@@ -15,15 +15,11 @@ void energy(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCon
 /* Performing elctrostatic interactions */  
 //   if(lqpoly)
 //       update_charges(ff);
-  if(simulCond->step==0&&simulCond->firstener==1)
+  if(simulCond->firstener==1)
   {
     printf("Building exclusion and Verlet lists.\n");
     exclude_list(simulCond,atom,ff);
     verlet_list(simulCond,atom,ff);
-    
-    /*atom->fx=(double*)malloc(atom->natom*sizeof(*(atom->fx)));
-    atom->fy=(double*)malloc(atom->natom*sizeof(*(atom->fy)));
-    atom->fz=(double*)malloc(atom->natom*sizeof(*(atom->fz)));*/
     
     simulCond->firstener=0;
     
