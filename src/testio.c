@@ -113,6 +113,7 @@ void read_PSF2(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULP
   }
   
   inp->nTypes=k+1;
+  inp->typesNum=(int*)realloc(inp->typesNum,*sizeof(inp->nTypes*(inp->typesNum)));
   
   while(fgets(buff1,1024,psfFile)!=NULL)
   {
@@ -276,6 +277,51 @@ void read_PSF2(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULP
   fclose(psfFile);
 }
 
+void read_TOP2(INPUTS *inp)
+{
+  
+  FILE *topFile=NULL;
+  char buff1[1024]="", *buff2=NULL, *buff3=NULL, *buff4=NULL ;
+  int i,j,k;
+  
+  topFile=fopen("TOP","r");
+
+  if (topFile==NULL)
+  {
+    error(10);
+  }
+  
+  inp->types=(char**)malloc(inp->nTypes*sizeof(*(inp->types)));
+  
+  while(fgets(buff1,1024,topFile)!=NULL)
+  {
+    
+    buff2=strtok(buff1," \n\t");
+    
+    if (buff2 != NULL)
+    {	
+      if (!strcmp(buff2,"MASS"))
+      {
+	buff3=strtok(NULL," \n\t");
+	buff4=strtok(NULL," \n\t");
+	k=atoi(buff3)-1;
+	for(i=0;i<inp->nTypes;i++)
+	{
+	  if(k==inp->typesNum[i])
+	  {
+	    strcpy(inp->types[i],buff4);
+	    break;
+	  }
+	}
+      }
+    }
+  }
+  
+  fclose(topFile);
+    
+}
+
+
 void read_PAR2(INPUTS *inp)
 {
   
@@ -387,131 +433,85 @@ void read_PAR2(INPUTS *inp)
       }
     }
     
-      n=(inp->nTypes*(inp->nTypes+1))/2;
-      
 //       Bond types arrays allocation
-      
-      inp->bondTypes=(int*)malloc(n*sizeof(*(inp->bondTypes)));
-      
-      for(i=0;i<n;i++)
-	inp->bondTypes[i]=-1;
-      
-      inp->bondTypesParm=(double**)malloc(inp->nBondTypes*sizeof(*(inp->bondTypesParm)));
-      
-      for(i=0;i<inp->nBondTypes;i++)
-	inp->bondTypesParm[i]=(double*)malloc(2*sizeof(**(inp->bondTypesParm)));
-      
+    
+    inp->bondTypes=(int**)malloc(inp->nBondTypes*sizeof(*(inp->bondTypes)));
+    inp->bondTypesParm=(double**)malloc(inp->nBondTypes*sizeof(*(inp->bondTypesParm)));
+    
+    for(i=0;i<inp->nBondTypes;i++)
+    {
+      inp->bondTypes[i]=(int*)malloc(2*sizeof(**(inp->bondTypes)));
+      inp->bondTypesParm[i]=(double*)malloc(2*sizeof(**(inp->bondTypesParm)));
+    }
+    
 //       Angle types arrays allocation
-      
-      inp->angTypes=(int**)malloc(inp->nTypes*sizeof(*(inp->angTypes)));
-      inp->angTypesParm=(double**)malloc(inp->nAngTypes*sizeof(*(inp->angTypesParm)));
-      
-      for(i=0;i<inp->nTypes;i++)
-	inp->angTypes[i]=(int*)malloc(n*sizeof(**(inp->angTypes)));
-      
-      for(i=0;i<inp->nTypes;i++)
-      {
-	for(j=0;j<n;j++)
-	  inp->angTypes[i][j]=-1;
-      }
-      
-      for(i=0;i<inp->nAngTypes;i++)
-	inp->angTypesParm[i]=(double*)malloc(2*sizeof(**(inp->angTypesParm)));
-      
+    
+    inp->angTypes=(int**)malloc(inp->nAngTypes*sizeof(*(inp->angTypes)));
+    inp->angTypesParm=(double**)malloc(inp->nAngTypes*sizeof(*(inp->angTypesParm)));
+    
+    for(i=0;i<inp->nAngTypes;i++)
+    {
+      inp->angTypes[i]=(int*)malloc(3*sizeof(**(inp->angTypes)));
+      inp->angTypesParm[i]=(double*)malloc(2*sizeof(**(inp->angTypesParm)));
+    }
+    
 //       Uray-Bradley types arrays allocation
-      
-      inp->ubTypes=(int**)malloc(inp->nTypes*sizeof(*(inp->ubTypes)));
-      for(i=0;i<inp->nTypes;i++)
-	inp->ubTypes[i]=(int*)malloc(n*sizeof(**(inp->ubTypes)));
-      
-      for(i=0;i<inp->nTypes;i++)
-      {
-	for(j=0;j<n;j++)
-	inp->ubTypes[i][j]=-1;
-      }
-      
-      inp->ubTypesParm=(double**)malloc(inp->nUbTypes*sizeof(*(inp->ubTypesParm)));
-      
-      for(i=0;i<inp->nUbTypes;i++)
-	inp->ubTypesParm[i]=(double*)malloc(2*sizeof(**(inp->ubTypesParm)));
-      
+    
+    inp->ubTypes=(int**)malloc(inp->nUbTypes*sizeof(*(inp->ubTypes)));
+    inp->ubTypesParm=(double**)malloc(inp->nUbTypes*sizeof(*(inp->ubTypesParm)));
+        
+    for(i=0;i<inp->nUbTypes;i++)
+    {
+      inp->ubTypes[i]=(int*)malloc(3*sizeof(**(inp->ubTypes)));
+      inp->ubTypesParm[i]=(double*)malloc(2*sizeof(**(inp->ubTypesParm)));
+    }
+    
 //       Dihedral types arrays allocation
-      
-      n=((inp->nTypes+1)*(inp->nTypes+2))/2;
-      inp->diheTypes=(int***)malloc(inp->nTypes*sizeof(*(inp->diheTypes)));
-      inp->diheTypesParm=(double**)malloc(inp->nDiheTypes*sizeof(*(inp->diheTypesParm)));
-      inp->nDiheTypesParm=(int*)malloc(inp->nDiheTypes*sizeof(*(inp->nDiheTypesParm)));
-      
-      for(i=0;i<inp->nTypes;i++)
-	inp->diheTypes[i]=(int**)malloc(inp->nTypes*sizeof(**(inp->diheTypes)));
-      
-      for(i=0;i<inp->nTypes;i++)
-      {
-	for(j=0;j<inp->nTypes;j++)
-	  inp->diheTypes[i][j]=(int*)malloc(n*sizeof(***(inp->diheTypes)));
-      }
-      
-      for(i=0;i<inp->nTypes;i++)
-      {
-	for(j=0;j<inp->nTypes;j++)
-	{
-	  for(k=0;k<n;k++)
-	    inp->diheTypes[i][j][k]=-1; 
-	}
-      }
-      
-      for(i=0;i<inp->nDiheTypes;i++)
-	inp->diheTypesParm[i]=(double*)malloc(3*sizeof(**(inp->diheTypesParm)));
-      
-      for(i=0;i<inp->nDiheTypes;i++)
-	inp->nDiheTypesParm[i]=1;
-      
+    
+    inp->diheTypes=(int**)malloc(inp->nDiheTypes*sizeof(*(inp->diheTypes)));
+    inp->diheTypesParm=(double**)malloc(inp->nDiheTypes*sizeof(*(inp->diheTypesParm)));
+    inp->nDiheTypesParm=(int*)malloc(inp->nDiheTypes*sizeof(*(inp->nDiheTypesParm)));
+        
+    for(i=0;i<inp->nDiheTypes;i++)
+    {
+      inp->diheTypes[i]=(int*)malloc(4*sizeof(**(inp->diheTypes)));
+      inp->diheTypesParm[i]=(double*)malloc(3*sizeof(**(inp->diheTypesParm)));
+    }
+    
+    for(i=0;i<inp->nDiheTypes;i++)
+      inp->nDiheTypesParm[i]=1;
+    
 //       Improper types arrays allocation
-      
-      inp->imprTypes=(int***)malloc((inp->nTypes+1)*sizeof(*(inp->imprTypes)));
-      inp->imprTypesParm=(double**)malloc(inp->nImprTypes*sizeof(*(inp->imprTypesParm)));
-      
-      for(i=0;i<inp->nTypes+1;i++)
-	  inp->imprTypes[i]=(int**)malloc((inp->nTypes+1)*sizeof(**(inp->imprTypes)));
-      
-      for(i=0;i<inp->nTypes+1;i++)
-      {
-	for(j=0;j<inp->nTypes+1;j++)
-	  inp->imprTypes[i][j]=(int*)malloc(n*sizeof(***(inp->imprTypes)));
-      }
-      
-      for(i=0;i<inp->nTypes+1;i++)
-      {
-	for(j=0;j<inp->nTypes+1;j++)
-	{
-	  for(k=0;k<n;k++)
-	    inp->imprTypes[i][j][k]=-1; 
-	}
-      }
-
-      for(i=0;i<inp->nImprTypes;i++)
-	inp->imprTypesParm[i]=(double*)malloc(3*sizeof(**(inp->imprTypesParm)));
-      
+    
+    inp->imprTypes=(int**)malloc(inp->nImprTypes*sizeof(*(inp->imprTypes)));
+    inp->imprTypesParm=(double**)malloc(inp->nImprTypes*sizeof(*(inp->imprTypesParm)));
+    
+    for(i=0;i<inp->nImprTypes;i++)
+    {
+      inp->imprTypes[i]=(int*)malloc(4*sizeof(**(inp->imprTypes)));
+      inp->imprTypesParm[i]=(double*)malloc(3*sizeof(**(inp->imprTypesParm)));
+    }
+    
 //       Non-bonding types arrays allocation
+    
+    inp->nonBondedTypesParm=(double**)malloc(inp->nTypes*sizeof(*(inp->nonBondedTypesParm)));
+    
+    for(i=0;i<inp->nTypes;i++)
+      inp->nonBondedTypesParm[i]=(double*)malloc(6*sizeof(**(inp->nonBondedTypesParm)));
+    
+    for(i=0;i<inp->nTypes;i++)
+    {
+      for(j=0;j<6;j++)
+	inp->nonBondedTypesParm[i][j]=-100.;
+    }
       
-      inp->nonBondedTypesParm=(double**)malloc(inp->nTypes*sizeof(*(inp->nonBondedTypesParm)));
-      
-      for(i=0;i<inp->nTypes;i++)
-	inp->nonBondedTypesParm[i]=(double*)malloc(6*sizeof(**(inp->nonBondedTypesParm)));
-      
-      for(i=0;i<inp->nTypes;i++)
-      {
-	for(j=0;j<6;j++)
-	  inp->nonBondedTypesParm[i][j]=-100.;
-      }
-      
-      rewind(parFile);
-      
-      int ia,ib,ic,id,ii,jj,kk;
-      k=0;
-      
-      while(fgets(buff1,1024,parFile)!=NULL)
-      {
+    rewind(parFile);
+    
+    int ia,ib,ic,id,ii,jj,kk;
+    k=0;
+    
+    while(fgets(buff1,1024,parFile)!=NULL)
+    {
       
       buff2=strtok(buff1," \n\t");
       
@@ -522,6 +522,7 @@ void read_PAR2(INPUTS *inp)
       {
 	k=1;
 	i=0;
+	inp->nBondTypes=0;
 	continue;
       }
       else if(!strcmp(buff2,"ANGLES"))
@@ -529,24 +530,29 @@ void read_PAR2(INPUTS *inp)
 	k=2;
 	i=0;
 	j=0;
+	inp->nAngTypes=0;
+	inp->nUbTypes=0;
 	continue;
       }
       else if(!strcmp(buff2,"DIHEDRALS"))
       {
 	k=3;
 	i=0;
+	inp->nDiheTypes=0;
 	continue;
       }
       else if(!strcmp(buff2,"IMPROPER"))
       {
 	k=4;
 	i=0;
+	inp->nImprTypes=0;
 	continue;
       }
       else if(!strcmp(buff2,"NONBONDED"))
       {
 	k=5;
 	i=0;
+	inp->nNonBonded=0;
 	continue;
       }
       else if(!strcmp(buff2,"NBFIX"))
@@ -581,38 +587,48 @@ void read_PAR2(INPUTS *inp)
 	  buff4=strtok(NULL," \n\t");
 	  buff5=strtok(NULL," \n\t");
 	  
-	  inp->bondTypesParm[i][0]=atof(buff4);
-	  inp->bondTypesParm[i][1]=atof(buff5);
-	  
+	  ia=-1;
+	  ib=-1;
 	  for(l=0;l<inp->nTypes;l++)
 	  {
 	    if(!strcmp(buff2,inp->types[l]))
 	    {
-// 	      inp->bondTypes[i][0]=l+1;
-	      ia=l+1;
+	      ia=l;
 	      break;
 	    }
 	  }
+	  
+	  if(ia==-1)
+	    continue;
+	  
 	  for(l=0;l<inp->nTypes;l++)
 	  {
 	    if(!strcmp(buff3,inp->types[l]))
 	    {
-// 	      inp->bondTypes[i][1]=l+1;
-	      ib=l+1;
+	      ib=l;
 	      break;
 	    }
 	  }
+	  
+	  if(ib==-1)
+	    continue;
+	  
 	  if(ib<ia)
 	  {
-	    ii=ib+(ia*(ia-1))/2;
-	    inp->bondTypes[ii-1]=i;
+	    inp->bondTypes[i][0]=ib;
+	    inp->bondTypes[i][1]=ia;
 	  }
 	  else
 	  {
-	    ii=ia+(ib*(ib-1))/2;
-	    inp->bondTypes[ii-1]=i;
+	    inp->bondTypes[i][0]=ia;
+	    inp->bondTypes[i][1]=ib;
 	  }
+	  
+	  inp->bondTypesParm[i][0]=atof(buff4);
+	  inp->bondTypesParm[i][1]=atof(buff5);
+	  
 	  i++;
+	  inp->nBondTypes=i;
 	}
       }
       else if(k==2)      
@@ -623,48 +639,61 @@ void read_PAR2(INPUTS *inp)
 	  buff4=strtok(NULL," \n\t");
 	  buff5=strtok(NULL," \n\t");
 	  buff6=strtok(NULL," \n\t");
-	
-	  inp->angTypesParm[i][0]=atof(buff5);
-	  inp->angTypesParm[i][1]=atof(buff6);
 	  
+	  ia=-1;
+	  ib=-1;
+	  ic=-1;
 	  for(l=0;l<inp->nTypes;l++)
 	  {
 	    if(!strcmp(buff2,inp->types[l]))
 	    {
-// 	      inp->angTypes[i][0]=l+1;
-	      ia=l+1;
-	      break;
-	    }
-	  }
-	  for(l=0;l<inp->nTypes;l++)
-	  {
-	    if(!strcmp(buff3,inp->types[l]))
-	    {
-// 	      inp->angTypes[i][1]=l+1;
-	      ib=l+1;
-	      break;
-	    }
-	  }
-	  for(l=0;l<inp->nTypes;l++)
-	  {
-	    if(!strcmp(buff4,inp->types[l]))
-	    {
-// 	      inp->angTypes[i][2]=l+1;
-	      ic=l+1;
+	      ia=l;
 	      break;
 	    }
 	  }
 	  
+	  if(ia==-1)
+	    continue;
+	  
+	  for(l=0;l<inp->nTypes;l++)
+	  {
+	    if(!strcmp(buff3,inp->types[l]))
+	    {
+	      ib=l;
+	      break;
+	    }
+	  }
+	  
+	  if(ib==-1)
+	    continue;
+	  
+	  for(l=0;l<inp->nTypes;l++)
+	  {
+	    if(!strcmp(buff4,inp->types[l]))
+	    {
+	      ic=l;
+	      break;
+	    }
+	  }
+	  
+	  if(ic==-1)
+	    continue;
+	  
 	  if(ic<ia)
 	  {
-	    ii=ic+(ia*(ia-1))/2;
-	    inp->angTypes[ib-1][ii-1]=i;
+	    inp->angTypes[i][0]=ic;
+	    inp->angTypes[i][1]=ib;
+	    inp->angTypes[i][2]=ia;
 	  }
 	  else
 	  {
-	    ii=ia+(ic*(ic-1))/2;
-	    inp->angTypes[ib-1][ii-1]=i;
+	    inp->angTypes[i][0]=ia;
+	    inp->angTypes[i][1]=ib;
+	    inp->angTypes[i][2]=ic;
 	  }
+	  
+	  inp->angTypesParm[i][0]=atof(buff5);
+	  inp->angTypesParm[i][1]=atof(buff6);
 	  
 	  buff2=strtok(NULL," \n\t");
 	  if((buff2!=NULL)&&(buff2[0]!='!'))
@@ -674,116 +703,141 @@ void read_PAR2(INPUTS *inp)
 	    inp->ubTypesParm[j][0]=atof(buff2);
 	    inp->ubTypesParm[j][1]=atof(buff3);
 	    
-// 	    inp->ubTypes[j][0]=inp->angTypes[i][0];
-// 	    inp->ubTypes[j][1]=inp->angTypes[i][2];
 	    if(ic<ia)
 	    {
-	      jj=ic+(ia*(ia-1))/2;
-	      inp->ubTypes[ib-1][jj-1]=j;
+	      inp->ubTypes[j][0]=ic;
+	      inp->ubTypes[j][1]=ib;
+	      inp->ubTypes[j][2]=ia;
 	    }
 	    else
 	    {
-	      jj=ia+(ic*(ic-1))/2;
-	      inp->ubTypes[ib-1][jj-1]=j;
+	      inp->ubTypes[j][0]=ia;
+	      inp->ubTypes[j][1]=ib;
+	      inp->ubTypes[j][2]=ic;
 	    }
 	    j++;
+	    inp->nUbTypes=j;
 	  }
 	  i++;
+	  inp->nAngTypes=i;
 	}
       }
       else if(k==3)      
       {
-	int itype,index;
+	int itype,index,i0,i1,i2,i3;
 	
 	if((buff2!=NULL)&&(buff2[0]!='!'))
 	{
 	  buff3=strtok(NULL," \n\t");
 	  buff4=strtok(NULL," \n\t");
 	  buff5=strtok(NULL," \n\t");
-	
-	  for(l=0;l<inp->nTypes;l++)
+	  
+	  ia=-1;
+	  ib=-1;
+	  ic=-1;
+	  id=-1;
+	  
+	  if(!strcmp(buff2,"X"))
 	  {
-	    if(!strcmp(buff2,"X"))
+	    ia=inp->nTypes;
+	    break;
+	  }
+	  else
+	  {
+	    for(l=0;l<inp->nTypes;l++)
 	    {
-// 	      inp->diheTypes[i][0]=nTypes+1;
-              ia=inp->nTypes+1;
-	      break;
-	    }
-	    else if(!strcmp(buff2,inp->types[l]))
-	    {
-// 	      inp->diheTypes[i][0]=l+1;
-	      ia=l+1;
-	      break;
+	      if(!strcmp(buff2,inp->types[l]))
+	      {
+		ia=l;
+		break;
+	      }
 	    }
 	  }
+	  
+	  if(ia==-1)
+	    continue;
+	  
 	  for(l=0;l<inp->nTypes;l++)
 	  {
 	    if(!strcmp(buff3,inp->types[l]))
 	    {
-// 	      inp->diheTypes[i][1]=l+1;
-	      ib=l+1;
-	      break;
-	    }
-	  }
-	  for(l=0;l<inp->nTypes;l++)
-	  {
-	    if(!strcmp(buff4,inp->types[l]))
-	    {
-// 	      inp->diheTypes[i][2]=l+1;
-	      ic=l+1;
-	      break;
-	    }
-	  }
-	  for(l=0;l<inp->nTypes;l++)
-	  {
-	    if(!strcmp(buff5,"X"))
-	    {
-// 	      inp->diheTypes[i][3]=nTypes+1;
-	      id=inp->nTypes+1;
-	      break;
-	    }
-	    else if(!strcmp(buff5,inp->types[l]))
-	    {
-// 	      inp->diheTypes[i][3]=l+1;
-	      id=l+1;
+	      ib=l;
 	      break;
 	    }
 	  }
 	  
+	  if(ib==-1)
+	    continue;
+	  
+	  for(l=0;l<inp->nTypes;l++)
+	  {
+	    if(!strcmp(buff4,inp->types[l]))
+	    {
+	      ic=l;
+	      break;
+	    }
+	  }
+	  
+	  if(ic==-1)
+	    continue;
+	  
+	  if(!strcmp(buff5,"X"))
+	  {
+	    id=inp->nTypes;
+	    break;
+	  }
+	  else 
+	  {
+	    for(l=0;l<inp->nTypes;l++)
+	    {
+	      if(!strcmp(buff5,inp->types[l]))
+	      {
+		id=l;
+		break;
+	      }
+	    }
+	  }
+	  
+	  if(id==-1)
+	    continue;
+	  
 	  if(id<ia)
 	  {
-	    ii=id+(ia*(ia-1))/2;
-	    if(inp->diheTypes[ic-1][ib-1][ii-1]==-1)
-	    {
-	      inp->diheTypes[ic-1][ib-1][ii-1]=i;
-	      itype=i;
-	    }
-	    else
-	      itype=inp->diheTypes[ic-1][ib-1][ii-1];
+	    i0=id;
+	    i1=ic;
+	    i2=ib;
+	    i3=ia;
 	  }
 	  else if(ia<id)
 	  {
-	    ii=ia+(id*(id-1))/2;
-	    if(inp->diheTypes[ib-1][ic-1][ii-1]==-1)
-	    {
-	      inp->diheTypes[ib-1][ic-1][ii-1]=i;
-	      itype=i;
-	    }
-	    else
-	      itype=inp->diheTypes[ib-1][ic-1][ii-1];
-	      
+	    i0=ia;
+	    i1=ib;
+	    i2=ic;
+	    i3=id;
+	  }
+	  else if(ic<ib)
+	  {
+	    i0=id;
+	    i1=ic;
+	    i2=ib;
+	    i3=ia;
 	  }
 	  else
 	  {
-	    ii=ia+(id*(id-1))/2;
-	    if(inp->diheTypes[ib-1][ic-1][ii-1]==-1)
+	    i0=ia;
+	    i1=ib;
+	    i2=ic;
+	    i3=id;
+	  }
+	  
+	  itype=i;
+	  for(l=0;l<inp->nDiheTypes;l++)
+	  {
+	    if( (i0==inp->diheTypes[l][0]) && (i1==inp->diheTypes[l][1]) && (i2==inp->diheTypes[l][2]) && (i3==inp->diheTypes[l][3]) )
 	    {
-	      inp->diheTypes[ib-1][ic-1][ii-1]=i;
-	      inp->diheTypes[ic-1][ib-1][ii-1]=i;
-	      itype=i;
+	      itype=l;
+	      break;
 	    }
-	    else
-	      itype=inp->diheTypes[ib-1][ic-1][ii-1];
 	  }
 	  
 	  buff3=strtok(NULL," \n\t");
@@ -792,11 +846,17 @@ void read_PAR2(INPUTS *inp)
 	  
 	  if(itype==i)
 	  {
+	    inp->diheTypes[l][0]=i0;
+	    inp->diheTypes[l][1]=i1;
+	    inp->diheTypes[l][2]=i2;
+	    inp->diheTypes[l][3]=i3;
+	    
 	    inp->diheTypesParm[i][0]=atof(buff3);
 	    inp->diheTypesParm[i][1]=atof(buff4);
 	    inp->diheTypesParm[i][2]=atof(buff5);
 	    
 	    i++;
+	    inp->nDiheTypes=i;
 	  }
 	  else
 	  {
@@ -820,83 +880,114 @@ void read_PAR2(INPUTS *inp)
 	  buff3=strtok(NULL," \n\t");
 	  buff4=strtok(NULL," \n\t");
 	  buff5=strtok(NULL," \n\t");
-	
-	  for(l=0;l<inp->nTypes;l++)
-	  {
-	    if(!strcmp(buff2,"X"))
-	    {
-// 	      inp->imprTypes[i][0]=nTypes+1;
-	      ia=inp->nTypes+1;
-	      break;
-	    }
-	    else if(!strcmp(buff2,inp->types[l]))
-	    {
-// 	      inp->imprTypes[i][0]=l+1;
-	      ia=l+1;
-	      break;
-	    }
-	  }
-	  for(l=0;l<inp->nTypes;l++)
-	  {
-	    if(!strcmp(buff3,"X"))
-	    {
-// 	      inp->imprTypes[i][1]=nTypes+1;
-	      ib=inp->nTypes+1;
-	      break;
-	    }
-	    else if(!strcmp(buff3,inp->types[l]))
-	    {
-// 	      inp->imprTypes[i][1]=l+1;
-	      ib=l+1;
-	      break;
-	    }
-	  }
-	  for(l=0;l<inp->nTypes;l++)
-	  {
-	    if(!strcmp(buff4,"X"))
-	    {
-// 	      inp->imprTypes[i][2]=nTypes+1;
-	      ic=inp->nTypes+1;
-	      break;
-	    }
-	    else if(!strcmp(buff4,inp->types[l]))
-	    {
-// 	      inp->imprTypes[i][2]=l+1;
-	      ic=l+1;
-	      break;
-	    }
-	  }
-	  for(l=0;l<inp->nTypes;l++)
-	  {
-	    if(!strcmp(buff5,"X"))
-	    {
-// 	      inp->imprTypes[i][3]=nTypes+1;
-	      id=inp->nTypes+1;
-	      break;
-	    }
-	    else if(!strcmp(buff5,inp->types[l]))
-	    {
-// 	      inp->imprTypes[i][3]=l+1;
-	      id=l+1;
-	      break;
-	    }
-	  }
 	  
-	  if(id<ia)
+	  if(!strcmp(buff2,"X"))
 	  {
-	    ii=id+(ia*(ia-1))/2;
-	    inp->imprTypes[ic-1][ib-1][ii-1]=i;
-	  }
-	  else if(ia<id)
-	  {
-	    ii=ia+(id*(id-1))/2;
-	    inp->imprTypes[ib-1][ic-1][ii-1]=i;
+	    ia=inp->nTypes;
+	    break;
 	  }
 	  else
 	  {
-	    ii=ia+(id*(id-1))/2;
-	    inp->imprTypes[ib-1][ic-1][ii-1]=i;
-	    inp->imprTypes[ic-1][ib-1][ii-1]=i;
+	    for(l=0;l<inp->nTypes;l++)
+	    {
+	      if(!strcmp(buff2,inp->types[l]))
+	      {
+		ia=l;
+		break;
+	      }
+	    }
+	  }
+	  
+	  if(ia==-1)
+	    continue;
+	  
+	  if(!strcmp(buff3,"X"))
+	  {
+	    ib=inp->nTypes;
+	    break;
+	  }
+	  else
+	  {
+	    for(l=0;l<inp->nTypes;l++)
+	    {
+	      if(!strcmp(buff3,inp->types[l]))
+	      {
+		ib=l;
+		break;
+	      }
+	    }
+	  }
+	  
+	  if(ib==-1)
+	    continue;
+	  
+	  if(!strcmp(buff4,"X"))
+	  {
+	    ic=inp->nTypes;
+	    break;
+	  }
+	  else
+	  {
+	    for(l=0;l<inp->nTypes;l++)
+	    {
+	      if(!strcmp(buff4,inp->types[l]))
+	      {
+		ic=l;
+		break;
+	      }
+	    }
+	  }
+	  
+	  if(ic==-1)
+	    continue;
+	  
+	  if(!strcmp(buff5,"X"))
+	  {
+	    id=inp->nTypes;
+	    break;
+	  }
+	  else 
+	  {
+	    for(l=0;l<inp->nTypes;l++)
+	    {
+	      if(!strcmp(buff5,inp->types[l]))
+	      {
+		id=l;
+		break;
+	      }
+	    }
+	  }
+	  
+	  if(id==-1)
+	    continue;
+	  
+	  if(id<ia)
+	  {
+	    inp->imprTypes[i][0]=id;
+	    inp->imprTypes[i][1]=ic;
+	    inp->imprTypes[i][2]=ib;
+	    inp->imprTypes[i][3]=ia;
+	  }
+	  else if(ia<id)
+	  {
+	    inp->imprTypes[i][0]=ia;
+	    inp->imprTypes[i][1]=ib;
+	    inp->imprTypes[i][2]=ic;
+	    inp->imprTypes[i][3]=id;
+	  }
+	  else if(ic<ib)
+	  {
+	    inp->imprTypes[i][0]=id;
+	    inp->imprTypes[i][1]=ic;
+	    inp->imprTypes[i][2]=ib;
+	    inp->imprTypes[i][3]=ia;
+	  }
+	  else
+	  {
+	    inp->imprTypes[i][0]=ia;
+	    inp->imprTypes[i][1]=ib;
+	    inp->imprTypes[i][2]=ic;
+	    inp->imprTypes[i][3]=id;
 	  }
 	  
 	  buff3=strtok(NULL," \n\t");
@@ -908,6 +999,7 @@ void read_PAR2(INPUTS *inp)
 	  inp->imprTypesParm[i][2]=atof(buff5);
 	  
 	  i++;
+	  inp->nImproper=i;
 	}
       }
       else if(k==5)      
@@ -918,8 +1010,7 @@ void read_PAR2(INPUTS *inp)
 	  buff4=strtok(NULL," \n\t");
 	  buff5=strtok(NULL," \n\t");
 	  
-// 	  puts(buff1);
-	  
+	  ii=-1
 	  for(l=0;l<inp->nTypes;l++)
 	  {
 	    if(!strcmp(buff2,inp->types[l]))
@@ -928,6 +1019,9 @@ void read_PAR2(INPUTS *inp)
 	      break;
 	    }
 	  }
+	  
+	  if(ii==-1)
+	    continue;
 	
 	  inp->nonBondedTypesParm[ii][0]=atof(buff3);
 	  inp->nonBondedTypesParm[ii][1]=atof(buff4);
@@ -944,176 +1038,10 @@ void read_PAR2(INPUTS *inp)
 	    inp->nonBondedTypesParm[ii][5]=atof(buff5);
 	  }
 	  i++;
+	  inp->nNonBonded=i;
 	}
       }
     }
     fclose(parFile);
-    
-    n=((inp->nTypes+1)*(inp->nTypes+2))/2;
-        
-    for(i=0;i<inp->nTypes;i++)
-    {
-      for(j=0;j<inp->nTypes;j++)
-      {
-	for(k=0;k<inp->nTypes;k++)
-	{
-	  for(l=0;l<inp->nTypes;l++)
-	  {
-	    if(l<k)
-	    {
-	      ii=(l+1)+((k+1)*k)/2;
-	      
-	      if(inp->diheTypes[j][i][ii-1]==-1)
-	      {
-		if(inp->diheTypes[i][j][n-1]!=-1)
-		  inp->diheTypes[j][i][ii-1]=inp->diheTypes[i][j][n-1];
-		else if(inp->diheTypes[j][i][n-1]!=-1)
-		  inp->diheTypes[j][i][ii-1]=inp->diheTypes[j][i][n-1];
-	      }
-	    }
-	    else if(k<l)
-	    {
-	      ii=(k+1)+((l+1)*l)/2;
-	      
-	      if(inp->diheTypes[i][j][ii-1]==-1)
-	      {
-		if(inp->diheTypes[i][j][n-1]!=-1)
-		  inp->diheTypes[i][j][ii-1]=inp->diheTypes[i][j][n-1];
-		else if(inp->diheTypes[j][i][n-1]!=-1)
-		  inp->diheTypes[i][j][ii-1]=inp->diheTypes[j][i][n-1];
-	      }
-	    }
-	    else
-	    {
-	      ii=(k+1)+((l+1)*l)/2;
-	      
-	      if(inp->diheTypes[i][j][ii-1]==-1)
-	      {
-		if(inp->diheTypes[i][j][n-1]!=-1)
-		{
-		  inp->diheTypes[i][j][ii-1]=inp->diheTypes[i][j][n-1];
-		  inp->diheTypes[j][i][ii-1]=inp->diheTypes[i][j][n-1];
-		}
-		else if(inp->diheTypes[j][i][n-1]!=-1)
-		{
-		  inp->diheTypes[i][j][ii-1]=inp->diheTypes[j][i][n-1];
-		  inp->diheTypes[j][i][ii-1]=inp->diheTypes[j][i][n-1];
-		}
-	      }
-	    }
-	  }
-	}
-      }
-    }
-    
-    
-    for(i=0;i<inp->nTypes;i++)
-    {
-      for(j=0;j<inp->nTypes;j++)
-      {
-	for(k=0;k<inp->nTypes;k++)
-	{
-	  for(l=0;l<inp->nTypes;l++)
-	  {
-	    if(l<k)
-	    {
-	      ii=(l+1)+((k+1)*k)/2;
-	      
-	      if(inp->imprTypes[j][i][ii-1]==-1)
-	      {
-		jj=(l+1)+((inp->nTypes+1)*inp->nTypes)/2;
-		kk=(k+1)+((inp->nTypes+1)*inp->nTypes)/2;
-		
-		if(inp->imprTypes[j][i][jj-1]!=-1)
-		  inp->imprTypes[j][i][ii-1]=inp->imprTypes[j][i][jj-1];
-		else if(inp->imprTypes[i][j][kk-1]!=-1)
-		  inp->imprTypes[j][i][ii-1]=inp->imprTypes[i][j][kk-1];
-		else if(inp->imprTypes[i][j][n-1]!=-1)
-		  inp->imprTypes[j][i][ii-1]=inp->imprTypes[i][j][n-1];
-		else if(inp->imprTypes[j][i][n-1]!=-1)
-		  inp->imprTypes[j][i][ii-1]=inp->imprTypes[j][i][n-1];
-		else if(inp->imprTypes[inp->nTypes][inp->nTypes][ii-1]!=-1)
-		  inp->imprTypes[j][i][ii-1]=inp->imprTypes[inp->nTypes][inp->nTypes][ii-1];
-		else if(inp->imprTypes[j][inp->nTypes][jj-1]!=-1)
-		  inp->imprTypes[j][i][ii-1]=inp->imprTypes[j][inp->nTypes][jj-1];
-		else if(inp->imprTypes[i][inp->nTypes][kk-1]!=-1)
-		  inp->imprTypes[j][i][ii-1]=inp->imprTypes[i][inp->nTypes][kk-1];
-	      }
-	    }
-	    else if(k<l)
-	    {
-	      ii=(k+1)+((l+1)*l)/2;
-	      
-	      if(inp->imprTypes[i][j][ii-1]==-1)
-	      {
-		jj=(l+1)+((inp->nTypes+1)*inp->nTypes)/2;
-		kk=(k+1)+((inp->nTypes+1)*inp->nTypes)/2;
-		
-		if(inp->imprTypes[j][i][jj-1]!=-1)
-		  inp->imprTypes[i][j][ii-1]=inp->imprTypes[j][i][jj-1];
-		else if(inp->imprTypes[i][j][kk-1]!=-1)
-		  inp->imprTypes[i][j][ii-1]=inp->imprTypes[i][j][kk-1];
-		else if(inp->imprTypes[i][j][n-1]!=-1)
-		  inp->imprTypes[i][j][ii-1]=inp->imprTypes[i][j][n-1];
-		else if(inp->imprTypes[j][i][n-1]!=-1)
-		  inp->imprTypes[i][j][ii-1]=inp->imprTypes[j][i][n-1];
-		else if(inp->imprTypes[inp->nTypes][inp->nTypes][ii-1]!=-1)
-		  inp->imprTypes[i][j][ii-1]=inp->imprTypes[inp->nTypes][inp->nTypes][ii-1];
-		else if(inp->imprTypes[j][inp->nTypes][jj-1]!=-1)
-		  inp->imprTypes[i][j][ii-1]=inp->imprTypes[j][inp->nTypes][jj-1];
-		else if(inp->imprTypes[i][inp->nTypes][kk-1]!=-1)
-		  inp->imprTypes[i][j][ii-1]=inp->imprTypes[i][inp->nTypes][kk-1];
-	      }
-	     
-	    }
-	    else
-	    {
-	      ii=(k+1)+((l+1)*l)/2;
-	      if(inp->imprTypes[i][j][ii-1]==-1)
-	      {
-		jj=(l+1)+((inp->nTypes+1)*inp->nTypes)/2;
-		kk=(k+1)+((inp->nTypes+1)*inp->nTypes)/2;
-		
-		if(inp->imprTypes[j][i][jj-1]!=-1)
-		{
-		  inp->imprTypes[i][j][ii-1]=inp->imprTypes[j][i][jj-1];
-		  inp->imprTypes[j][i][ii-1]=inp->imprTypes[j][i][jj-1];
-		}
-		else if(inp->imprTypes[i][j][kk-1]!=-1)
-		{
-		  inp->imprTypes[i][j][ii-1]=inp->imprTypes[i][j][kk-1];
-		  inp->imprTypes[j][i][ii-1]=inp->imprTypes[i][j][kk-1];
-		}
-		else if(inp->imprTypes[i][j][n-1]!=-1)
-		{
-		  inp->imprTypes[i][j][ii-1]=inp->imprTypes[i][j][n-1];
-		  inp->imprTypes[j][i][ii-1]=inp->imprTypes[i][j][n-1];
-		}
-		else if(inp->imprTypes[j][i][n-1]!=-1)
-		{
-		  inp->imprTypes[i][j][ii-1]=inp->imprTypes[j][i][n-1];
-		  inp->imprTypes[j][i][ii-1]=inp->imprTypes[j][i][n-1];
-		}
-		else if(inp->imprTypes[inp->nTypes][inp->nTypes][ii-1]!=-1)
-		{
-		  inp->imprTypes[i][j][ii-1]=inp->imprTypes[inp->nTypes][inp->nTypes][ii-1];
-		  inp->imprTypes[j][i][ii-1]=inp->imprTypes[inp->nTypes][inp->nTypes][ii-1];
-		}
-		else if(inp->imprTypes[j][inp->nTypes][jj-1]!=-1)
-		{
-		  inp->imprTypes[i][j][ii-1]=inp->imprTypes[j][inp->nTypes][jj-1];
-		  inp->imprTypes[j][i][ii-1]=inp->imprTypes[j][inp->nTypes][jj-1];
-		}
-		else if(inp->imprTypes[i][inp->nTypes][kk-1]!=-1)
-		{
-		  inp->imprTypes[i][j][ii-1]=inp->imprTypes[i][inp->nTypes][kk-1];
-		  inp->imprTypes[j][i][ii-1]=inp->imprTypes[i][inp->nTypes][kk-1];
-		}
-	      }
-	    }
-	  }
-	}
-      }
-    }
 }
 
