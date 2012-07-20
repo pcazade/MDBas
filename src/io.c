@@ -1095,6 +1095,8 @@ void read_PAR(INPUTS *inp)
       {
 	int itype,index,i0,i1,i2,i3;
 	
+        printf("what the fuck.\n");
+
 	if((buff2!=NULL)&&(buff2[0]!='!'))
 	{
 	  buff3=strtok(NULL," \n\t");
@@ -1109,7 +1111,6 @@ void read_PAR(INPUTS *inp)
 	  if(!strcmp(buff2,"X"))
 	  {
 	    ia=inp->nTypes;
-	    break;
 	  }
 	  else
 	  {
@@ -1153,7 +1154,6 @@ void read_PAR(INPUTS *inp)
 	  if(!strcmp(buff5,"X"))
 	  {
 	    id=inp->nTypes;
-	    break;
 	  }
 	  else 
 	  {
@@ -1226,6 +1226,8 @@ void read_PAR(INPUTS *inp)
 	    
 	    i++;
 	    inp->nDiheTypes=i;
+            printf("OK %d %d\n",itype,i);
+
 	  }
 	  else
 	  {
@@ -1238,7 +1240,8 @@ void read_PAR(INPUTS *inp)
 	    inp->diheTypesParm[itype][index]=atof(buff3);
 	    inp->diheTypesParm[itype][index+1]=atof(buff4);
 	    inp->diheTypesParm[itype][index+2]=atof(buff5);
-	    
+
+	    printf("Fuck %d %d\n",itype,i);
 	  }
 	}
       }
@@ -1258,7 +1261,6 @@ void read_PAR(INPUTS *inp)
 	  if(!strcmp(buff2,"X"))
 	  {
 	    ia=inp->nTypes;
-	    break;
 	  }
 	  else
 	  {
@@ -1278,7 +1280,6 @@ void read_PAR(INPUTS *inp)
 	  if(!strcmp(buff3,"X"))
 	  {
 	    ib=inp->nTypes;
-	    break;
 	  }
 	  else
 	  {
@@ -1298,7 +1299,6 @@ void read_PAR(INPUTS *inp)
 	  if(!strcmp(buff4,"X"))
 	  {
 	    ic=inp->nTypes;
-	    break;
 	  }
 	  else
 	  {
@@ -1318,7 +1318,6 @@ void read_PAR(INPUTS *inp)
 	  if(!strcmp(buff5,"X"))
 	  {
 	    id=inp->nTypes;
-	    break;
 	  }
 	  else 
 	  {
@@ -1511,6 +1510,12 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
   {
     printf("%d %d %d\n",atom->natom,i,atom->atomType[i]);
   }
+
+  printf("Let's check what there is in inp->types\n");
+  for(i=0;i<inp->nTypes;i++)
+  {
+     printf("%d %d %d %s\n",inp->nTypes,i,inp->typesNum[i],inp->types[i]);
+  }
   
   printf("Let's check what there is in iBond\n");
   for(i=0;i<ff->nBond;i++)
@@ -1518,18 +1523,38 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
      printf("%d %d %d\n",ff->nBond,simulCond->iBond[i][0],simulCond->iBond[i][1]);
   }
   
-  printf("Let's check what there is in BondTypes\n");
+  printf("Let's check what there is in bondTypes\n");
   for(j=0;j<inp->nBondTypes;j++)
   {
      printf("%d %d %d\n",inp->nBondTypes,inp->bondTypes[j][0],inp->bondTypes[j][1]);
   }
-  
-  printf("Let's check what there is in inp->types\n");
-  for(i=0;i<inp->nTypes;i++)
+
+  printf("Let's check what there is in iAngle\n");
+  for(i=0;i<ff->nAngle;i++)
   {
-     printf("%d %d %d %s\n",inp->nTypes,i,inp->typesNum[i],inp->types[i]);
+     printf("%d %d %d %d\n",ff->nAngle,simulCond->iAngle[i][0],simulCond->iAngle[i][1],simulCond->iAngle[i][2]);
   }
   
+  printf("Let's check what there is in angTypes\n");
+  for(j=0;j<inp->nAngTypes;j++)
+  {
+     printf("%d %d %d %d\n",inp->nAngTypes,inp->angTypes[j][0],inp->angTypes[j][1],inp->angTypes[j][2]);
+  }
+
+  printf("Let's check what there is in iDihedral\n");
+  for(i=0;i<ff->nDihedral;i++)
+  {
+     printf("%d %d %d %d %d\n",ff->nDihedral,simulCond->iDihedral[i][0],simulCond->iDihedral[i][1],simulCond->iDihedral[i][2],simulCond->iDihedral[i][3]);
+  }
+  
+  printf("Let's check what there is in diheTypes\n");
+  for(j=0;j<inp->nDiheTypes;j++)
+  {
+     printf("%d %d %d %d %d\n",inp->nDiheTypes,inp->diheTypes[j][0],inp->diheTypes[j][1],inp->diheTypes[j][2],inp->diheTypes[j][3]);
+  }
+
+  printf("Now if the loop.\n");  
+
   for(i=0;i<ff->nBond;i++)
   {
     ia=atom->atomType[simulCond->iBond[i][0]];
@@ -1571,7 +1596,7 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
     ib=atom->atomType[simulCond->iAngle[i][1]];
     ic=atom->atomType[simulCond->iAngle[i][2]];
     
-    if(ib<ia)
+    if(ic<ia)
     {
       i0=ic;
       i1=ib;
@@ -1584,6 +1609,8 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
       i2=ic;
     }
     
+    //printf("%d %d %d %d %d %d\n",ia,ib,ic,i0,i1,i2);
+
     itype=-1;
     for(j=0;j<inp->nAngTypes;j++)
     {
@@ -1628,7 +1655,7 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
     ib=atom->atomType[simulCond->iAngle[i][1]];
     ic=atom->atomType[simulCond->iAngle[i][2]];
     
-    if(ib<ia)
+    if(ic<ia)
     {
       i0=ic;
       i1=ib;
@@ -1697,6 +1724,8 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
       i3=id;
     }
     
+    printf("%d %d %d %d %d %d %d %d\n",ia,ib,ic,id,i0,i1,i2,i3);
+
     itype=-1;
     for(j=0;j<inp->nDiheTypes;j++)
     {
@@ -1734,6 +1763,8 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
       }
     }
     
+    printf("%d %d %d %d %d %d %d %d\n",ia,ib,ic,id,i0,i1,i2,i3);
+
     if(itype==-1)
       error(73);
     
