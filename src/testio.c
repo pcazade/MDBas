@@ -1,7 +1,374 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
+#include <string.h>
+#include <ctype.h>
 #include "global.h"
 #include "io.h"
+#include "memory.h"
+#include "utils.h"
+
+void read_SIMU2(SIMULPARAMS *simulCond,FORCEFIELD *ff)
+{
+  char buff1[1024]="", *buff2=NULL, *buff3=NULL;
+  FILE *simuFile;
+  
+  simuFile=fopen("SIMU","r");
+  
+  if (simuFile==NULL)
+  {
+    error(60);
+  }
+  
+  simulCond->keymd=1;
+  
+  simulCond->step=0;
+  simulCond->firstener=1;
+  
+  simulCond->mdNature=1;
+  simulCond->timeStep=0.001;
+  simulCond->nsteps=0;
+ 
+  simulCond->cutoff=12.0;
+  simulCond->cuton=10.0;
+  simulCond->delr=2.0;
+
+  simulCond->temp=300.0;
+  
+  simulCond->keyrand=0;
+  simulCond->seed=12345;
+  
+  simulCond->elecType=1;
+  simulCond->vdwType=1;
+  simulCond->nb14=0;
+  ff->scal14=1.0;
+  simulCond->numDeriv=0;
+
+  simulCond->integrator=1;
+  simulCond->ens=0;
+  simulCond->enstime=1.0;
+  
+  simulCond->keyener=0;
+  simulCond->keytraj=0;
+  simulCond->keyforf=0;
+  simulCond->printo=1000;
+  simulCond->printtr=1000;
+  
+  simulCond->periodicType=0;
+  simulCond->periodicBox[0][0]=0.;
+  simulCond->periodicBox[1][1]=0.;
+  simulCond->periodicBox[2][2]=0.;
+  
+  while(fgets(buff1,1024,simuFile)!=NULL)
+  {
+    buff2=strtok(buff1," \n\t");
+    
+    if(buff2==NULL)
+      continue;
+    
+    nocase(buff2);
+    puts(buff2);
+    
+    if(!strcmp(buff2,"mdbas"))
+      simulCond->mdNature=0;
+    
+    else if(!strcmp(buff2,"charmm"))
+      simulCond->mdNature=1;
+    
+    else if(!strcmp(buff2,"namd"))
+      simulCond->mdNature=2;
+    
+    else if(!strcmp(buff2,"nomd"))
+      simulCond->keymd=0;
+    
+    else if(!strcmp(buff2,"timestep"))
+    {
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	error(63);
+      
+      simulCond->timeStep=atof(buff3);
+    }
+    else if(!strcmp(buff2,"nsteps"))
+    {
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	error(63);
+      
+      simulCond->nsteps=atoi(buff3);
+    }
+    else if(!strcmp(buff2,"cutoff"))
+    {
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	error(63);
+      
+      simulCond->cutoff=atof(buff3);
+    }
+    else if(!strcmp(buff2,"cuton"))
+    {
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	error(63);
+      
+      simulCond->cuton=atof(buff3);
+    }
+    else if(!strcmp(buff2,"delr"))
+    {
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	error(63);
+      
+      simulCond->delr=atof(buff3);
+    }
+    else if(!strcmp(buff2,"elec"))
+    {
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	error(63);
+      
+      nocase(buff3);
+      
+      if(!strcmp(buff3,"noelec"))
+	simulCond->elecType=0;
+      else if(!strcmp(buff3,"full"))
+	simulCond->elecType=1;
+      else if(!strcmp(buff3,"shift1"))
+	simulCond->elecType=2;
+      else if(!strcmp(buff3,"shift2"))
+	simulCond->elecType=3;
+      else if(!strcmp(buff3,"switch"))
+	simulCond->elecType=4;
+      else
+	error(62);
+    }
+    else if(!strcmp(buff2,"vdw"))
+    {
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	error(63);
+      
+      nocase(buff3);
+      
+      if(!strcmp(buff3,"novdw"))
+	simulCond->vdwType=0;
+      else if(!strcmp(buff3,"full"))
+	simulCond->vdwType=1;
+      else if(!strcmp(buff3,"switch"))
+	simulCond->vdwType=2;
+      else
+	error(62);
+    }
+    else if(!strcmp(buff2,"nb14"))
+    {
+      simulCond->nb14=1;
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	error(63);
+      
+      ff->scal14=atof(buff3);
+    }
+    else if(!strcmp(buff2,"numforce"))
+    {
+      simulCond->numDeriv=1;
+    }
+    else if(!strcmp(buff2,"integrator"))
+    {
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	error(63);
+      
+      nocase(buff3);
+      
+      if(!strcmp(buff3,"leapfrog"))
+	simulCond->integrator=0;
+      else if(!strcmp(buff3,"velocity"))
+	simulCond->integrator=1;
+      else
+	error(62);
+    }
+    else if(!strcmp(buff2,"ensemble"))
+    {
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	error(63);
+      
+      nocase(buff3);
+      
+      if(!strcmp(buff3,"nve"))
+	simulCond->ens=0;
+      else if(!strcmp(buff3,"nvt"))
+	simulCond->ens=1;
+      else if(!strcmp(buff3,"npt"))
+	simulCond->ens=3;
+      else
+	error(62);
+      
+      if(simulCond->ens>0)
+      {
+	buff3=strtok(NULL," \n\t");
+	if(buff3==NULL)
+	error(63);
+	
+	simulCond->enstime=atof(buff3);
+      }
+    }
+    else if(!strcmp(buff2,"temperature"))
+    {
+      buff3=strtok(NULL," \n\t");
+	if(buff3==NULL)
+	error(63);
+      
+      simulCond->temp=atof(buff3);
+    }
+    else if(!strcmp(buff2,"seed"))
+    {
+      buff3=strtok(NULL," \n\t");
+	if(buff3==NULL)
+	error(63);
+	
+	simulCond->keyrand=1;
+	simulCond->seed=atoi(buff3);
+    }
+    else if(!strcmp(buff2,"ener"))
+    {
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	error(63);
+      
+      simulCond->keyener=1;
+      simulCond->printo=atoi(buff3);
+    }
+    else if(!strcmp(buff2,"traj"))
+    {
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	error(63);
+      
+      simulCond->keytraj=1;
+      simulCond->printtr=atoi(buff3);
+    }
+    else if(!strcmp(buff2,"write"))
+    {
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	error(63);
+      
+      nocase(buff3);
+      
+      if(!strcmp(buff3,"field"))
+	simulCond->keyforf=1;
+      else
+	error(62);
+    }
+    else if(!strcmp(buff2,"pbc"))
+    {
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	error(63);
+      
+      simulCond->periodicType=atoi(buff3);
+      
+      if(fgets(buff1,1024,simuFile)!=NULL)
+      {
+	
+	buff2=strtok(buff1," \n\t");
+	if(buff2==NULL)
+	  error(63);
+	else if(isdigit(buff2[0])==0)
+	  error(62);
+	
+	simulCond->periodicBox[0][0]=atof(buff2);
+	
+	buff2=strtok(buff1," \n\t");
+	if(buff2==NULL)
+	  error(63);
+	else if(isdigit(buff2[0])==0)
+	  error(62);
+	
+	simulCond->periodicBox[0][1]=atof(buff2);
+	
+	buff2=strtok(buff1," \n\t");
+	if(buff2==NULL)
+	  error(63);
+	else if(isdigit(buff2[0])==0)
+	  error(62);
+	
+	simulCond->periodicBox[0][2]=atof(buff2);
+	
+      }
+      else
+	error(63);
+	
+      if(fgets(buff1,1024,simuFile)!=NULL)
+      {
+	
+	buff2=strtok(buff1," \n\t");
+	if(buff2==NULL)
+	  error(63);
+	else if(isdigit(buff2[0])==0)
+	  error(62);
+	
+	simulCond->periodicBox[1][0]=atof(buff2);
+	
+	buff2=strtok(buff1," \n\t");
+	if(buff2==NULL)
+	  error(63);
+	else if(isdigit(buff2[0])==0)
+	  error(62);
+	
+	simulCond->periodicBox[1][1]=atof(buff2);
+	
+	buff2=strtok(buff1," \n\t");
+	if(buff2==NULL)
+	  error(63);
+	else if(isdigit(buff2[0])==0)
+	  error(62);
+	
+	simulCond->periodicBox[1][2]=atof(buff2);
+	
+      }
+      else
+	error(63);
+      
+      if(fgets(buff1,1024,simuFile)!=NULL)
+      {
+	
+	buff2=strtok(buff1," \n\t");
+	if(buff2==NULL)
+	  error(63);
+	else if(isdigit(buff2[0])==0)
+	  error(62);
+	
+	simulCond->periodicBox[2][0]=atof(buff2);
+	
+	buff2=strtok(buff1," \n\t");
+	if(buff2==NULL)
+	  error(63);
+	else if(isdigit(buff2[0])==0)
+	  error(62);
+	
+	simulCond->periodicBox[2][1]=atof(buff2);
+	
+	buff2=strtok(buff1," \n\t");
+	if(buff2==NULL)
+	  error(63);
+	else if(isdigit(buff2[0])==0)
+	  error(62);
+	
+	simulCond->periodicBox[2][2]=atof(buff2);
+	
+      }
+      else
+	error(63);
+    }
+    else if(!strcmp(buff2,"end"))
+      break;
+    else
+      error(61);
+  }
+  
+}
 
 void read_PSF2(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
 {
@@ -320,7 +687,6 @@ void read_TOP2(INPUTS *inp)
   fclose(topFile);
     
 }
-
 
 void read_PAR2(INPUTS *inp)
 {
@@ -1045,6 +1411,49 @@ void read_PAR2(INPUTS *inp)
     fclose(parFile);
 }
 
+void read_CONF2(INPUTS *inp, ATOM *atom)
+{
+  
+  char buff1[1024]="", *buff2=NULL;
+
+    FILE *confFile=NULL;
+    char ren[5],atl[5],sen[5];
+    int i,atn,res,ire,natomCheck;
+    double wei,xx,yy,zz;
+    
+    confFile=fopen("CONF","r");
+
+    if (confFile==NULL)
+    {
+      error(40);
+    }
+    
+    while(fgets(buff1,1024,confFile)!=NULL)
+    {
+
+      if(buff1[0]!='*')
+	break;    
+  
+    }
+    
+    buff2=strtok(buff1," \n\t");
+    natomCheck=atof(buff2);
+    
+    if(natomCheck!=atom->natom)
+      error(41);
+    
+    for(i=0;i<natomCheck;i++)
+    {
+      fscanf(confFile,"%d %d %s %s %lf %lf %lf %s %d %lf",&atn,&ire,ren,atl,&xx,&yy,&zz,sen,&res,&wei);
+      atom->x[i]=xx;
+      atom->y[i]=yy;
+      atom->z[i]=zz;
+
+    }
+    
+    fclose(confFile);
+}
+
 void setup2(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
 {
   int i,j,k,ia,ib,ic,id,i0,i1,i2,i3,ii,jj,itype;
@@ -1322,25 +1731,182 @@ void setup2(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
   
   for(i=0;i<ff->nImproper;i++)
   {
-    ia=atom->atomType[simulCond->iImproper[i][0]-1]+1;
-    ib=atom->atomType[simulCond->iImproper[i][1]-1];
-    ic=atom->atomType[simulCond->iImproper[i][2]-1];
-    id=atom->atomType[simulCond->iImproper[i][3]-1]+1;
+    ia=atom->atomType[simulCond->iImproper[i][0]];
+    ib=atom->atomType[simulCond->iImproper[i][1]];
+    ic=atom->atomType[simulCond->iImproper[i][2]];
+    id=atom->atomType[simulCond->iImproper[i][3]];
     
     if(id<ia)
     {
-      ii=id+(ia*(ia-1))/2;
-      ff->parmImpr[i][0]=inp->imprTypesParm[inp->imprTypes[ic][ib][ii-1]][0]*kcaltoiu;
-      ff->parmImpr[i][1]=inp->imprTypesParm[inp->imprTypes[ic][ib][ii-1]][1];
-      ff->parmImpr[i][2]=inp->imprTypesParm[inp->imprTypes[ic][ib][ii-1]][2]*PI/180.;
+      i0=id;
+      i1=ic;
+      i2=ib;
+      i3=ia;
+    }
+    else if(ia<id)
+    {
+      i0=ia;
+      i1=ib;
+      i2=ic;
+      i3=id;
+    }
+    else if(ic<ib)
+    {
+      i0=id;
+      i1=ic;
+      i2=ib;
+      i3=ia;
     }
     else
     {
-      ii=ia+(id*(id-1))/2;
-      ff->parmImpr[i][0]=inp->imprTypesParm[inp->imprTypes[ib][ic][ii-1]][0]*kcaltoiu;
-      ff->parmImpr[i][1]=inp->imprTypesParm[inp->imprTypes[ib][ic][ii-1]][1];
-      ff->parmImpr[i][2]=inp->imprTypesParm[inp->imprTypes[ib][ic][ii-1]][2]*PI/180.;
+      i0=ia;
+      i1=ib;
+      i2=ic;
+      i3=id;
     }
+    
+    itype=-1;
+    for(j=0;j<inp->nImprTypes;j++)
+    {
+      if( (i0==inp->imprTypes[j][0]) && (i1==inp->imprTypes[j][1]) && (i2==inp->imprTypes[j][2]) && (i3==inp->imprTypes[j][3]) )
+      {
+	itype=j;
+	break;
+      }
+    }
+    
+    if(itype==-1)
+    {
+      
+      i0=id;
+      i1=ic;
+      i2=ib;
+      i3=inp->nTypes;
+	
+      for(j=0;j<inp->nImprTypes;j++)
+      {
+	if( (i0==inp->imprTypes[j][0]) && (i1==inp->imprTypes[j][1]) && (i2==inp->imprTypes[j][2]) && (i3==inp->imprTypes[j][3]) )
+	{
+	  itype=j;
+	  break;
+	}
+      }
+    }
+    
+   if(itype==-1)
+    {
+      
+      i0=ia;
+      i1=ib;
+      i2=ic;
+      i3=inp->nTypes;
+	
+      for(j=0;j<inp->nImprTypes;j++)
+      {
+	if( (i0==inp->imprTypes[j][0]) && (i1==inp->imprTypes[j][1]) && (i2==inp->imprTypes[j][2]) && (i3==inp->imprTypes[j][3]) )
+	{
+	  itype=j;
+	  break;
+	}
+      }
+    }
+    
+    if(itype==-1)
+    {
+      if(ic<ib)
+      {
+	i0=inp->nTypes;
+	i1=ic;
+	i2=ib;
+	i3=inp->nTypes;
+      }
+      else
+      {
+	i0=inp->nTypes;
+	i1=ib;
+	i2=ic;
+	i3=inp->nTypes;
+      }
+    
+      for(j=0;j<inp->nImprTypes;j++)
+      {
+	if( (i0==inp->imprTypes[j][0]) && (i1==inp->imprTypes[j][1]) && (i2==inp->imprTypes[j][2]) && (i3==inp->imprTypes[j][3]) )
+	{
+	  itype=j;
+	  break;
+	}
+      }
+    }
+    
+    if(itype==-1)
+    {
+      if(id<ia)
+      {
+	i0=id;
+	i1=inp->nTypes;
+	i2=inp->nTypes;
+	i3=ia;
+      }
+      else
+      {
+	i0=ia;
+	i1=inp->nTypes;
+	i2=inp->nTypes;
+	i3=id;
+      }
+    
+      for(j=0;j<inp->nImprTypes;j++)
+      {
+	if( (i0==inp->imprTypes[j][0]) && (i1==inp->imprTypes[j][1]) && (i2==inp->imprTypes[j][2]) && (i3==inp->imprTypes[j][3]) )
+	{
+	  itype=j;
+	  break;
+	}
+      }
+    }
+    
+    if(itype==-1)
+    {
+      
+      i0=id;
+      i1=ic;
+      i2=inp->nTypes;
+      i3=inp->nTypes;
+	
+      for(j=0;j<inp->nImprTypes;j++)
+      {
+	if( (i0==inp->imprTypes[j][0]) && (i1==inp->imprTypes[j][1]) && (i2==inp->imprTypes[j][2]) && (i3==inp->imprTypes[j][3]) )
+	{
+	  itype=j;
+	  break;
+	}
+      }
+    }
+    
+   if(itype==-1)
+    {
+      
+      i0=ia;
+      i1=ib;
+      i2=inp->nTypes;
+      i3=inp->nTypes;
+	
+      for(j=0;j<inp->nImprTypes;j++)
+      {
+	if( (i0==inp->imprTypes[j][0]) && (i1==inp->imprTypes[j][1]) && (i2==inp->imprTypes[j][2]) && (i3==inp->imprTypes[j][3]) )
+	{
+	  itype=j;
+	  break;
+	}
+      }
+    }
+    
+    if(itype==-1)
+      error(74);
+    
+    ff->parmImpr[i][0]=inp->imprTypesParm[itype][0]*kcaltoiu;
+    ff->parmImpr[i][1]=inp->imprTypesParm[itype][1];
+    ff->parmImpr[i][2]=inp->imprTypesParm[itype][2]*PI/180.;
     
     if(ff->parmImpr[i][1]<0.5)
     {
@@ -1373,4 +1939,261 @@ void setup2(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
     }
   }
   
+}
+
+void write_FORF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
+{
+  FILE *forfFile;
+  int i,j,k,l,ia,ib,ic,id,nd;
+  double kf,r0,ncos;
+  
+  forfFile=fopen("FORF","w");
+  
+  fprintf(forfFile,"ATOMS %d\n",atom->natom);
+  
+  for(i=0;i<atom->natom;i++)
+  {
+    k=atom->atomType[i];
+    fprintf(forfFile,"%s %lf %lf 1\n",inp->types[k],atom->m[i],ff->q[i]);
+  }
+  
+  fprintf(forfFile,"BONDS %d\n",ff->nBond+ff->nUb);
+  
+  for(i=0;i<ff->nBond;i++)
+  {
+    ia=simulCond->iBond[i][0];
+    ib=simulCond->iBond[i][1];
+    kf=ff->parmBond[i][0]/kcaltoiu;
+    r0=ff->parmBond[i][1];
+    
+    fprintf(forfFile,"harm %d %d %lf %lf\n",ia,ib,kf,r0);
+       
+  }
+  
+  for(i=0;i<ff->nUb;i++)
+  {
+    ia=simulCond->iUb[i][0];
+    ib=simulCond->iUb[i][1];
+    kf=ff->parmUb[i][0]/kcaltoiu;
+    r0=ff->parmUb[i][1];
+    
+    fprintf(forfFile,"harm %d %d %lf %lf\n",ia,ib,kf,r0);
+       
+  }
+  
+  fprintf(forfFile,"ANGLES %d\n",ff->nAngle);
+  
+  for(i=0;i<ff->nAngle;i++)
+  {
+    ia=simulCond->iAngle[i][0];
+    ib=simulCond->iAngle[i][1];
+    ic=simulCond->iAngle[i][2];
+    kf=ff->parmAngle[i][0]/kcaltoiu;
+    r0=ff->parmAngle[i][1]*180./PI;
+    
+    fprintf(forfFile,"harm %d %d %d %lf %lf\n",ia,ib,ic,kf,r0);
+  }
+  
+  nd=0;
+  for(i=0;i<ff->nDihedral;i++)
+  {
+    for(j=0;j<ff->nParmDihe[i];j++)
+    {
+      nd++;
+    }
+  }
+  
+  fprintf(forfFile,"DIHEDRALS %d\n",nd+ff->nImproper);
+  
+  for(i=0;i<ff->nDihedral;i++)
+  {
+    ia=simulCond->iDihedral[i][0];
+    ib=simulCond->iDihedral[i][1];
+    ic=simulCond->iDihedral[i][2];
+    id=simulCond->iDihedral[i][3];
+    
+    if(simulCond->diheType[i]==1)
+    {
+      for(j=0;j<ff->nParmDihe[i];j++)
+      {
+	k=3*j;
+	kf=ff->parmDihe[i][k]/kcaltoiu;
+	ncos=ff->parmDihe[i][k+1];
+	r0=ff->parmDihe[i][k+2]*180./PI;
+	
+	fprintf(forfFile,"cos %d %d %d %d %lf %lf %lf\n",ia,ib,ic,id,kf,r0,ncos);
+      }
+    }
+    else if(simulCond->diheType[i]==2)
+    {
+      kf=ff->parmDihe[i][0]/kcaltoiu;
+      r0=ff->parmDihe[i][1]*180./PI;
+      
+      fprintf(forfFile,"harm %d %d %d %d %lf %lf\n",ia,ib,ic,id,kf,r0);
+    }
+    
+  }
+  
+  for(i=0;i<ff->nImproper;i++)
+  {
+    ia=simulCond->iImproper[i][0];
+    ib=simulCond->iImproper[i][1];
+    ic=simulCond->iImproper[i][2];
+    id=simulCond->iImproper[i][3];
+    
+    kf=ff->parmDihe[i][0]/kcaltoiu;
+    r0=ff->parmDihe[i][1]*180./PI;
+    
+    fprintf(forfFile,"harm %d %d %d %d %lf %lf\n",ia,ib,ic,id,kf,r0);
+  }
+  
+  nd=atom->natom*(atom->natom+1)/2;
+  fprintf(forfFile,"VDW %d\n",nd);
+  
+  for(i=0;i<atom->natom;i++)
+  {
+    for(j=i;j<atom->natom;j++)
+    {
+      k=atom->atomType[i];
+      l=atom->atomType[j];
+      kf=ff->parmVdw[i][0]*ff->parmVdw[j][0]/kcaltoiu;
+      r0=ff->parmVdw[i][1]+ff->parmVdw[j][1];
+      
+      fprintf(forfFile,"%s %s %lf %lf 1\n",inp->types[k],inp->types[l],kf,r0);
+    }
+  }
+  
+  fclose(forfFile);
+}
+
+void free_temp_array(INPUTS *inp)
+{
+  free(inp->typesNum);
+  free(inp->bondTypes);
+  free(inp->nDiheTypesParm);
+  free_2D(inp->nTypes,inp->angTypes,inp->ubTypes,NULL);
+  free_2D(inp->nBondTypes,inp->bondTypesParm,NULL);
+  free_2D(inp->nAngTypes,inp->angTypesParm,NULL);
+  free_2D(inp->nUbTypes,inp->ubTypesParm,NULL);
+  free_2D(inp->nDiheTypes,inp->diheTypesParm,NULL);
+  free_2D(inp->nImprTypes,inp->imprTypesParm,NULL);
+  free_2D(inp->nTypes,inp->nonBondedTypesParm,NULL);
+  free_3D(inp->nTypes,inp->nTypes,inp->diheTypes,NULL);
+  free_3D(inp->nTypes+1,inp->nTypes+1,inp->imprTypes,NULL);
+}
+
+void error(int errorNumber)
+{
+  printf("MDBas failed due to error number: %d\n",errorNumber);
+  switch (errorNumber)
+  {
+  case 10:
+    printf("MDBas cannot find or open topology file TOP.\n");
+    printf("Most likely, it is not properly named. Please check.\n");
+    break;
+  case 20:
+    printf("MDBas cannot find or open structure file PSF.\n");
+    printf("Most likely, it is not properly named. Please check.\n");
+    break;
+  case 21:
+    printf("MDBas encountered an atom type in the PSF file,\n");
+    printf("which is not defined in the TOP file. Please consult\n");
+    printf("the manual for further details about PSF anf TOP files\n");
+    break;
+  case 22:
+    printf("MDBas encountered a problem while reading atomic properties\n");
+    printf("in the PSF file. There is an unexpected line there. Please\n");
+    printf("consult the manual for further details about PSF file\n");
+    break;
+  case 23:
+    printf("There is problem in bonds sequence in the PSF file. Please\n");
+    printf("consult the manual for further details about PSF file\n");
+    break;
+  case 24:
+    printf("There is problem in angles sequence in the PSF file. Please\n");
+    printf("consult the manual for further details about PSF file\n");
+    break;
+  case 25:
+    printf("There is problem in dihedrals sequence in the PSF file. Please\n");
+    printf("consult the manual for further details about PSF file\n");
+    break;
+  case 26:
+    printf("There is problem in improper angles sequence in the PSF file.\n");
+    printf("Please consult the manual for further details about PSF file\n");
+    break;
+  case 30:
+    printf("MDBas cannot find or open parameter file PAR.\n");
+    printf("Most likely, it is not properly named. Please check.\n");
+    break;
+  case 40:
+    printf("MDBas cannot find or open configuration file CONF.\n");
+    printf("Most likely, it is not properly named. Please check.\n");
+    break;
+  case 41:
+    printf("MDBas found a different number of atoms in CONF file and\n");
+    printf("in PSF file. Structure does not match configuration.\n");
+    printf("Check carefully these files.\n");
+    break;
+  case 50:
+    printf("A dihedral angle is specified as a Fourier series but\n");
+    printf("with one of the component being an harmonic potential.\n");
+    printf("Check in PAR file.\n");
+    break;
+  case 60:
+    printf("MDBas cannot find or open simulation file SIMU.\n");
+    printf("Most likely, it is not properly named. Please check.\n");
+    break;
+  case 61:
+    printf("MDBas does not recognise a keyword specified in SIMU.\n");
+    printf("Please check SIMU file and the manual for the list of\n");
+    printf("allowed keywords.\n");
+    break;
+  case 62:
+    printf("MDBas does not recognise a parameter specified in SIMU.\n");
+    printf("Please check SIMU file and the manual for the list of\n");
+    printf("allowed keywords and their associated parameters.\n");
+    break;
+  case 63:
+    printf("MDBas does not find a required parameter in SIMU.\n");
+    printf("Please check SIMU file and the manual for the list of\n");
+    printf("allowed keywords and their associated parameters.\n");
+    break;
+  case 110:
+    printf("MDBas found a too many non-parameterised dihedral angles:\n");
+    printf("4*nDihedrals. nDihedrals comes from the value specified\n");
+    printf("in PSF file. Please check in PAR file. If such a number is\n");
+    printf("normal for your simulation, you have to enter list.c to\n");
+    printf("increase the size of the 1-4 pairs array from 5*nDihedrals to\n");
+    printf("the size you really need. Then recompile MDBas.\n");
+    break;
+  case 111:
+    printf("MDBas encountered a problem while setting the excluded atoms\n");
+    printf("list. The last atom has exclusion which should not happen. This\n");
+    printf("a bit annoying for there is no simple explanation for this.\n");
+    printf("Maybe an error in one of the input files which is not detected\n");
+    printf("by MDBas. Sorry for the trouble.\n");
+    break;
+  case 112:
+    printf("MDBas encountered a problem while setting the excluded atoms\n");
+    printf("list. The total excluded atoms does not match of the sum of\n");
+    printf("excluded atoms for each atom. This a bit annoying for there is\n");
+    printf("no simple explanation for this. Maybe an error in one of the\n");
+    printf("input files which is not detected by MDBas. Sorry for the trouble.\n");
+  case 201:
+    printf("Unknown electrostatic potential. This is most likely due to an\n");
+    printf("error in the SIMU file. Please check this file and the manual\n");
+    printf("for the list of keywords and available potentials.\n");
+  case 202:
+    printf("Unknown van der Waals potential. This is most likely due to an\n");
+    printf("error in the SIMU file. Please check this file and the manual\n");
+    printf("for the list of keywords and available potentials.\n");
+  default:
+    printf("MDBas failed due to unknown error number: %d\n",errorNumber);
+    printf("Reading the manual will not help you. You are by yourself.\n");
+    printf("Errare humanum est.\n");
+    break;
+  }
+  
+  exit(errorNumber);
+    
 }

@@ -1433,16 +1433,22 @@ void read_PAR(INPUTS *inp)
 		
 		if(inp->imprTypes[j][i][jj-1]!=-1)
 		  inp->imprTypes[j][i][ii-1]=inp->imprTypes[j][i][jj-1];
+		
 		else if(inp->imprTypes[i][j][kk-1]!=-1)
 		  inp->imprTypes[j][i][ii-1]=inp->imprTypes[i][j][kk-1];
+		
 		else if(inp->imprTypes[i][j][n-1]!=-1)
 		  inp->imprTypes[j][i][ii-1]=inp->imprTypes[i][j][n-1];
+		
 		else if(inp->imprTypes[j][i][n-1]!=-1)
 		  inp->imprTypes[j][i][ii-1]=inp->imprTypes[j][i][n-1];
+		
 		else if(inp->imprTypes[inp->nTypes][inp->nTypes][ii-1]!=-1)
 		  inp->imprTypes[j][i][ii-1]=inp->imprTypes[inp->nTypes][inp->nTypes][ii-1];
+		
 		else if(inp->imprTypes[j][inp->nTypes][jj-1]!=-1)
 		  inp->imprTypes[j][i][ii-1]=inp->imprTypes[j][inp->nTypes][jj-1];
+		
 		else if(inp->imprTypes[i][inp->nTypes][kk-1]!=-1)
 		  inp->imprTypes[j][i][ii-1]=inp->imprTypes[i][inp->nTypes][kk-1];
 	      }
