@@ -40,8 +40,8 @@
 typedef struct
 {
   int natom;
-  char **atomLabel,**segi,**resn;
-  int *atomType,*ires,*resi;
+  char **atomLabel,**segi,**resi;
+  int *atomType,*ires,*resn;
   double *x,*y,*z,*m;
   double *vx,*vy,*vz;
   double *fx,*fy,*fz;
@@ -54,7 +54,7 @@ typedef struct
   char **types;
   int *typesNum;
   int nTypes,nBondTypes,nAngTypes,nUbTypes,nDiheTypes,nImprTypes,nNonBonded;
-  int *bondTypes,**angTypes,**ubTypes,*nDiheTypesParm,***diheTypes,***imprTypes;
+  int **bondTypes,**angTypes,**ubTypes,*nDiheTypesParm,**diheTypes,**imprTypes;
   double **bondTypesParm,**angTypesParm,**ubTypesParm;
   double **diheTypesParm,**imprTypesParm,**nonBondedTypesParm;
 }INPUTS;

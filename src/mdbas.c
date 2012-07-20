@@ -51,13 +51,13 @@ int main(int argc, char* argv[])
   else
     simulCond.chargeConst=mu0*X2(clight)*X2(elemchg)*NA*0.1/(angstr);
   
-  read_TOP(&inp);
-  
-  printf("TOP file read\n");
-  
   read_PSF(&inp,&atom,&ff,&enerFor,&simulCond);
   
   printf("PSF file read\n");
+  
+  read_TOP(&inp);
+  
+  printf("TOP file read\n");
   
   read_PAR(&inp);
   

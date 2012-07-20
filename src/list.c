@@ -33,8 +33,8 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
     
   for(i=0;i<ff->nBond;i++)
   {
-    ia=simulCond->iBond[i][0]-1;
-    ib=simulCond->iBond[i][1]-1;
+    ia=simulCond->iBond[i][0];
+    ib=simulCond->iBond[i][1];
     
     if(ib<ia)
     {
@@ -72,9 +72,9 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
   
   for(i=0;i<ff->nAngle;i++)
   {
-    ia=simulCond->iAngle[i][0]-1;
-    ib=simulCond->iAngle[i][1]-1;
-    ic=simulCond->iAngle[i][2]-1;
+    ia=simulCond->iAngle[i][0];
+    ib=simulCond->iAngle[i][1];
+    ic=simulCond->iAngle[i][2];
     
     if(ib<ia)
     {
@@ -188,10 +188,10 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
   
   for(i=0;i<ff->nDihedral;i++)
   {
-    ia=simulCond->iDihedral[i][0]-1;
-    ib=simulCond->iDihedral[i][1]-1;
-    ic=simulCond->iDihedral[i][2]-1;
-    id=simulCond->iDihedral[i][3]-1;
+    ia=simulCond->iDihedral[i][0];
+    ib=simulCond->iDihedral[i][1];
+    ic=simulCond->iDihedral[i][2];
+    id=simulCond->iDihedral[i][3];
     
     if(ib<ia)
     {
@@ -405,10 +405,10 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
     
   for(i=0;i<ff->nImproper;i++)
   {
-    ia=simulCond->iImproper[i][0]-1;
-    ib=simulCond->iImproper[i][1]-1;
-    ic=simulCond->iImproper[i][2]-1;
-    id=simulCond->iImproper[i][3]-1;
+    ia=simulCond->iImproper[i][0];
+    ib=simulCond->iImproper[i][1];
+    ic=simulCond->iImproper[i][2];
+    id=simulCond->iImproper[i][3];
     
     if(ib<ia)
     {
@@ -755,10 +755,7 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
     error(112);
   
   free_2D(atom->natom,tempAtom,NULL);
-//   for(i=0;i<atom->natom;i++)
-//     free(tempAtom[i]);
-  
-//   free(tempAtom);
+
 }
 
 void verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
