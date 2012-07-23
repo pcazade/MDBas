@@ -1621,6 +1621,8 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
     else
       ii=ia+(ib*(ib-1))/2;
     
+    printf("nb %d\t i %d\t ia %d\t ib %d\t ii %d\n",ff->nBond,i,ia,ib,ii);
+    
     ff->parmBond[i][0]=inp->bondTypesParm[inp->bondTypes[ii-1]][0]*2.*kcaltoiu;
     ff->parmBond[i][1]=inp->bondTypesParm[inp->bondTypes[ii-1]][1];
     
