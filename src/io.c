@@ -10,7 +10,7 @@
 
 void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
 {
-  char buff1[1024]="", *buff2=NULL, *buff3=NULL;
+  char buff1[1024]="", *buff2=NULL, *buff3=NULL, *buff4=NULL;
   FILE *simuFile;
   
   simuFile=fopen("SIMU","r");
@@ -48,7 +48,9 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
   simulCond->ens=0;
   simulCond->enstime=1.0;
   simulCond->tolshake=1e-8;
-  ff->nconst=0;
+  simulCond->maxcycle=100;
+  simulCond->keyconsth=0;
+  simulCond->nconst=0;
   
   simulCond->keyener=0;
   simulCond->keytraj=0;
@@ -218,18 +220,41 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
     else if(!strcmp(buff2,"temperature"))
     {
       buff3=strtok(NULL," \n\t");
-	if(buff3==NULL)
+      if(buff3==NULL)
 	error(63);
       
       simulCond->temp=atof(buff3);
     }
+    else if(!strcmp(buff2,"consth"))
+    {
+      simulCond->keyconsth=1;
+    }
     else if(!strcmp(buff2,"shake"))
     {
       buff3=strtok(NULL," \n\t");
-	if(buff3==NULL)
+      if(buff3==NULL)
 	error(63);
       
-      simulCond->tolshake=atof(buff3);
+      nocase(buff3);
+      
+      if(!strcmp(buff3,"tol"))
+      {
+	buff4=strtok(NULL," \n\t");
+	if(buff4==NULL)
+	  error(63);
+	
+	simulCond->tolshake=atof(buff4);
+      }
+      else if(!strcmp(buff3,"maxcycle"))
+      {
+	buff4=strtok(NULL," \n\t");
+	if(buff4==NULL)
+	  error(63);
+	
+	simulCond->maxcycle=atoi(buff4);
+      }
+      else
+	error(62);
     }
     else if(!strcmp(buff2,"seed"))
     {
@@ -380,11 +405,12 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
   
 }
 
-void read_PSF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
+void read_PSF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAINT *constList)
 {
   FILE *psfFile=NULL;
   char buff1[1024]="", *buff2=NULL, *buff3=NULL, *buff4=NULL, *buff5=NULL;
   int i,j,k,kk,kt,nalloc=100,nincr=100;
+  int ia,ib;
   
   psfFile=fopen("PSF","r");
   
@@ -424,7 +450,7 @@ void read_PSF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPA
   atom->atomLabel=(char**)malloc(atom->natom*sizeof(*(atom->atomLabel)));
   atom->segi=(char**)malloc(atom->natom*sizeof(*(atom->segi)));
   atom->resi=(char**)malloc(atom->natom*sizeof(*(atom->resi)));
-
+    
   for(i=0;i<atom->natom;i++)
   {
     atom->atomLabel[i]=(char*)malloc(5*sizeof(**(atom->atomLabel)));
@@ -506,6 +532,18 @@ void read_PSF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPA
   for(i=0;i<ff->nBond;i++)
     simulCond->iBond[i]=(int*)malloc(2*sizeof(**(simulCond->iBond)));
   
+  if(simulCond->keyconsth)
+  {
+    atom->inconst=(int*)malloc(atom->natom*sizeof(*(atom->inconst)));
+    for(i=0;i<atom->natom;i++)
+      atom->inconst[i]=0;
+    
+    printf("pointer adress=%p\n",constList);
+  
+    constList=(CONSTRAINT*)malloc(ff->nBond*sizeof(*constList));
+    simulCond->nconst=0;
+  }
+  
   i=0;
   while(fgets(buff1,1024,psfFile)!=NULL)
   {
@@ -515,17 +553,54 @@ void read_PSF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPA
     while(buff2!=NULL && buff3!=NULL)
     {
       
-      simulCond->iBond[i][0]=atoi(buff2)-1;
-      simulCond->iBond[i][1]=atoi(buff3)-1;
+      if(simulCond->keyconsth)
+      {
+	ia=atoi(buff2)-1;
+	ib=atoi(buff3)-1;
+	if(atom->atomLabel[ia][0]=='H'||atom->atomLabel[ib][0]=='H')
+	{
+	  constList[simulCond->nconst].a=ia;
+	  constList[simulCond->nconst].b=ib;
+	  
+	  atom->inconst[ia]++;
+	  atom->inconst[ib]++;
+	  
+	  buff2=strtok(NULL," \n\t");
+	  buff3=strtok(NULL," \n\t");
+	  
+	  simulCond->nconst++;
+	  ff->nBond--;
+	}
+	else
+	{
+	  simulCond->iBond[i][0]=ia;
+	  simulCond->iBond[i][1]=ib;
+	
+	  buff2=strtok(NULL," \n\t");
+	  buff3=strtok(NULL," \n\t");
+	  i++;
+	}
+      }
+      else
+      {
+	simulCond->iBond[i][0]=atoi(buff2)-1;
+	simulCond->iBond[i][1]=atoi(buff3)-1;
+	
+	buff2=strtok(NULL," \n\t");
+	buff3=strtok(NULL," \n\t");
+	i++;
+      }
       
-      buff2=strtok(NULL," \n\t");
-      buff3=strtok(NULL," \n\t");
-      i++;
     }
     if(buff2!=NULL && buff3==NULL)
       error(23);
     if(i==ff->nBond)
       break;
+  }
+  
+  if(simulCond->keyconsth)
+  {
+    constList=(CONSTRAINT*)realloc(constList,simulCond->nconst*sizeof(*constList));
   }
   
   while(fgets(buff1,1024,psfFile)!=NULL)
@@ -1424,7 +1499,7 @@ void read_PAR(INPUTS *inp)
     fclose(parFile);
 }
 
-void read_CONF(INPUTS *inp, ATOM *atom)
+void read_CONF(ATOM *atom)
 {
   
   char buff1[1024]="", *buff2=NULL;
@@ -1467,7 +1542,7 @@ void read_CONF(INPUTS *inp, ATOM *atom)
     fclose(confFile);
 }
 
-void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
+void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAINT *constList)
 {
   int i,j,k,ia,ib,ic,id,i0,i1,i2,i3,itype;
   
@@ -1511,7 +1586,7 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
   for(i=0;i<atom->natom;i++)
     ff->parmVdw[i]=(double*)malloc(6*sizeof(**(ff->parmVdw)));
   
-  /*printf("Let's check what there is in atom->atomType\n");
+  printf("Let's check what there is in atom->atomType\n");
   for(i=0;i<atom->natom;i++)
   {
     printf("%d %d %d\n",atom->natom,i,atom->atomType[i]);
@@ -1526,7 +1601,7 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
   printf("Let's check what there is in iBond\n");
   for(i=0;i<ff->nBond;i++)
   {
-     printf("%d %d %d\n",ff->nBond,simulCond->iBond[i][0],simulCond->iBond[i][1]);
+     printf("%d %d %d %d %d\n",ff->nBond,simulCond->iBond[i][0],simulCond->iBond[i][1],atom->atomType[simulCond->iBond[i][0]],atom->atomType[simulCond->iBond[i][1]]);
   }
   
   printf("Let's check what there is in bondTypes\n");
@@ -1558,8 +1633,18 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
   {
      printf("%d %d %d %d %d\n",inp->nDiheTypes,inp->diheTypes[j][0],inp->diheTypes[j][1],inp->diheTypes[j][2],inp->diheTypes[j][3]);
   }
+  
+  if(simulCond->keyconsth)
+  {
+    printf("Let's check what there is in constList\n");
+    printf("pointer adress=%p\n",constList);
+    for(i=1;i<simulCond->nconst;i++)
+    {
+      printf("%d %d %d\n",simulCond->nconst,constList[i].a,constList[i].b);
+    }
+  }
 
-  printf("Now if the loop.\n");  */
+  printf("Now if the loop.\n");
 
   for(i=0;i<ff->nBond;i++)
   {
@@ -1593,6 +1678,41 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
     ff->parmBond[i][0]=inp->bondTypesParm[itype][0]*2.*kcaltoiu;
     ff->parmBond[i][1]=inp->bondTypesParm[itype][1];
     
+  }
+  
+  if(simulCond->keyconsth)
+  {
+    for(i=0;i<simulCond->nconst;i++)
+    {
+      ia=atom->atomType[constList[i].a];
+      ib=atom->atomType[constList[i].b];
+      
+      if(ib<ia)
+      {
+	i0=ib;
+	i1=ia;
+      }
+      else
+      {
+	i0=ia;
+	i1=ib;
+      }
+      
+      itype=-1;
+      for(j=0;j<inp->nBondTypes;j++)
+      {
+	if( (i0==inp->bondTypes[j][0]) && (i1==inp->bondTypes[j][1]) )
+	{
+	  itype=j;
+	  break;
+	}
+      }
+      
+      if(itype==-1)
+	error(71);
+      
+      constList[i].rc2=X2(inp->bondTypesParm[itype][1]);
+    }
   }
   
   ff->nUb=0;
@@ -2212,19 +2332,19 @@ void error(int errorNumber)
     printf("Please check SIMU file and the manual for the list of\n");
     printf("allowed keywords and their associated parameters.\n");
     break;
-  case 71;
+  case 71:
     printf("There is an undefined bond in the PSF. Most likely,\n");
     printf("there are missing parameters in the PAR file. Please check\n");
     break;
-  case 72;
+  case 72:
     printf("There is an undefined angle in the PSF. Most likely,\n");
     printf("there are missing parameters in the PAR file. Please check\n");
     break;
-  case 73;
+  case 73:
     printf("There is an undefined dihedral angle in the PSF. Most likely,\n");
     printf("there are missing parameters in the PAR file. Please check\n");
     break;
-  case 74;
+  case 74:
     printf("There is an undefined improper angle in the PSF. Most likely,\n");
     printf("there are missing parameters in the PAR file. Please check\n");
     break;
@@ -2249,18 +2369,22 @@ void error(int errorNumber)
     printf("excluded atoms for each atom. This a bit annoying for there is\n");
     printf("no simple explanation for this. Maybe an error in one of the\n");
     printf("input files which is not detected by MDBas. Sorry for the trouble.\n");
+    break;
   case 201:
     printf("Unknown electrostatic potential. This is most likely due to an\n");
     printf("error in the SIMU file. Please check this file and the manual\n");
     printf("for the list of keywords and available potentials.\n");
+    break;
   case 202:
     printf("Unknown van der Waals potential. This is most likely due to an\n");
     printf("error in the SIMU file. Please check this file and the manual\n");
     printf("for the list of keywords and available potentials.\n");
+    break;
   case 311:
     printf("Shake convergence failure, most likely due a non suitable initial\n");
     printf("configuration. If not, you can try increasing the number of cycles or\n");
     printf("make Shake convergence criterion more tolerant. Please check the manual.\n");
+    break;
   default:
     printf("MDBas failed due to unknown error number: %d\n",errorNumber);
     printf("Reading the manual will not help you. You are by yourself.\n");

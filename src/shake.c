@@ -2,8 +2,9 @@
 #include <math.h>
 #include "global.h"
 #include "utils.h"
+#include "io.h"
 
-void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,FORCEFIELD *ff,CONSTRAINT *constList,DELTA *dd)
+void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd)
 {
   int i,ia,ib,icycle,converged;
   double *xt,*yt,*zt,*rt2,ts2,maxdist,dist;
@@ -16,7 +17,7 @@ void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,FORCEFIELD *ff,CONSTRAINT *const
   
   rt2=(double*)malloc(atom->natom*sizeof(*rt2));
   
-  dt=(DELTA*)malloc(ff->nconst*sizeof(*dt));
+  dt=(DELTA*)malloc(simulCond->nconst*sizeof(*dt));
   
   icycle=0;
   converged=0;
@@ -27,7 +28,7 @@ void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,FORCEFIELD *ff,CONSTRAINT *const
   {
     maxdist=0.;
     
-    for(i=0;i<ff->nconst;i++)
+    for(i=0;i<simulCond->nconst;i++)
     {
       ia=constList[i].a;
       ib=constList[i].b;
@@ -52,7 +53,7 @@ void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,FORCEFIELD *ff,CONSTRAINT *const
 	zt[i]=0.;
       }
       
-      for(i=0;i<ff->nconst;i++)
+      for(i=0;i<simulCond->nconst;i++)
       {
 	ia=constList[i].a;
 	ib=constList[i].b;
@@ -75,7 +76,7 @@ void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,FORCEFIELD *ff,CONSTRAINT *const
 	
       }
       
-      for(i=0;i<ff->nconst;i++)
+      for(i=0;i<simulCond->nconst;i++)
       {
 	ia=constList[i].a;
 	ib=constList[i].b;

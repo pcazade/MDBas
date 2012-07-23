@@ -33,6 +33,7 @@ int main(int argc, char* argv[])
   FORCEFIELD ff;
   ENERGYFORCE enerFor;
   SIMULPARAMS simulCond;
+  CONSTRAINT *constList;
   int i;
   
   init_rand(time(NULL));
@@ -51,7 +52,9 @@ int main(int argc, char* argv[])
   else
     simulCond.chargeConst=mu0*X2(clight)*X2(elemchg)*NA*0.1/(angstr);
   
-  read_PSF(&inp,&atom,&ff,&enerFor,&simulCond);
+  printf("pointer adress=%p pointer adress=%p\n",constList,&constList);
+  read_PSF(&inp,&atom,&ff,&simulCond,constList);
+  printf("test pointer %d %d\n",constList[1].a,constList[1].b);
   
   printf("PSF file read\n");
   
@@ -63,11 +66,11 @@ int main(int argc, char* argv[])
   
   printf("PAR file read\n");
   
-  read_CONF(&inp,&atom);
+  read_CONF(&atom);
   
   printf("CONF file read\n");
   
-  setup(&inp,&atom,&ff,&simulCond);
+  setup(&inp,&atom,&ff,&simulCond,constList);
   
   printf("Setup done\n");
   
@@ -214,7 +217,7 @@ int main(int argc, char* argv[])
       
       if(simulCond.integrator==0)
       {
-	lf_nve(&atom,&enerFor,&simulCond);
+	lf_nve(&atom,&enerFor,&simulCond,constList);
 	printf("Leap frog done for step %d\n",simulCond.step);
       }
       else if(simulCond.integrator==1)

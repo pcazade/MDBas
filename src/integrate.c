@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "global.h"
 #include "utils.h"
+#include "shake.h"
 
 void lf_nve(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAINT *constList)
 {
@@ -17,11 +18,11 @@ void lf_nve(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAINT 
   vyu=(double*)malloc(atom->natom*sizeof(*vyu));
   vzu=(double*)malloc(atom->natom*sizeof(*vzu));
   
-  if(ff->nconst>0)
+  if(simulCond->nconst>0)
   {
-    dd=(DELTA*)malloc(ff->nconst*sizeof(*dd));
+    dd=(DELTA*)malloc(simulCond->nconst*sizeof(*dd));
     
-    for(i=0;i<ff->nconst;i++)
+    for(i=0;i<simulCond->nconst;i++)
     {
       ia=constList[i].a;
       ib=constList[i].b;
@@ -31,7 +32,7 @@ void lf_nve(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAINT 
       dd[i].z=atom->z[ib]-atom->z[ia];
     }
     
-    image_array(ff->nconst,dd,simulCond);
+    image_array(simulCond->nconst,dd,simulCond);
   }
 
 // move atoms by leapfrog algorithm
@@ -59,11 +60,11 @@ void lf_nve(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAINT 
     
   }
   
-  if(ff->nconst>0)
+  if(simulCond->nconst>0)
   {
 // Apply constraint with Shake algorithm.
 
-    lf_shake(atom,simulCond,ff,constList,dd);
+    lf_shake(atom,simulCond,constList,dd);
     for(i=0;i<atom->natom;i++)
     {
         

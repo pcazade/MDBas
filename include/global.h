@@ -72,13 +72,13 @@ typedef struct
 typedef struct
 {
   int lqpoly,nb14,step,nsteps,degfree,firstener;
-  int printo,printtr,integrator,ens,enstime;
-  int keyrand,seed,keytraj,keyener,keyforf,keymd;
+  int printo,printtr,integrator,ens,enstime,nconst,maxcycle;
+  int keyrand,seed,keytraj,keyener,keyforf,keymd,keyconsth;
   int *excludeNum,*excludeAtom;
   int **iBond,**iUb,**iAngle,**iDihedral,**iImproper;
   int elecType,vdwType,periodicType,mdNature,numDeriv;
   int *bondType,*ubType,*angleType,*diheType,*imprType;
-  double chargeConst,cutoff,cuton,delr;
+  double chargeConst,cutoff,cuton,delr,tolshake;
   double temp,timeStep,periodicBox[3][3];
 }SIMULPARAMS;
 

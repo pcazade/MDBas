@@ -186,7 +186,7 @@ void image_array(int size_array,DELTA *d,SIMULPARAMS *simulCond)
   else if(simulCond->periodicType==2)
   {
     
-    for(i=0;i<atom->natom;i++)
+    for(i=0;i<size_array;i++)
     {
       d[i].x-=simulCond->periodicBox[0][0]*nint(d[i].x/simulCond->periodicBox[0][0]);
       d[i].y-=simulCond->periodicBox[1][1]*nint(d[i].y/simulCond->periodicBox[1][1]);
