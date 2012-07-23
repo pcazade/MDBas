@@ -1,20 +1,22 @@
 #include <stdlib.h>
 #include <math.h>
+#include "global.h"
+#include "utils.h"
 
-void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,FORCEFIELD *ff,CONSTRAINT constList)
+void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,FORCEFIELD *ff,CONSTRAINT *constList,DELTA *dd)
 {
   int i,ia,ib,icycle,converged;
-  double *xo,*yo,*zo,*xt,*yt,*zt,*rd,*rt,ts2,maxdist;
-  DELTA *dd,*dt;
-  CONSTRAINT constList;
+  double *xt,*yt,*zt,*rt2,ts2,maxdist,dist;
+  double lambda,lambdai,lambdaj,t2rmi,t2rmj,nia,nib;
+  DELTA *dt;
   
-  for(i=0;i<ff->nconst;i++)
-  {
-    ia=constList[i]->x;
-    ib=constList[i]->y;
-    
-    rd[i]=distance2(ia,ib,atom,&(dd[i]),simulCond);
-  }
+  xt=(double*)malloc(atom->natom*sizeof(*xt));
+  yt=(double*)malloc(atom->natom*sizeof(*yt));
+  zt=(double*)malloc(atom->natom*sizeof(*zt));
+  
+  rt2=(double*)malloc(atom->natom*sizeof(*rt2));
+  
+  dt=(DELTA*)malloc(ff->nconst*sizeof(*dt));
   
   icycle=0;
   converged=0;
@@ -27,16 +29,77 @@ void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,FORCEFIELD *ff,CONSTRAINT constL
     
     for(i=0;i<ff->nconst;i++)
     {
-      ia=constList[i]->x;
-      ib=constList[i]->y;
+      ia=constList[i].a;
+      ib=constList[i].b;
       
-      rt[i]=distance2(ia,ib,atom,&(dt[i]),simulCond);
+      rt2[i]=distance2(ia,ib,atom,&(dt[i]),simulCond);
       
+      dist=fabs(rt2[i]-constList[i].rc2)/sqrt(constList[i].rc2);
+      maxdist=MAX(maxdist,dist);
+    }
+    
+    maxdist=0.5*maxdist;
+    
+    if(maxdist<simulCond->tolshake)
+      converged=1;
+    
+    if(!converged)
+    {
+      for(i=0;i<atom->natom;i++)
+      {
+	xt[i]=0.;
+	yt[i]=0.;
+	zt[i]=0.;
+      }
+      
+      for(i=0;i<ff->nconst;i++)
+      {
+	ia=constList[i].a;
+	ib=constList[i].b;
+	
+	t2rmi=ts2/atom->m[ia];
+	t2rmj=ts2/atom->m[ib];
+	
+	lambda=-(constList[i].rc2-rt2[i])/(2.*(t2rmi+t2rmj)*
+	  ((dd[i].x*dt[i].x)+(dd[i].y*dt[i].y)+(dd[i].z*dt[i].z)));
+	
+	lambdai=lambda*t2rmi;
+	xt[ia]+=dd[i].x*lambdai;
+	yt[ia]+=dd[i].y*lambdai;
+	zt[ia]+=dd[i].z*lambdai;
+            
+	lambdaj=-lambda*t2rmj;
+	xt[ib]+=dd[i].x*lambdaj;
+	yt[ib]+=dd[i].y*lambdaj;
+	zt[ib]+=dd[i].z*lambdaj;
+	
+      }
+      
+      for(i=0;i<ff->nconst;i++)
+      {
+	ia=constList[i].a;
+	ib=constList[i].b;
+	
+	nia=(double)atom->inconst[ia];
+	nib=(double)atom->inconst[ib];
+	
+	atom->x[ia]+=xt[i]/nia;
+	atom->y[ia]+=yt[i]/nia;
+	atom->z[ia]+=zt[i]/nia;
+	
+	atom->x[ib]+=xt[i]/nib;
+	atom->y[ib]+=yt[i]/nib;
+	atom->z[ib]+=zt[i]/nib;
+	
+      }
       
     }
     
-    
-    
+    icycle++;
     
   }while( (!converged) && (icycle<simulCond->maxcycle) );
+  
+  if(!converged)
+    error(311);
+  
 }

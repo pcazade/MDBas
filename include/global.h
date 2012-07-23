@@ -92,13 +92,13 @@ typedef struct
 
 typedef struct
 {
-  int i,j;
-  double r0;
+  int a,b;
+  double rc2;
 }CONSTRAINT;
 
 typedef struct
 {
-  double x,y,z
+  double x,y,z;
 }DELTA;
 
 #endif

@@ -35,10 +35,10 @@ double distance(int i,int j, ATOM *atom,double *delta,SIMULPARAMS *simulCond)
 
 double distance2(int i,int j, ATOM *atom,DELTA *d,SIMULPARAMS *simulCond)
 {
-  double r;
+  double r2;
   
-  d->y=atom->x[j]-atom->x[i];
-  d->x=atom->y[j]-atom->y[i];
+  d->x=atom->x[j]-atom->x[i];
+  d->y=atom->y[j]-atom->y[i];
   d->z=atom->z[j]-atom->z[i];
   
   if(simulCond->periodicType==1)
@@ -54,9 +54,9 @@ double distance2(int i,int j, ATOM *atom,DELTA *d,SIMULPARAMS *simulCond)
     d->z-=simulCond->periodicBox[2][2]*nint(d->z/simulCond->periodicBox[2][2]);
   }
   
-  r=sqrt(X2(d->x)+X2(d->y)+X2(d->z));
+  r2=( X2(d->x)+X2(d->y)+X2(d->z) );
   
-  return r;
+  return r2;
   
 }
 
@@ -167,7 +167,7 @@ void image_update(ATOM *atom,SIMULPARAMS *simulCond)
   
 }
 
-/*void image_array(int size_array,DELTA *d,SIMULPARAMS *simulCond)
+void image_array(int size_array,DELTA *d,SIMULPARAMS *simulCond)
 {
 
   int i;
@@ -177,9 +177,9 @@ void image_update(ATOM *atom,SIMULPARAMS *simulCond)
     
     for(i=0;i<size_array;i++)
     {
-      d[i]->x-=simulCond->periodicBox[0][0]*nint(d[i]->x/simulCond->periodicBox[0][0]);
-      d[i]->y-=simulCond->periodicBox[0][0]*nint(d[i]->y/simulCond->periodicBox[0][0]);
-      d[i]->z-=simulCond->periodicBox[0][0]*nint(d[i]->z/simulCond->periodicBox[0][0]);
+      d[i].x-=simulCond->periodicBox[0][0]*nint(d[i].x/simulCond->periodicBox[0][0]);
+      d[i].y-=simulCond->periodicBox[0][0]*nint(d[i].y/simulCond->periodicBox[0][0]);
+      d[i].z-=simulCond->periodicBox[0][0]*nint(d[i].z/simulCond->periodicBox[0][0]);
     }
     
   }
@@ -188,14 +188,14 @@ void image_update(ATOM *atom,SIMULPARAMS *simulCond)
     
     for(i=0;i<atom->natom;i++)
     {
-      d[i]->x-=simulCond->periodicBox[0][0]*nint(d[i]->x/simulCond->periodicBox[0][0]);
-      d[i]->y-=simulCond->periodicBox[1][1]*nint(d[i]->y/simulCond->periodicBox[1][1]);
-      d[i]->z-=simulCond->periodicBox[2][2]*nint(d[i]->z/simulCond->periodicBox[2][2]);
+      d[i].x-=simulCond->periodicBox[0][0]*nint(d[i].x/simulCond->periodicBox[0][0]);
+      d[i].y-=simulCond->periodicBox[1][1]*nint(d[i].y/simulCond->periodicBox[1][1]);
+      d[i].z-=simulCond->periodicBox[2][2]*nint(d[i].z/simulCond->periodicBox[2][2]);
     }
     
   }
   
-}*/
+}
 
 double kinetic(ATOM *atom)
 {

@@ -47,6 +47,8 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
   simulCond->integrator=1;
   simulCond->ens=0;
   simulCond->enstime=1.0;
+  simulCond->tolshake=1e-8;
+  ff->nconst=0;
   
   simulCond->keyener=0;
   simulCond->keytraj=0;
@@ -220,6 +222,14 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
 	error(63);
       
       simulCond->temp=atof(buff3);
+    }
+    else if(!strcmp(buff2,"shake"))
+    {
+      buff3=strtok(NULL," \n\t");
+	if(buff3==NULL)
+	error(63);
+      
+      simulCond->tolshake=atof(buff3);
     }
     else if(!strcmp(buff2,"seed"))
     {
@@ -1095,8 +1105,6 @@ void read_PAR(INPUTS *inp)
       {
 	int itype,index,i0,i1,i2,i3;
 	
-        //printf("what the fuck.\n");
-
 	if((buff2!=NULL)&&(buff2[0]!='!'))
 	{
 	  buff3=strtok(NULL," \n\t");
@@ -1226,8 +1234,7 @@ void read_PAR(INPUTS *inp)
 	    
 	    i++;
 	    inp->nDiheTypes=i;
-            //printf("OK %d %d\n",itype,i);
-
+	    
 	  }
 	  else
 	  {
@@ -1240,8 +1247,7 @@ void read_PAR(INPUTS *inp)
 	    inp->diheTypesParm[itype][index]=atof(buff3);
 	    inp->diheTypesParm[itype][index+1]=atof(buff4);
 	    inp->diheTypesParm[itype][index+2]=atof(buff5);
-
-	    //printf("Fuck %d %d\n",itype,i);
+	    
 	  }
 	}
       }
@@ -1609,8 +1615,6 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
       i2=ic;
     }
     
-    //printf("%d %d %d %d %d %d\n",ia,ib,ic,i0,i1,i2);
-
     itype=-1;
     for(j=0;j<inp->nAngTypes;j++)
     {
@@ -1724,8 +1728,6 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
       i3=id;
     }
     
-    //printf("%d %d %d %d %d %d %d %d\n",ia,ib,ic,id,i0,i1,i2,i3);
-
     itype=-1;
     for(j=0;j<inp->nDiheTypes;j++)
     {
@@ -1763,8 +1765,6 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
       }
     }
     
-    //printf("%d %d %d %d %d %d %d %d\n",ia,ib,ic,id,i0,i1,i2,i3);
-
     if(itype==-1)
       error(73);
     
@@ -2154,11 +2154,6 @@ void error(int errorNumber)
     printf("MDBas cannot find or open structure file PSF.\n");
     printf("Most likely, it is not properly named. Please check.\n");
     break;
-  case 21:
-    printf("MDBas encountered an atom type in the PSF file,\n");
-    printf("which is not defined in the TOP file. Please consult\n");
-    printf("the manual for further details about PSF anf TOP files\n");
-    break;
   case 22:
     printf("MDBas encountered a problem while reading atomic properties\n");
     printf("in the PSF file. There is an unexpected line there. Please\n");
@@ -2217,6 +2212,22 @@ void error(int errorNumber)
     printf("Please check SIMU file and the manual for the list of\n");
     printf("allowed keywords and their associated parameters.\n");
     break;
+  case 71;
+    printf("There is an undefined bond in the PSF. Most likely,\n");
+    printf("there are missing parameters in the PAR file. Please check\n");
+    break;
+  case 72;
+    printf("There is an undefined angle in the PSF. Most likely,\n");
+    printf("there are missing parameters in the PAR file. Please check\n");
+    break;
+  case 73;
+    printf("There is an undefined dihedral angle in the PSF. Most likely,\n");
+    printf("there are missing parameters in the PAR file. Please check\n");
+    break;
+  case 74;
+    printf("There is an undefined improper angle in the PSF. Most likely,\n");
+    printf("there are missing parameters in the PAR file. Please check\n");
+    break;
   case 110:
     printf("MDBas found a too many non-parameterised dihedral angles:\n");
     printf("4*nDihedrals. nDihedrals comes from the value specified\n");
@@ -2246,6 +2257,10 @@ void error(int errorNumber)
     printf("Unknown van der Waals potential. This is most likely due to an\n");
     printf("error in the SIMU file. Please check this file and the manual\n");
     printf("for the list of keywords and available potentials.\n");
+  case 311:
+    printf("Shake convergence failure, most likely due a non suitable initial\n");
+    printf("configuration. If not, you can try increasing the number of cycles or\n");
+    printf("make Shake convergence criterion more tolerant. Please check the manual.\n");
   default:
     printf("MDBas failed due to unknown error number: %d\n",errorNumber);
     printf("Reading the manual will not help you. You are by yourself.\n");
