@@ -1095,7 +1095,7 @@ void read_PAR(INPUTS *inp)
       {
 	int itype,index,i0,i1,i2,i3;
 	
-        printf("what the fuck.\n");
+        //printf("what the fuck.\n");
 
 	if((buff2!=NULL)&&(buff2[0]!='!'))
 	{
@@ -1226,7 +1226,7 @@ void read_PAR(INPUTS *inp)
 	    
 	    i++;
 	    inp->nDiheTypes=i;
-            printf("OK %d %d\n",itype,i);
+            //printf("OK %d %d\n",itype,i);
 
 	  }
 	  else
@@ -1241,7 +1241,7 @@ void read_PAR(INPUTS *inp)
 	    inp->diheTypesParm[itype][index+1]=atof(buff4);
 	    inp->diheTypesParm[itype][index+2]=atof(buff5);
 
-	    printf("Fuck %d %d\n",itype,i);
+	    //printf("Fuck %d %d\n",itype,i);
 	  }
 	}
       }
@@ -1505,7 +1505,7 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
   for(i=0;i<atom->natom;i++)
     ff->parmVdw[i]=(double*)malloc(6*sizeof(**(ff->parmVdw)));
   
-  printf("Let's check what there is in atom->atomType\n");
+  /*printf("Let's check what there is in atom->atomType\n");
   for(i=0;i<atom->natom;i++)
   {
     printf("%d %d %d\n",atom->natom,i,atom->atomType[i]);
@@ -1553,7 +1553,7 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
      printf("%d %d %d %d %d\n",inp->nDiheTypes,inp->diheTypes[j][0],inp->diheTypes[j][1],inp->diheTypes[j][2],inp->diheTypes[j][3]);
   }
 
-  printf("Now if the loop.\n");  
+  printf("Now if the loop.\n");  */
 
   for(i=0;i<ff->nBond;i++)
   {
@@ -1724,7 +1724,7 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
       i3=id;
     }
     
-    printf("%d %d %d %d %d %d %d %d\n",ia,ib,ic,id,i0,i1,i2,i3);
+    //printf("%d %d %d %d %d %d %d %d\n",ia,ib,ic,id,i0,i1,i2,i3);
 
     itype=-1;
     for(j=0;j<inp->nDiheTypes;j++)
@@ -1763,7 +1763,7 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
       }
     }
     
-    printf("%d %d %d %d %d %d %d %d\n",ia,ib,ic,id,i0,i1,i2,i3);
+    //printf("%d %d %d %d %d %d %d %d\n",ia,ib,ic,id,i0,i1,i2,i3);
 
     if(itype==-1)
       error(73);

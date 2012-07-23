@@ -41,7 +41,7 @@ typedef struct
 {
   int natom;
   char **atomLabel,**segi,**resi;
-  int *atomType,*ires,*resn;
+  int *atomType,*ires,*resn,*inconst;
   double *x,*y,*z,*m;
   double *vx,*vy,*vz;
   double *fx,*fy,*fz;
@@ -89,5 +89,16 @@ typedef struct
   double energyBond,energyAng,energyUb,energyDih,energyImpr;
   double **hessian;
 }ENERGYFORCE;
+
+typedef struct
+{
+  int i,j;
+  double r0;
+}CONSTRAINT;
+
+typedef struct
+{
+  double x,y,z
+}DELTA;
 
 #endif

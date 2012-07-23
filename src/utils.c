@@ -33,6 +33,33 @@ double distance(int i,int j, ATOM *atom,double *delta,SIMULPARAMS *simulCond)
   
 }
 
+double distance2(int i,int j, ATOM *atom,DELTA *d,SIMULPARAMS *simulCond)
+{
+  double r;
+  
+  d->y=atom->x[j]-atom->x[i];
+  d->x=atom->y[j]-atom->y[i];
+  d->z=atom->z[j]-atom->z[i];
+  
+  if(simulCond->periodicType==1)
+  {
+    d->x-=simulCond->periodicBox[0][0]*nint(d->x/simulCond->periodicBox[0][0]);
+    d->y-=simulCond->periodicBox[0][0]*nint(d->y/simulCond->periodicBox[0][0]);
+    d->z-=simulCond->periodicBox[0][0]*nint(d->z/simulCond->periodicBox[0][0]);
+  }
+  else if(simulCond->periodicType==2)
+  {
+    d->x-=simulCond->periodicBox[0][0]*nint(d->x/simulCond->periodicBox[0][0]);
+    d->y-=simulCond->periodicBox[1][1]*nint(d->y/simulCond->periodicBox[1][1]);
+    d->z-=simulCond->periodicBox[2][2]*nint(d->z/simulCond->periodicBox[2][2]);
+  }
+  
+  r=sqrt(X2(d->x)+X2(d->y)+X2(d->z));
+  
+  return r;
+  
+}
+
 void init_vel(ATOM *atom,SIMULPARAMS *simulCond)
 {
   int i,natoms;
@@ -139,6 +166,36 @@ void image_update(ATOM *atom,SIMULPARAMS *simulCond)
   }
   
 }
+
+/*void image_array(int size_array,DELTA *d,SIMULPARAMS *simulCond)
+{
+
+  int i;
+  
+  if(simulCond->periodicType==1)
+  {
+    
+    for(i=0;i<size_array;i++)
+    {
+      d[i]->x-=simulCond->periodicBox[0][0]*nint(d[i]->x/simulCond->periodicBox[0][0]);
+      d[i]->y-=simulCond->periodicBox[0][0]*nint(d[i]->y/simulCond->periodicBox[0][0]);
+      d[i]->z-=simulCond->periodicBox[0][0]*nint(d[i]->z/simulCond->periodicBox[0][0]);
+    }
+    
+  }
+  else if(simulCond->periodicType==2)
+  {
+    
+    for(i=0;i<atom->natom;i++)
+    {
+      d[i]->x-=simulCond->periodicBox[0][0]*nint(d[i]->x/simulCond->periodicBox[0][0]);
+      d[i]->y-=simulCond->periodicBox[1][1]*nint(d[i]->y/simulCond->periodicBox[1][1]);
+      d[i]->z-=simulCond->periodicBox[2][2]*nint(d[i]->z/simulCond->periodicBox[2][2]);
+    }
+    
+  }
+  
+}*/
 
 double kinetic(ATOM *atom)
 {
