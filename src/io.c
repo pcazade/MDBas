@@ -71,7 +71,6 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
       continue;
     
     nocase(buff2);
-    puts(buff2);
     
     if(!strcmp(buff2,"mdbas"))
       simulCond->mdNature=0;
@@ -405,7 +404,7 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
   
 }
 
-void read_PSF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAINT *constList)
+void read_PSF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAINT **constList)
 {
   FILE *psfFile=NULL;
   char buff1[1024]="", *buff2=NULL, *buff3=NULL, *buff4=NULL, *buff5=NULL;
@@ -538,9 +537,7 @@ void read_PSF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONST
     for(i=0;i<atom->natom;i++)
       atom->inconst[i]=0;
     
-    printf("pointer adress=%p\n",constList);
-  
-    constList=(CONSTRAINT*)malloc(ff->nBond*sizeof(*constList));
+    *constList=(CONSTRAINT*)malloc(ff->nBond*sizeof(**constList));
     simulCond->nconst=0;
   }
   
@@ -559,8 +556,8 @@ void read_PSF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONST
 	ib=atoi(buff3)-1;
 	if(atom->atomLabel[ia][0]=='H'||atom->atomLabel[ib][0]=='H')
 	{
-	  constList[simulCond->nconst].a=ia;
-	  constList[simulCond->nconst].b=ib;
+	  (*constList)[simulCond->nconst].a=ia;
+	  (*constList)[simulCond->nconst].b=ib;
 	  
 	  atom->inconst[ia]++;
 	  atom->inconst[ib]++;
@@ -600,7 +597,7 @@ void read_PSF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONST
   
   if(simulCond->keyconsth)
   {
-    constList=(CONSTRAINT*)realloc(constList,simulCond->nconst*sizeof(*constList));
+    *constList=(CONSTRAINT*)realloc(*constList,simulCond->nconst*sizeof(**constList));
   }
   
   while(fgets(buff1,1024,psfFile)!=NULL)
@@ -1586,7 +1583,7 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAI
   for(i=0;i<atom->natom;i++)
     ff->parmVdw[i]=(double*)malloc(6*sizeof(**(ff->parmVdw)));
   
-  printf("Let's check what there is in atom->atomType\n");
+  /*printf("Let's check what there is in atom->atomType\n");
   for(i=0;i<atom->natom;i++)
   {
     printf("%d %d %d\n",atom->natom,i,atom->atomType[i]);
@@ -1638,13 +1635,13 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAI
   {
     printf("Let's check what there is in constList\n");
     printf("pointer adress=%p\n",constList);
-    for(i=1;i<simulCond->nconst;i++)
+    for(i=0;i<simulCond->nconst;i++)
     {
       printf("%d %d %d\n",simulCond->nconst,constList[i].a,constList[i].b);
     }
   }
 
-  printf("Now if the loop.\n");
+  printf("Now if the loop.\n");*/
 
   for(i=0;i<ff->nBond;i++)
   {

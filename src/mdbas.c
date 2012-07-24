@@ -21,6 +21,9 @@
 #include <sys/resource.h>
 #endif /* for some unixes */
 
+#define _ENERFORMAT_ "%13d\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\n"
+#define _ENERLABELS_ "%13s\t%13s\t%13s\t%13s\t%13s\t%13s\t%13s\t%13s\t%13s\t%13s\t%13s\n"
+
 int main(int argc, char* argv[])
 {
   
@@ -33,7 +36,11 @@ int main(int argc, char* argv[])
   FORCEFIELD ff;
   ENERGYFORCE enerFor;
   SIMULPARAMS simulCond;
-  CONSTRAINT *constList;
+  CONSTRAINT *constList=NULL;
+  
+  char enerLabel[11][7]={ {"Step"}  , {"Etot"}  , {"Ekin"}  , {"Epot"} ,
+			  {"Ecoul"} , {"Evdw"}  , {"Ebond"} , {"Eangle"} ,
+			  {"Eub"}   , {"Edihe"} , {"Eimpr"} };
   int i;
   
   init_rand(time(NULL));
@@ -52,9 +59,7 @@ int main(int argc, char* argv[])
   else
     simulCond.chargeConst=mu0*X2(clight)*X2(elemchg)*NA*0.1/(angstr);
   
-  printf("pointer adress=%p pointer adress=%p\n",constList,&constList);
-  read_PSF(&inp,&atom,&ff,&simulCond,constList);
-  printf("test pointer %d %d\n",constList[1].a,constList[1].b);
+  read_PSF(&inp,&atom,&ff,&simulCond, &constList);
   
   printf("PSF file read\n");
   
@@ -83,19 +88,13 @@ int main(int argc, char* argv[])
   
   init_vel(&atom,&simulCond);
   
-  //test debug
-  for(i=0;i<atom.natom;i++)
-  {
-    atom.vx[i]=0.;
-    atom.vy[i]=0.;
-    atom.vz[i]=0.;
-  }
-  
   if(simulCond.keyener)
   {
     ener=fopen("ener.dat","w");
     
-    fprintf(ener,"Step\tEtot\tEkin\tEpot\tEcoul\tEvdw\tEbond\tEangle\tEub\tEdihe\tEimpr\n");
+    fprintf(ener,_ENERLABELS_,enerLabel[0],enerLabel[1],enerLabel[2],enerLabel[3],
+			      enerLabel[4],enerLabel[5],enerLabel[6],enerLabel[7],
+			      enerLabel[8],enerLabel[9],enerLabel[10]);
   }
   
   if(simulCond.keytraj)
@@ -118,7 +117,7 @@ int main(int argc, char* argv[])
     
     if(simulCond.keyener)
     { 
-      fprintf(ener,"%d\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\n",
+      fprintf(ener,_ENERFORMAT_,
 	simulCond.step,enerFor.energyTot/kcaltoiu,enerFor.energyKin/kcaltoiu,enerFor.energyPot/kcaltoiu,
 	enerFor.energyElec/kcaltoiu,enerFor.energyVdw/kcaltoiu,enerFor.energyBond/kcaltoiu,
 	enerFor.energyAng/kcaltoiu,enerFor.energyUb/kcaltoiu,enerFor.energyDih/kcaltoiu,
@@ -174,13 +173,13 @@ int main(int argc, char* argv[])
       if(simulCond.integrator==1)
       {
 	vv_nve(&atom,&enerFor,&simulCond,1);
-	printf("Velocity verlet fisrt stage done for step %d\n",simulCond.step);
+// 	printf("Velocity verlet fisrt stage done for step %d\n",simulCond.step);
       }
       
 //     Energies calculation.
 
       energy(&atom,&ff,&enerFor,&simulCond);
-      printf("Energy done for step %d\n",simulCond.step);
+//       printf("Energy done for step %d\n",simulCond.step);
       
 //     Numerical derivatives to estimate forces.
 
@@ -218,12 +217,12 @@ int main(int argc, char* argv[])
       if(simulCond.integrator==0)
       {
 	lf_nve(&atom,&enerFor,&simulCond,constList);
-	printf("Leap frog done for step %d\n",simulCond.step);
+// 	printf("Leap frog done for step %d\n",simulCond.step);
       }
       else if(simulCond.integrator==1)
       {
 	vv_nve(&atom,&enerFor,&simulCond,2);
-	printf("Velocity verlet second stage done for step %d\n",simulCond.step);
+// 	printf("Velocity verlet second stage done for step %d\n",simulCond.step);
       }
       
       enerFor.energyTot=enerFor.energyKin+enerFor.energyPot;
@@ -231,7 +230,7 @@ int main(int argc, char* argv[])
 //     Write thermodynamics properties into ener file.
       
       if( (simulCond.keyener) && (simulCond.step%simulCond.printo==0) )
-	fprintf(ener,"%d\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\n",
+	fprintf(ener,_ENERFORMAT_,
 	  simulCond.step,enerFor.energyTot/kcaltoiu,enerFor.energyKin/kcaltoiu,enerFor.energyPot/kcaltoiu,
 	  enerFor.energyElec/kcaltoiu,enerFor.energyVdw/kcaltoiu,enerFor.energyBond/kcaltoiu,
 	  enerFor.energyAng/kcaltoiu,enerFor.energyUb/kcaltoiu,enerFor.energyDih/kcaltoiu,

@@ -84,13 +84,13 @@ void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd)
 	nia=(double)atom->inconst[ia];
 	nib=(double)atom->inconst[ib];
 	
-	atom->x[ia]+=xt[i]/nia;
-	atom->y[ia]+=yt[i]/nia;
-	atom->z[ia]+=zt[i]/nia;
+	atom->x[ia]+=xt[ia]/nia;
+	atom->y[ia]+=yt[ia]/nia;
+	atom->z[ia]+=zt[ia]/nia;
 	
-	atom->x[ib]+=xt[i]/nib;
-	atom->y[ib]+=yt[i]/nib;
-	atom->z[ib]+=zt[i]/nib;
+	atom->x[ib]+=xt[ib]/nib;
+	atom->y[ib]+=yt[ib]/nib;
+	atom->z[ib]+=zt[ib]/nib;
 	
       }
       
@@ -102,5 +102,11 @@ void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd)
   
   if(!converged)
     error(311);
+  
+  free(xt);
+  free(yt);
+  free(zt);
+  free(rt2);
+  free(dt);
   
 }

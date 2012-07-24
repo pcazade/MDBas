@@ -3,7 +3,7 @@
 
 void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff);
 void read_TOP(INPUTS *inp);
-void read_PSF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAINT *constList);
+void read_PSF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAINT **constList);
 void read_PAR(INPUTS *inp);
 void read_CONF(ATOM *atom);
 void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAINT *constList);

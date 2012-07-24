@@ -10,10 +10,6 @@ void lf_nve(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAINT 
   double *xo,*yo,*zo,*vxu,*vyu,*vzu;
   DELTA *dd;
   
-  xo=(double*)malloc(atom->natom*sizeof(*xo));
-  yo=(double*)malloc(atom->natom*sizeof(*yo));
-  zo=(double*)malloc(atom->natom*sizeof(*zo));
-  
   vxu=(double*)malloc(atom->natom*sizeof(*vxu));
   vyu=(double*)malloc(atom->natom*sizeof(*vyu));
   vzu=(double*)malloc(atom->natom*sizeof(*vzu));
@@ -33,18 +29,28 @@ void lf_nve(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAINT 
     }
     
     image_array(simulCond->nconst,dd,simulCond);
+    
+    xo=(double*)malloc(atom->natom*sizeof(*xo));
+    yo=(double*)malloc(atom->natom*sizeof(*yo));
+    zo=(double*)malloc(atom->natom*sizeof(*zo));
+    
+    for(i=0;i<atom->natom;i++)
+    {
+      
+// Store old coordinates.
+
+      xo[i]=atom->x[i];
+      yo[i]=atom->y[i];
+      zo[i]=atom->z[i];
+      
+    }
+    
   }
 
 // move atoms by leapfrog algorithm
   
   for(i=0;i<atom->natom;i++)
   {
-    
-// Store old coordinates.
-
-    xo[i]=atom->x[i];
-    yo[i]=atom->y[i];
-    zo[i]=atom->z[i];
     
 // update velocities
     
@@ -116,6 +122,14 @@ void lf_nve(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAINT 
   free(vxu);
   free(vyu);
   free(vzu);
+  
+  if(simulCond->nconst>0)
+  {
+    free(xo);
+    free(yo);
+    free(zo);
+    free(dd);
+  }
       
 }
 
