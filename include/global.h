@@ -72,7 +72,7 @@ typedef struct
 typedef struct
 {
   int lqpoly,nb14,step,nsteps,degfree,firstener;
-  int printo,printtr,integrator,ens,enstime,nconst,maxcycle;
+  int printo,printtr,integrator,ens,nconst,maxcycle;
   int keyrand,seed,keytraj,keyener,keyforf,keymd,keyconsth;
   int *excludeNum,*excludeAtom;
   int **iBond,**iUb,**iAngle,**iDihedral,**iImproper;

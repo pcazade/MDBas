@@ -3,7 +3,8 @@
 
 double distance(int i,int j, ATOM *atom,double *delta,SIMULPARAMS *simulCond);
 double distance2(int i,int j, ATOM *atom,DELTA *d,SIMULPARAMS *simulCond);
-void init_vel(ATOM *atom,SIMULPARAMS *simulCond);
+void init_vel(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList);
+void init_constvel(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList);
 void image_update(ATOM *atom,SIMULPARAMS *simulCond);
 void image_array(int size_array,DELTA *d,SIMULPARAMS *simulCond);
 double kinetic(ATOM *atom);

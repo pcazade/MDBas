@@ -88,7 +88,7 @@ int main(int argc, char* argv[])
   
   get_kinfromtemp(&atom,&simulCond);
   
-  init_vel(&atom,&simulCond);
+  init_vel(&atom,&simulCond,constList);
   
   if(simulCond.keyener)
   {

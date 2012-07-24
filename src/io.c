@@ -46,7 +46,7 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
 
   simulCond->integrator=1;
   simulCond->ens=0;
-  simulCond->enstime=1.0;
+  simulCond->taut=0.1;
   simulCond->tolshake=1e-8;
   simulCond->maxcycle=100;
   simulCond->keyconsth=0;
@@ -71,6 +71,8 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
       continue;
     
     nocase(buff2);
+    
+    puts(buff2);
     
     if(!strcmp(buff2,"mdbas"))
       simulCond->mdNature=0;
@@ -201,15 +203,7 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
       if(!strcmp(buff3,"nve"))
 	simulCond->ens=0;
       else if(!strcmp(buff3,"nvtb"))
-      {
 	simulCond->ens=1;
-	
-	buff4=strtok(NULL," \n\t");
-	if(buff4==NULL)
-	  error(63);
-	
-	simulCond->taut=atof(buff4);
-      }
       else if(!strcmp(buff3,"nptb"))
 	simulCond->ens=2;
       else
@@ -221,7 +215,7 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
 	if(buff3==NULL)
 	error(63);
 	
-	simulCond->enstime=atof(buff3);
+	simulCond->taut=atof(buff3);
       }
     }
     else if(!strcmp(buff2,"temperature"))

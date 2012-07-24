@@ -15,7 +15,7 @@ void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd)
   yt=(double*)malloc(atom->natom*sizeof(*yt));
   zt=(double*)malloc(atom->natom*sizeof(*zt));
   
-  rt2=(double*)malloc(atom->natom*sizeof(*rt2));
+  rt2=(double*)malloc(simulCond->nconst*sizeof(*rt2));
   
   dt=(DELTA*)malloc(simulCond->nconst*sizeof(*dt));
   
