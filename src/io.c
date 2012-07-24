@@ -200,10 +200,18 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
       
       if(!strcmp(buff3,"nve"))
 	simulCond->ens=0;
-      else if(!strcmp(buff3,"nvt"))
+      else if(!strcmp(buff3,"nvtb"))
+      {
 	simulCond->ens=1;
-      else if(!strcmp(buff3,"npt"))
-	simulCond->ens=3;
+	
+	buff4=strtok(NULL," \n\t");
+	if(buff4==NULL)
+	  error(63);
+	
+	simulCond->taut=atof(buff4);
+      }
+      else if(!strcmp(buff3,"nptb"))
+	simulCond->ens=2;
       else
 	error(62);
       

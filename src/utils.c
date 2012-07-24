@@ -63,7 +63,7 @@ double distance2(int i,int j, ATOM *atom,DELTA *d,SIMULPARAMS *simulCond)
 void init_vel(ATOM *atom,SIMULPARAMS *simulCond)
 {
   int i,natoms;
-  double cmvx=0.,cmvy=0.,cmvz=0.,cmm=0.,initKin=0.,tempKin=0.;
+  double cmvx=0.,cmvy=0.,cmvz=0.,cmm=0.,initKin=0.;
   double factor;  
   
   natoms=2*(atom->natom/2);
@@ -120,13 +120,7 @@ void init_vel(ATOM *atom,SIMULPARAMS *simulCond)
   
   initKin=kinetic(atom);
   
-  get_degfree(atom,simulCond);
-  
-//   Energy in internal units 10 J/mol. rboltzui=R/10.
-  
-  tempKin=0.5*simulCond->temp*simulCond->degfree*rboltzui;
-  
-  factor=sqrt(tempKin/initKin);
+  factor=sqrt(simulCond->kintemp0/initKin);
   
   for(i=0;i<atom->natom;i++)
   {
@@ -211,6 +205,15 @@ double kinetic(ATOM *atom)
   return ( ekin*0.5 );
 }
 
+void get_kinfromtemp(ATOM *atom,SIMULPARAMS *simulCond)
+{
+  get_degfree(atom,simulCond);
+  
+  //   Energy in internal units 10 J/mol. rboltzui=R/10.
+  
+  simulCond->kintemp0=0.5*simulCond->temp*simulCond->degfree*rboltzui;
+}
+
 void get_degfree(ATOM *atom,SIMULPARAMS *simulCond)
 {
   
@@ -220,6 +223,9 @@ void get_degfree(ATOM *atom,SIMULPARAMS *simulCond)
 //   -3 degrees of freedpm for the box rotation when no PBC.
   if(simulCond->periodicType==0)
     simulCond->degfree-=3;
+  
+  if(simulCond->nconst>0)
+    simulCond->degfree-=simulCond->nconst;
     
 }
 

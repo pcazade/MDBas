@@ -86,6 +86,8 @@ int main(int argc, char* argv[])
   
   printf("Free temp array done\n");
   
+  get_kinfromtemp(&atom,&simulCond);
+  
   init_vel(&atom,&simulCond);
   
   if(simulCond.keyener)
@@ -172,7 +174,7 @@ int main(int argc, char* argv[])
 
       if(simulCond.integrator==1)
       {
-	vv_nve(&atom,&enerFor,&simulCond,1);
+	vv_integrate(&atom,&enerFor,&simulCond,constList,1);
 // 	printf("Velocity verlet fisrt stage done for step %d\n",simulCond.step);
       }
       
@@ -216,12 +218,12 @@ int main(int argc, char* argv[])
       
       if(simulCond.integrator==0)
       {
-	lf_nve(&atom,&enerFor,&simulCond,constList);
+	lf_integrate(&atom,&enerFor,&simulCond,constList);
 // 	printf("Leap frog done for step %d\n",simulCond.step);
       }
       else if(simulCond.integrator==1)
       {
-	vv_nve(&atom,&enerFor,&simulCond,2);
+	vv_integrate(&atom,&enerFor,&simulCond,constList,2);
 // 	printf("Velocity verlet second stage done for step %d\n",simulCond.step);
       }
       

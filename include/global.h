@@ -78,7 +78,7 @@ typedef struct
   int **iBond,**iUb,**iAngle,**iDihedral,**iImproper;
   int elecType,vdwType,periodicType,mdNature,numDeriv;
   int *bondType,*ubType,*angleType,*diheType,*imprType;
-  double chargeConst,cutoff,cuton,delr,tolshake;
+  double chargeConst,cutoff,cuton,delr,tolshake,kintemp0,taut;
   double temp,timeStep,periodicBox[3][3];
 }SIMULPARAMS;
 
