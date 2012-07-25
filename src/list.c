@@ -3,8 +3,27 @@
 #include "utils.h"
 #include "memory.h"
 #include "io.h"
+#include "list.h"
 
-void exclude_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
+void makelist(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,CONSTRAINT *constList)
+{
+  if(simulCond->firstener==1)
+  {
+//     printf("Building exclusion and Verlet lists.\n");
+    exclude_list(simulCond,atom,ff,constList);
+    verlet_list(simulCond,atom,ff);
+    
+    simulCond->firstener=0;
+    
+  }
+  else if( (simulCond->step>0) && (simulCond->step%simulCond->listupdate==0 ) )
+  {
+//     printf("Updating Verlet list.\n");
+    verlet_list_update(simulCond,atom,ff);
+  }
+}
+
+void exclude_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,CONSTRAINT *constList)
 {
   int i,j,k,l,ii,jj,kk,ia,ib,ic,id,exclude;
   int **tempAtom,**tempVer14,**tempConnect,*tempConnectNum;
@@ -68,6 +87,48 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
     
     tempAtom[ii][simulCond->excludeNum[ii]]=jj;
     simulCond->excludeNum[ii]++;      
+  }
+  
+  if(simulCond->keyconsth)
+  {
+    for(i=0;i<simulCond->nconst;i++)
+    {
+      ia=constList[i].a;
+      ib=constList[i].b;
+      
+      if(ib<ia)
+      {
+	ii=ib;
+	jj=ia;
+      }
+      else
+      {
+	ii=ia;
+	jj=ib;
+      }
+    
+      if(simulCond->excludeNum[ii]>=nAlloc)
+      {
+	nAlloc+=nIncr;
+	for(j=0;j<atom->natom;j++)
+	  tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
+      }
+      
+      if(tempConnectNum[ii]>=nConnect||tempConnectNum[jj]>=nConnect)
+      {
+	nConnect+=nIncr;
+	for(j=0;j<atom->natom;j++)
+	  tempConnect[j]=(int*)realloc(tempConnect[j],nConnect*sizeof(**tempConnect));
+      }
+      
+      tempConnect[ii][tempConnectNum[ii]]=jj;
+      tempConnect[jj][tempConnectNum[jj]]=ii;
+      tempConnectNum[ii]++;
+      tempConnectNum[jj]++;
+      
+      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
+      simulCond->excludeNum[ii]++;      
+    }
   }
   
   for(i=0;i<ff->nAngle;i++)
@@ -808,6 +869,7 @@ void verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
     kv+=simulCond->excludeNum[i];
   }
   ff->verList=(int*)realloc(ff->verList,ff->npr*sizeof(*(ff->verList)));
+  printf("%d\n",ff->npr);
 
 }
 

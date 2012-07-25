@@ -15,6 +15,7 @@
 #include "utils.h"
 #include "integrate.h"
 #include "numderiv.h"
+#include "list.h"
 
 
 #if ( defined __linux__ || defined __FreeBSD__ )
@@ -89,6 +90,8 @@ int main(int argc, char* argv[])
   get_kinfromtemp(&atom,&simulCond);
   
   init_vel(&atom,&simulCond,constList);
+  
+  makelist(&simulCond,&atom,&ff,constList);
   
   if(simulCond.keyener)
   {
@@ -177,6 +180,10 @@ int main(int argc, char* argv[])
 	vv_integrate(&atom,&enerFor,&simulCond,constList,1);
 // 	printf("Velocity verlet fisrt stage done for step %d\n",simulCond.step);
       }
+      
+//     List update if needed.
+      
+      makelist(&simulCond,&atom,&ff,constList);
       
 //     Energies calculation.
 

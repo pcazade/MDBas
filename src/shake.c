@@ -101,7 +101,10 @@ void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd)
   }while( (!converged) && (icycle<simulCond->maxcycle) );
   
   if(!converged)
+  {
+    printf("icycle=%d maxdist=%lf tolshake=%lf\n",icycle,maxdist,simulCond->tolshake);
     error(311);
+  }
   
   free(xt);
   free(yt);
