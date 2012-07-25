@@ -323,7 +323,7 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
 	
 	simulCond->periodicBox[0][0]=atof(buff2);
 	
-	buff2=strtok(buff1," \n\t");
+	buff2=strtok(NULL," \n\t");
 	if(buff2==NULL)
 	  error(63);
 	else if(isdigit(buff2[0])==0)
@@ -331,7 +331,7 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
 	
 	simulCond->periodicBox[0][1]=atof(buff2);
 	
-	buff2=strtok(buff1," \n\t");
+	buff2=strtok(NULL," \n\t");
 	if(buff2==NULL)
 	  error(63);
 	else if(isdigit(buff2[0])==0)
@@ -354,7 +354,7 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
 	
 	simulCond->periodicBox[1][0]=atof(buff2);
 	
-	buff2=strtok(buff1," \n\t");
+	buff2=strtok(NULL," \n\t");
 	if(buff2==NULL)
 	  error(63);
 	else if(isdigit(buff2[0])==0)
@@ -362,7 +362,7 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
 	
 	simulCond->periodicBox[1][1]=atof(buff2);
 	
-	buff2=strtok(buff1," \n\t");
+	buff2=strtok(NULL," \n\t");
 	if(buff2==NULL)
 	  error(63);
 	else if(isdigit(buff2[0])==0)
@@ -385,7 +385,7 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
 	
 	simulCond->periodicBox[2][0]=atof(buff2);
 	
-	buff2=strtok(buff1," \n\t");
+	buff2=strtok(NULL," \n\t");
 	if(buff2==NULL)
 	  error(63);
 	else if(isdigit(buff2[0])==0)
@@ -393,7 +393,7 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
 	
 	simulCond->periodicBox[2][1]=atof(buff2);
 	
-	buff2=strtok(buff1," \n\t");
+	buff2=strtok(NULL," \n\t");
 	if(buff2==NULL)
 	  error(63);
 	else if(isdigit(buff2[0])==0)

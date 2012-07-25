@@ -801,6 +801,7 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,CONSTRAINT *c
     error(111);
   
   simulCond->excludeAtom=(int*)malloc(nExclude*sizeof(*(simulCond->excludeAtom)));
+  printf("nExclude=%d\n",nExclude);
   
   k=0;
   for(i=0;i<atom->natom;i++)
@@ -825,6 +826,7 @@ void verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
   double r,cutnb,delta[3];
   
   cutnb=simulCond->cutoff+simulCond->delr;
+  printf("cutoff+delr %lf\n",cutnb);
   
   ff->verPair=(int*)malloc((atom->natom-1)*sizeof(*(ff->verPair)));
   for(i=0;i<atom->natom-1;i++)
@@ -835,6 +837,7 @@ void verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
   for(i=0;i<nalloc;i++)
     ff->verList[i]=0;
 
+  int counter=0; //debug
   kv=0;
   ff->npr=0;
   for(i=0;i<atom->natom-1;i++)
@@ -844,6 +847,7 @@ void verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
       r=distance(i,j,atom,delta,simulCond);
       if(r<=cutnb)
       {
+        counter++;
 	exclude=0;
 	for (k=0;k<simulCond->excludeNum[i];k++)
 	{
@@ -869,7 +873,8 @@ void verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
     kv+=simulCond->excludeNum[i];
   }
   ff->verList=(int*)realloc(ff->verList,ff->npr*sizeof(*(ff->verList)));
-  printf("%d\n",ff->npr);
+  printf("natom:%d %d %d %d %d %d %d\n",atom->natom,ff->nBond,ff->nAngle,ff->nDihedral,ff->npr,ff->npr14,counter);
+  printf("bx=%lf by=%lf bz=%lf\n",simulCond->periodicBox[0][0],simulCond->periodicBox[1][1],simulCond->periodicBox[2][2]);
 
 }
 
