@@ -5,30 +5,11 @@
 #include "vdw.h"
 #include "internal.h"
 #include "io.h"
-#include "list.h"
 
 void energy(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
 {
   
   int i;
-  
-/* Performing elctrostatic interactions */  
-//   if(lqpoly)
-//       update_charges(ff);
-  if(simulCond->firstener==1)
-  {
-    printf("Building exclusion and Verlet lists.\n");
-    exclude_list(simulCond,atom,ff);
-    verlet_list(simulCond,atom,ff);
-    
-    simulCond->firstener=0;
-    
-  }
-  else if(simulCond->step>0)
-  {
-    printf("Updating Verlet list.\n");
-    verlet_list_update(simulCond,atom,ff);
-  }
   
   enerFor->energyElec=0.;
   enerFor->energyVdw=0.;

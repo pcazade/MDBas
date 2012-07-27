@@ -6,7 +6,7 @@ void vdw_full(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulC
     
   int i,j;
   double vdw=0.,pvdw,dvdw;
-  double r,fxi,fyi,fzi;
+  double r,fx,fy,fz,fxi,fyi,fzi;
   double delta[3];
   
   for(i=0;i<atom->natom-1;i++)
@@ -28,13 +28,17 @@ void vdw_full(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulC
       
       vdw+=pvdw;
       
-      fxi+=dvdw*delta[0]/r;
-      fyi+=dvdw*delta[1]/r;
-      fzi+=dvdw*delta[2]/r;
+      fx=dvdw*delta[0]/r;
+      fy=dvdw*delta[1]/r;
+      fz=dvdw*delta[2]/r;
       
-      atom->fx[j]+=-dvdw*delta[0]/r;
-      atom->fy[j]+=-dvdw*delta[1]/r;
-      atom->fz[j]+=-dvdw*delta[2]/r;
+      fxi+=fx;
+      fyi+=fy;
+      fzi+=fz;
+      
+      atom->fx[j]+=-fx;
+      atom->fy[j]+=-fy;
+      atom->fz[j]+=-fz;
       
     }
     atom->fx[i]+=fxi;
@@ -59,7 +63,7 @@ void vdw_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simu
   
   int i,j,k,ipr;
   double vdw=0.,pvdw,dpvdw,dvdw,switchFunc,dswitchFunc;
-  double r,fxi,fyi,fzi;
+  double r,fx,fy,fz,fxi,fyi,fzi;
   double delta[3];
   
   ipr=0;
@@ -86,13 +90,18 @@ void vdw_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simu
 	
 	vdw+=pvdw;
 	
-	fxi+=dvdw*delta[0]/r;
-	fyi+=dvdw*delta[1]/r;
-	fzi+=dvdw*delta[2]/r;
-	
-	atom->fx[j]+=-dvdw*delta[0]/r;
-	atom->fy[j]+=-dvdw*delta[1]/r;
-	atom->fz[j]+=-dvdw*delta[2]/r;	
+	fx=dvdw*delta[0]/r;
+	fy=dvdw*delta[1]/r;
+	fz=dvdw*delta[2]/r;
+      
+	fxi+=fx;
+	fyi+=fy;
+	fzi+=fz;
+      
+	atom->fx[j]+=-fx;
+	atom->fy[j]+=-fy;
+	atom->fz[j]+=-fz;
+		
       }
       else if(r<=simulCond->cutoff)
       {
@@ -114,13 +123,18 @@ void vdw_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simu
 	
 	dvdw=pvdw*dswitchFunc+dpvdw*switchFunc;
 	
-	fxi+=dvdw*delta[0]/r;
-	fyi+=dvdw*delta[1]/r;
-	fzi+=dvdw*delta[2]/r;
+	fx=dvdw*delta[0]/r;
+	fy=dvdw*delta[1]/r;
+	fz=dvdw*delta[2]/r;
+      
+	fxi+=fx;
+	fyi+=fy;
+	fzi+=fz;
+      
+	atom->fx[j]+=-fx;
+	atom->fy[j]+=-fy;
+	atom->fz[j]+=-fz;
 	
-	atom->fx[j]+=-dvdw*delta[0]/r;
-	atom->fy[j]+=-dvdw*delta[1]/r;
-	atom->fz[j]+=-dvdw*delta[2]/r;
       }
     }
     atom->fx[i]+=fxi;
@@ -135,7 +149,7 @@ void vdw14_full(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simu
     
   int i,j,k;
   double vdw=0.,pvdw,dvdw;
-  double r;
+  double r,fx,fy,fz;
   double delta[3];
   
   for(k=0;k<ff->npr14;k++)
@@ -152,14 +166,18 @@ void vdw14_full(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simu
       2.*X12((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r));
     
     vdw+=pvdw;
+        
+    fx=dvdw*delta[0]/r;
+    fy=dvdw*delta[1]/r;
+    fz=dvdw*delta[2]/r;
     
-    atom->fx[i]+=dvdw*delta[0]/r;
-    atom->fy[i]+=dvdw*delta[1]/r;
-    atom->fz[i]+=dvdw*delta[2]/r;
+    atom->fx[i]+=fx;
+    atom->fy[i]+=fy;
+    atom->fz[i]+=fz;
     
-    atom->fx[j]+=-dvdw*delta[0]/r;
-    atom->fy[j]+=-dvdw*delta[1]/r;
-    atom->fz[j]+=-dvdw*delta[2]/r;
+    atom->fx[j]+=-fx;
+    atom->fy[j]+=-fy;
+    atom->fz[j]+=-fz;
   }
   enerFor->energyVdw+=vdw;
 }
@@ -179,7 +197,7 @@ void vdw14_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *si
   
   int i,j,k;
   double vdw=0.,pvdw,dpvdw,dvdw,switchFunc,dswitchFunc;
-  double r;
+  double r,fx,fy,fz;
   double delta[3];
   
   for(k=0;k<ff->npr14;k++)
@@ -199,13 +217,18 @@ void vdw14_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *si
       
       vdw+=pvdw;
       
-      atom->fx[i]+=dvdw*delta[0]/r;
-      atom->fy[i]+=dvdw*delta[1]/r;
-      atom->fz[i]+=dvdw*delta[2]/r;
-      
-      atom->fx[j]+=-dvdw*delta[0]/r;
-      atom->fy[j]+=-dvdw*delta[1]/r;
-      atom->fz[j]+=-dvdw*delta[2]/r;	
+      fx=dvdw*delta[0]/r;
+      fy=dvdw*delta[1]/r;
+      fz=dvdw*delta[2]/r;
+    
+      atom->fx[i]+=fx;
+      atom->fy[i]+=fy;
+      atom->fz[i]+=fz;
+    
+      atom->fx[j]+=-fx;
+      atom->fy[j]+=-fy;
+      atom->fz[j]+=-fz;
+      	
     }
     else if(r<=simulCond->cutoff)
     {
@@ -227,13 +250,18 @@ void vdw14_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *si
       
       dvdw=pvdw*dswitchFunc+dpvdw*switchFunc;
       
-      atom->fx[i]+=dvdw*delta[0]/r;
-      atom->fy[i]+=dvdw*delta[1]/r;
-      atom->fz[i]+=dvdw*delta[2]/r;
+      fx=dvdw*delta[0]/r;
+      fy=dvdw*delta[1]/r;
+      fz=dvdw*delta[2]/r;
+    
+      atom->fx[i]+=fx;
+      atom->fy[i]+=fy;
+      atom->fz[i]+=fz;
+    
+      atom->fx[j]+=-fx;
+      atom->fy[j]+=-fy;
+      atom->fz[j]+=-fz;
       
-      atom->fx[j]+=-dvdw*delta[0]/r;
-      atom->fy[j]+=-dvdw*delta[1]/r;
-      atom->fz[j]+=-dvdw*delta[2]/r;
     }     
   }
   enerFor->energyVdw+=vdw;

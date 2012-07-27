@@ -40,8 +40,8 @@
 typedef struct
 {
   int natom;
-  char **atomLabel,**segi,**resn;
-  int *atomType,*ires,*resi;
+  char **atomLabel,**segi,**resi;
+  int *atomType,*ires,*resn,*inconst;
   double *x,*y,*z,*m;
   double *vx,*vy,*vz;
   double *fx,*fy,*fz;
@@ -54,7 +54,7 @@ typedef struct
   char **types;
   int *typesNum;
   int nTypes,nBondTypes,nAngTypes,nUbTypes,nDiheTypes,nImprTypes,nNonBonded;
-  int *bondTypes,**angTypes,**ubTypes,*nDiheTypesParm,***diheTypes,***imprTypes;
+  int **bondTypes,**angTypes,**ubTypes,*nDiheTypesParm,**diheTypes,**imprTypes;
   double **bondTypesParm,**angTypesParm,**ubTypesParm;
   double **diheTypesParm,**imprTypesParm,**nonBondedTypesParm;
 }INPUTS;
@@ -63,7 +63,7 @@ typedef struct
 {
   int nBond,nAngle,nDihedral,nImproper,nUb;
   double *q,*dq,*ddq,*qlpoly,**qpoly;
-  int *verList,*verPair,npr,**ver14,npr14,*nParmDihe;
+  int *verList,*verPair,*verCumSum,npr,**ver14,npr14,*nParmDihe;
   double **parmVdw,scal14;
   double **parmBond,**parmUb,**parmAngle,**parmDihe;
   double **parmImpr;
@@ -71,14 +71,14 @@ typedef struct
 
 typedef struct
 {
-  int lqpoly,nb14,step,nsteps,degfree,firstener;
-  int printo,printtr,integrator,ens,enstime;
-  int keyrand,seed,keytraj,keyener,keyforf,keymd;
+  int lqpoly,nb14,step,nsteps,degfree,firstener,listupdate;
+  int printo,printtr,integrator,ens,nconst,maxcycle;
+  int keyrand,seed,keytraj,keyener,keyforf,keymd,keyconsth;
   int *excludeNum,*excludeAtom;
   int **iBond,**iUb,**iAngle,**iDihedral,**iImproper;
   int elecType,vdwType,periodicType,mdNature,numDeriv;
   int *bondType,*ubType,*angleType,*diheType,*imprType;
-  double chargeConst,cutoff,cuton,delr;
+  double chargeConst,cutoff,cuton,delr,tolshake,kintemp0,taut;
   double temp,timeStep,periodicBox[3][3];
 }SIMULPARAMS;
 
@@ -89,5 +89,16 @@ typedef struct
   double energyBond,energyAng,energyUb,energyDih,energyImpr;
   double **hessian;
 }ENERGYFORCE;
+
+typedef struct
+{
+  int a,b;
+  double rc2;
+}CONSTRAINT;
+
+typedef struct
+{
+  double x,y,z;
+}DELTA;
 
 #endif

@@ -7,26 +7,30 @@
 void bond_energy(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
 {
   int i,j,ll;
-  double r,dbond,delta[3];
+  double r,fx,fy,fz,dbond,delta[3];
   
   for(ll=0;ll<ff->nBond;ll++)
   {
     
-    i=simulCond->iBond[ll][0]-1;
-    j=simulCond->iBond[ll][1]-1;
+    i=simulCond->iBond[ll][0];
+    j=simulCond->iBond[ll][1];
     
     r=distance(i,j,atom,delta,simulCond);
     
     enerFor->energyBond+=0.5*ff->parmBond[ll][0]*X2(r-ff->parmBond[ll][1]);
     dbond=ff->parmBond[ll][0]*(r-ff->parmBond[ll][1]);
     
-    atom->fx[i]+=dbond*delta[0]/r;
-    atom->fy[i]+=dbond*delta[1]/r;
-    atom->fz[i]+=dbond*delta[2]/r;
+    fx=dbond*delta[0]/r;
+    fy=dbond*delta[1]/r;
+    fz=dbond*delta[2]/r;
     
-    atom->fx[j]+=-dbond*delta[0]/r;
-    atom->fy[j]+=-dbond*delta[1]/r;
-    atom->fz[j]+=-dbond*delta[2]/r;
+    atom->fx[i]+=fx;
+    atom->fy[i]+=fy;
+    atom->fz[i]+=fz;
+    
+    atom->fx[j]+=-fx;
+    atom->fy[j]+=-fy;
+    atom->fz[j]+=-fz;
     
   }
 }
@@ -34,25 +38,29 @@ void bond_energy(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *sim
 void ub_energy(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
 {
   int i,j,ll;
-  double r,dub,delta[3];
+  double r,fx,fy,fz,dub,delta[3];
   
   for(ll=0;ll<ff->nUb;ll++)
   {
-    i=simulCond->iUb[ll][0]-1;
-    j=simulCond->iUb[ll][1]-1;
+    i=simulCond->iUb[ll][0];
+    j=simulCond->iUb[ll][1];
     
     r=distance(i,j,atom,delta,simulCond);
     
     enerFor->energyUb+=0.5*ff->parmUb[ll][0]*X2(r-ff->parmUb[ll][1]);
     dub=ff->parmUb[ll][0]*(r-ff->parmUb[ll][1]);
+
+    fx=dub*delta[0]/r;
+    fy=dub*delta[1]/r;
+    fz=dub*delta[2]/r;
     
-    atom->fx[i]+=dub*delta[0]/r;
-    atom->fy[i]+=dub*delta[1]/r;
-    atom->fz[i]+=dub*delta[2]/r;
+    atom->fx[i]+=fx;
+    atom->fy[i]+=fy;
+    atom->fz[i]+=fz;
     
-    atom->fx[j]+=-dub*delta[0]/r;
-    atom->fy[j]+=-dub*delta[1]/r;
-    atom->fz[j]+=-dub*delta[2]/r;     
+    atom->fx[j]+=-fx;
+    atom->fy[j]+=-fy;
+    atom->fz[j]+=-fz;     
     
   }
 }
@@ -66,9 +74,9 @@ void angle_energy(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *si
   for(ll=0;ll<ff->nAngle;ll++)
   {
     
-    i=simulCond->iAngle[ll][0]-1;
-    j=simulCond->iAngle[ll][1]-1;
-    k=simulCond->iAngle[ll][2]-1;
+    i=simulCond->iAngle[ll][0];
+    j=simulCond->iAngle[ll][1];
+    k=simulCond->iAngle[ll][2];
     
     rab=distance(j,i,atom,dab,simulCond);
     rbc=distance(j,k,atom,dbc,simulCond);
@@ -118,10 +126,10 @@ void dihedral_energy(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS 
   
   for(ll=0;ll<ff->nDihedral;ll++)
   {
-    i=simulCond->iDihedral[ll][0]-1;
-    j=simulCond->iDihedral[ll][1]-1;
-    k=simulCond->iDihedral[ll][2]-1;
-    l=simulCond->iDihedral[ll][3]-1;
+    i=simulCond->iDihedral[ll][0];
+    j=simulCond->iDihedral[ll][1];
+    k=simulCond->iDihedral[ll][2];
+    l=simulCond->iDihedral[ll][3];
     
     rab=distance(j,i,atom,dab,simulCond);
     rbc=distance(k,j,atom,dbc,simulCond);
@@ -257,10 +265,10 @@ void improper_energy(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS 
   
   for(ll=0;ll<ff->nImproper;ll++)
   {
-    i=simulCond->iImproper[ll][0]-1;
-    j=simulCond->iImproper[ll][1]-1;
-    k=simulCond->iImproper[ll][2]-1;
-    l=simulCond->iImproper[ll][3]-1;
+    i=simulCond->iImproper[ll][0];
+    j=simulCond->iImproper[ll][1];
+    k=simulCond->iImproper[ll][2];
+    l=simulCond->iImproper[ll][3];
     
     rab=distance(j,i,atom,dab,simulCond);
     rbc=distance(k,j,atom,dbc,simulCond);

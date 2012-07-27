@@ -3,8 +3,27 @@
 #include "utils.h"
 #include "memory.h"
 #include "io.h"
+#include "list.h"
 
-void exclude_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
+void makelist(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,CONSTRAINT *constList)
+{
+  if(simulCond->firstener==1)
+  {
+    printf("Building exclusion and Verlet lists.\n");
+    exclude_list(simulCond,atom,ff,constList);
+    verlet_list(simulCond,atom,ff);
+    
+    simulCond->firstener=0;
+    
+  }
+  else if( /*(simulCond->step>0) &&*/ (simulCond->step%simulCond->listupdate==0 ) )
+  {
+    printf("Updating Verlet list at step %d.\n",simulCond->step);
+    verlet_list_update(simulCond,atom,ff);
+  }
+}
+
+void exclude_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,CONSTRAINT *constList)
 {
   int i,j,k,l,ii,jj,kk,ia,ib,ic,id,exclude;
   int **tempAtom,**tempVer14,**tempConnect,*tempConnectNum;
@@ -33,8 +52,8 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
     
   for(i=0;i<ff->nBond;i++)
   {
-    ia=simulCond->iBond[i][0]-1;
-    ib=simulCond->iBond[i][1]-1;
+    ia=simulCond->iBond[i][0];
+    ib=simulCond->iBond[i][1];
     
     if(ib<ia)
     {
@@ -70,11 +89,53 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
     simulCond->excludeNum[ii]++;      
   }
   
+  if(simulCond->keyconsth)
+  {
+    for(i=0;i<simulCond->nconst;i++)
+    {
+      ia=constList[i].a;
+      ib=constList[i].b;
+      
+      if(ib<ia)
+      {
+	ii=ib;
+	jj=ia;
+      }
+      else
+      {
+	ii=ia;
+	jj=ib;
+      }
+    
+      if(simulCond->excludeNum[ii]>=nAlloc)
+      {
+	nAlloc+=nIncr;
+	for(j=0;j<atom->natom;j++)
+	  tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
+      }
+      
+      if(tempConnectNum[ii]>=nConnect||tempConnectNum[jj]>=nConnect)
+      {
+	nConnect+=nIncr;
+	for(j=0;j<atom->natom;j++)
+	  tempConnect[j]=(int*)realloc(tempConnect[j],nConnect*sizeof(**tempConnect));
+      }
+      
+      tempConnect[ii][tempConnectNum[ii]]=jj;
+      tempConnect[jj][tempConnectNum[jj]]=ii;
+      tempConnectNum[ii]++;
+      tempConnectNum[jj]++;
+      
+      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
+      simulCond->excludeNum[ii]++;      
+    }
+  }
+  
   for(i=0;i<ff->nAngle;i++)
   {
-    ia=simulCond->iAngle[i][0]-1;
-    ib=simulCond->iAngle[i][1]-1;
-    ic=simulCond->iAngle[i][2]-1;
+    ia=simulCond->iAngle[i][0];
+    ib=simulCond->iAngle[i][1];
+    ic=simulCond->iAngle[i][2];
     
     if(ib<ia)
     {
@@ -188,10 +249,10 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
   
   for(i=0;i<ff->nDihedral;i++)
   {
-    ia=simulCond->iDihedral[i][0]-1;
-    ib=simulCond->iDihedral[i][1]-1;
-    ic=simulCond->iDihedral[i][2]-1;
-    id=simulCond->iDihedral[i][3]-1;
+    ia=simulCond->iDihedral[i][0];
+    ib=simulCond->iDihedral[i][1];
+    ic=simulCond->iDihedral[i][2];
+    id=simulCond->iDihedral[i][3];
     
     if(ib<ia)
     {
@@ -405,10 +466,10 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
     
   for(i=0;i<ff->nImproper;i++)
   {
-    ia=simulCond->iImproper[i][0]-1;
-    ib=simulCond->iImproper[i][1]-1;
-    ic=simulCond->iImproper[i][2]-1;
-    id=simulCond->iImproper[i][3]-1;
+    ia=simulCond->iImproper[i][0];
+    ib=simulCond->iImproper[i][1];
+    ic=simulCond->iImproper[i][2];
+    id=simulCond->iImproper[i][3];
     
     if(ib<ia)
     {
@@ -755,10 +816,7 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
     error(112);
   
   free_2D(atom->natom,tempAtom,NULL);
-//   for(i=0;i<atom->natom;i++)
-//     free(tempAtom[i]);
-  
-//   free(tempAtom);
+
 }
 
 void verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
@@ -771,12 +829,12 @@ void verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
   ff->verPair=(int*)malloc((atom->natom-1)*sizeof(*(ff->verPair)));
   for(i=0;i<atom->natom-1;i++)
     ff->verPair[i]=0;
-  
+
   nalloc=((atom->natom*atom->natom/64)-(atom->natom/8))/2;
   ff->verList=(int*)malloc(nalloc*sizeof(*(ff->verList)));
   for(i=0;i<nalloc;i++)
     ff->verList[i]=0;
-
+  
   kv=0;
   ff->npr=0;
   for(i=0;i<atom->natom-1;i++)
@@ -811,7 +869,13 @@ void verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
     kv+=simulCond->excludeNum[i];
   }
   ff->verList=(int*)realloc(ff->verList,ff->npr*sizeof(*(ff->verList)));
-
+  
+  /** Verlet cumulatedSum list (useful for parallelisation)**/
+  ff->verCumSum=(int*)malloc((atom->natom-1)*sizeof(*(ff->verCumSum)));
+  ff->verCumSum[0] = 0;
+  for(i=1;i<atom->natom-1;i++)
+    ff->verCumSum[i] = ff->verCumSum[i-1] + ff->verPair[i-1];
+  /** **/
 }
 
 void verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
@@ -857,4 +921,11 @@ void verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
     kv+=simulCond->excludeNum[i];
   }
   ff->verList=(int*)realloc(ff->verList,ff->npr*sizeof(*(ff->verList)));
+  
+  /** Verlet cumulatedSum list (useful for parallelisation)**/
+  ff->verCumSum[0] = 0;
+  for(i=1;i<atom->natom-1;i++)
+    ff->verCumSum[i] = ff->verCumSum[i-1] + ff->verPair[i-1];
+  /** **/
+  
 }
