@@ -869,13 +869,16 @@ void verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
     kv+=simulCond->excludeNum[i];
   }
   ff->verList=(int*)realloc(ff->verList,ff->npr*sizeof(*(ff->verList)));
-  
+
+#ifdef _OPENMP
   /** Verlet cumulatedSum list (useful for parallelisation)**/
   ff->verCumSum=(int*)malloc((atom->natom-1)*sizeof(*(ff->verCumSum)));
   ff->verCumSum[0] = 0;
   for(i=1;i<atom->natom-1;i++)
     ff->verCumSum[i] = ff->verCumSum[i-1] + ff->verPair[i-1];
   /** **/
+#endif
+
 }
 
 void verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
@@ -921,11 +924,13 @@ void verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
     kv+=simulCond->excludeNum[i];
   }
   ff->verList=(int*)realloc(ff->verList,ff->npr*sizeof(*(ff->verList)));
-  
+
+#ifdef _OPENMP
   /** Verlet cumulatedSum list (useful for parallelisation)**/
   ff->verCumSum[0] = 0;
   for(i=1;i<atom->natom-1;i++)
     ff->verCumSum[i] = ff->verCumSum[i-1] + ff->verPair[i-1];
   /** **/
-  
+#endif
+
 }

@@ -44,7 +44,7 @@ void steepestDescent(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS 
     
     currSt++;
     
-    printf("Steepest Descent : after step %d : EDiff = %lf \n", currSt, diff );
+//     printf("Steepest Descent : after step %d : EDiff = %lf \n", currSt, diff );
     
   } while ( (diff >= prec) && (currSt<=maxSteps) ) ;
   

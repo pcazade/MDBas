@@ -91,8 +91,8 @@ int main(int argc, char* argv[])
   get_kinfromtemp(&atom,&simulCond);
   
   makelist(&simulCond,&atom,&ff,constList);
-  steepestDescent(&atom,&ff,&enerFor,&simulCond);
-  makelist(&simulCond,&atom,&ff,constList);
+//   steepestDescent(&atom,&ff,&enerFor,&simulCond);
+//   makelist(&simulCond,&atom,&ff,constList);
   
   init_vel(&atom,&simulCond,constList);
   
