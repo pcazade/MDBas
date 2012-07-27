@@ -345,17 +345,36 @@ void vv_integrate(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONST
   switch (simulCond->ens)
   {
     case 0:
-      vv_nve(atom,enerFor,simulCond,stage);
+      vv_nve(atom,enerFor,simulCond,constList,stage);
       break;
     default:
-      vv_nve(atom,enerFor,simulCond,stage);
+      vv_nve(atom,enerFor,simulCond,constList,stage);
       break;
   }
 }
 
-void vv_nve(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,int stage)
+void vv_nve(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAINT *constList,int stage)
 {
-  int i;
+  int i,ia,ib;
+  DELTA *dd=NULL;
+  
+  if(simulCond->nconst>0)
+  {
+    dd=(DELTA*)malloc(simulCond->nconst*sizeof(*dd));
+    
+    for(i=0;i<simulCond->nconst;i++)
+    {
+      ia=constList[i].a;
+      ib=constList[i].b;
+      
+      dd[i].x=atom->x[ib]-atom->x[ia];
+      dd[i].y=atom->y[ib]-atom->y[ia];
+      dd[i].z=atom->z[ib]-atom->z[ia];
+    }
+    
+    image_array(simulCond->nconst,dd,simulCond);
+    
+  }
 
 // move atoms by leapfrog algorithm
   
@@ -379,10 +398,29 @@ void vv_nve(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,int stage)
       atom->z[i]+=simulCond->timeStep*atom->vz[i];
       
     }
+    
+    if(simulCond->nconst>0)
+    {
+      
+// Apply constraint with Shake algorithm.
+
+      vv_shake_r(atom,simulCond,constList,dd);
+      
+    }
+    
   }
   else
   {
 // calculate kinetic energy
+
+    if(simulCond->nconst>0)
+    {
+      
+// Apply constraint with Shake algorithm.
+
+      vv_shake_v(atom,simulCond,constList,dd);
+      
+    }
   
     enerFor->energyKin=kinetic(atom);
   }
@@ -394,5 +432,10 @@ void vv_nve(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,int stage)
     
     image_update(atom,simulCond);
   }
-      
+  
+  if(simulCond->nconst>0)
+  {
+    free(dd);
+  }
+   
 }
