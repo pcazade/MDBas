@@ -16,6 +16,7 @@
 #include "integrate.h"
 #include "numderiv.h"
 #include "list.h"
+#include "minim.h"
 
 
 #if ( defined __linux__ || defined __FreeBSD__ )
@@ -89,9 +90,11 @@ int main(int argc, char* argv[])
   
   get_kinfromtemp(&atom,&simulCond);
   
-  init_vel(&atom,&simulCond,constList);
-  
   makelist(&simulCond,&atom,&ff,constList);
+  steepestDescent(&atom,&ff,&enerFor,&simulCond);
+  makelist(&simulCond,&atom,&ff,constList);
+  
+  init_vel(&atom,&simulCond,constList);
   
   if(simulCond.keyener)
   {
@@ -105,9 +108,13 @@ int main(int argc, char* argv[])
   if(simulCond.keytraj)
   {
     traj=fopen("traj.xyz","w");
+    fprintf(traj,"%d\n",atom.natom);
+    fprintf(traj,"initial config (minimised)\n",simulCond.step);
+    for(i=0;i<atom.natom;i++)
+      fprintf(traj,"%s\t%7.3lf\t%7.3lf\t%7.3lf\n",atom.atomLabel[i],atom.x[i],atom.y[i],atom.z[i]);
   }
   
-  if(simulCond.integrator==1)
+  if(simulCond.integrator==1 || !simulCond.keymd)
   {
 
 //   Computes kinetic energy at time=0
@@ -129,13 +136,14 @@ int main(int argc, char* argv[])
 	enerFor.energyImpr/kcaltoiu);
     }
     
-    if(simulCond.keytraj)
-    {
-      fprintf(traj,"%d\n",atom.natom);
-      fprintf(traj,"step %d\n",simulCond.step);
-      for(i=0;i<atom.natom;i++)
-	  fprintf(traj,"%s\t%7.3lf\t%7.3lf\t%7.3lf\n",atom.atomLabel[i],atom.x[i],atom.y[i],atom.z[i]);
-    }
+//     if(simulCond.keytraj)
+//     {
+//       fprintf(traj,"%d\n",atom.natom);
+//       fprintf(traj,"step %d\n",simulCond.step);
+//       for(i=0;i<atom.natom;i++)
+// 	  fprintf(traj,"%s\t%7.3lf\t%7.3lf\t%7.3lf\n",atom.atomLabel[i],atom.x[i],atom.y[i],atom.z[i]);
+//     }
+
 //   Numerical derivatives to estimate forces for initial configuration.
       
     if(simulCond.numDeriv==1)
