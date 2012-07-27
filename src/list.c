@@ -9,20 +9,20 @@ void makelist(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,CONSTRAINT *const
 {
   if(simulCond->firstener==1)
   {
-    printf("Building exclusion and Verlet lists.\n");
+    //printf("Building exclusion and Verlet lists.\n");
     exclude_list(simulCond,atom,ff,constList);
-    printf("Exclude list done\n");
+    //printf("Exclude list done\n");
     verlet_list(simulCond,atom,ff);
-    printf("Verlet list done\n");
+    //printf("Verlet list done\n");
     
     simulCond->firstener=0;
     
   }
   else if( /*(simulCond->step>0) &&*/ (simulCond->step%simulCond->listupdate==0 ) )
   {
-    printf("Updating Verlet list at step %d.\n",simulCond->step);
+    //printf("Updating Verlet list at step %d.\n",simulCond->step);
     verlet_list_update(simulCond,atom,ff);
-    printf("Update done\n\n");
+    //printf("Update done\n\n");
   }
 }
 
