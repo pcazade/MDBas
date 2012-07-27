@@ -9,17 +9,20 @@ void makelist(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,CONSTRAINT *const
 {
   if(simulCond->firstener==1)
   {
-//     printf("Building exclusion and Verlet lists.\n");
+    printf("Building exclusion and Verlet lists.\n");
     exclude_list(simulCond,atom,ff,constList);
+    printf("Exclude list done\n");
     verlet_list(simulCond,atom,ff);
+    printf("Verlet list done\n");
     
     simulCond->firstener=0;
     
   }
   else if( /*(simulCond->step>0) &&*/ (simulCond->step%simulCond->listupdate==0 ) )
   {
-//     printf("Updating Verlet list at step %d.\n",simulCond->step);
+    printf("Updating Verlet list at step %d.\n",simulCond->step);
     verlet_list_update(simulCond,atom,ff);
+    printf("Update done\n\n");
   }
 }
 
@@ -821,7 +824,7 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,CONSTRAINT *c
 
 void verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
 {
-  int i,j,k,kv,exclude,nalloc,incr=1000;
+  int i,j,k,kv,exclude,nalloc,incr=262144;
   double r,cutnb,delta[3];
   
   cutnb=simulCond->cutoff+simulCond->delr;
@@ -830,10 +833,12 @@ void verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
   for(i=0;i<atom->natom-1;i++)
     ff->verPair[i]=0;
 
-  nalloc=((atom->natom*atom->natom/64)-(atom->natom/8))/2;
+//   nalloc=((atom->natom*atom->natom/64)-(atom->natom/8))/2;
+//   nalloc = (int) atom->natom * ( atom->natom/8 - 1  ) / 2 ;
+  nalloc = (int) atom->natom * 1024 ;
   ff->verList=(int*)malloc(nalloc*sizeof(*(ff->verList)));
-  for(i=0;i<nalloc;i++)
-    ff->verList[i]=0;
+//   for(i=0;i<nalloc;i++)
+//     ff->verList[i]=0;
   
   kv=0;
   ff->npr=0;
@@ -867,6 +872,8 @@ void verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
       }
     }
     kv+=simulCond->excludeNum[i];
+    
+//     printf("Verpair[%d] : %d\n",i,ff->verPair[i]);
   }
   ff->verList=(int*)realloc(ff->verList,ff->npr*sizeof(*(ff->verList)));
 

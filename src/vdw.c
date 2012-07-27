@@ -162,7 +162,9 @@ void vdw_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simu
       atom->fz[i]+=fzi;
 
     }
+  #ifdef _OPENMP
   }
+  #endif
   enerFor->energyVdw+=vdw;
   
 }

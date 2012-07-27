@@ -123,7 +123,9 @@ void coulomb_shift1(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *
       atom->fz[i]+=fzi;
 
     }
+  #ifdef _OPENMP
   }
+  #endif
   
   enerFor->energyElec+=elec;
   
@@ -209,7 +211,9 @@ void coulomb_shift2(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *
       
     } //END of main for
   
-  } // END of parallel area
+  #ifdef _OPENMP
+  }
+  #endif
   
   enerFor->energyElec+=elec;
   
@@ -239,7 +243,7 @@ void coulomb_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *
   #pragma omp parallel default(none) shared(atom,ff,enerFor,simulCond) private(i,j,k,pelec,delec,switchFunc,dswitchFunc,r,fx,fy,fz,fxi,fyi,fzi,delta) reduction(+:elec)
   {
     #pragma omp for nowait
-    #endif
+  #endif
     for(i=0;i<atom->natom-1;i++)
     {
       fxi=0.;
@@ -320,7 +324,9 @@ void coulomb_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *
       atom->fz[i]+=fzi;
 
     }
+  #ifdef _OPENMP
   }
+  #endif
   enerFor->energyElec+=elec;
 }
 

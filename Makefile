@@ -5,17 +5,17 @@
 #use : make DEBUG=ON for a debug build
 DEBUG=OFF
 
-CC=gcc -fopenmp 
+CC=gcc 
 
 ifeq ($(DEBUG),OFF) 
 CC_OPT=-I"./dSFMT" -I"./include" -std=c99 -Wall -O2 -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937
 else
-CC_OPT=-I"./dSFMT" -I"./include" -std=c99 -Wall -Wextra -O0 -g -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937
+CC_OPT=-I"./dSFMT" -I"./include" -std=c99 -Wall -Wextra -O2 -pg -g -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937
 endif
 
 CC_SFMT_OPT=-I"./dSFMT" -std=c99 -O2 -msse2 -fno-strict-aliasing -DHAVE_SSE2 -DDSFMT_MEXP=19937
 
-LD_OPT=-lm
+LD_OPT=-lm -pg
 
 MKDIR=mkdir -p ./obj/dSFMT
  
