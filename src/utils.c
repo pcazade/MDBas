@@ -139,9 +139,9 @@ void init_vel(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList)
 void init_constvel(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList)
 {
   int i,ia,ib,icycle,converged;
-  double *vxu,*vyu,*vzu;
+  double *vxu=NULL,*vyu=NULL,*vzu=NULL;
   double rt,maxdv,dv,w1,w2,nia,nib;
-  DELTA *dt;
+  DELTA *dt=NULL;
   
   vxu=(double*)malloc(atom->natom*sizeof(*vxu));
   vyu=(double*)malloc(atom->natom*sizeof(*vyu));
@@ -165,7 +165,7 @@ void init_constvel(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList)
   icycle=0;
   converged=0;
   
-  while( (!converged) && (icycle<simulCond->maxcycle) )
+  do
   {
     for(i=0;i<atom->natom;i++)
     {
@@ -224,7 +224,8 @@ void init_constvel(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList)
     }
     
     icycle++;
-  }
+    
+  }while( (!converged) && (icycle<simulCond->maxcycle) );
   
   if(!converged)
     error(310);

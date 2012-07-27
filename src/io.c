@@ -22,6 +22,11 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
   
   simulCond->keymd=1;
   
+  simulCond->keyminim=0;
+  simulCond->tolminim=1.e-3;
+  simulCond->maxminst=1000;
+  simulCond->maxminsiz=0.15;
+  
   simulCond->step=0;
   simulCond->firstener=1;
   
@@ -48,8 +53,8 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
   simulCond->integrator=1;
   simulCond->ens=0;
   simulCond->taut=0.1;
-  simulCond->tolshake=1e-8;
-  simulCond->maxcycle=100;
+  simulCond->tolshake=1.e-8;
+  simulCond->maxcycle=150;
   simulCond->keyconsth=0;
   simulCond->nconst=0;
   
@@ -85,6 +90,42 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
     else if(!strcmp(buff2,"nomd"))
       simulCond->keymd=0;
     
+    else if(!strcmp(buff2,"minim"))
+    {
+      simulCond->keyminim=1;
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	error(63);
+      
+      nocase(buff3);
+      
+      if(!strcmp(buff3,"tol"))
+      {
+	buff4=strtok(NULL," \n\t");
+	if(buff4==NULL)
+	  error(63);
+	
+	simulCond->tolminim=atof(buff4);
+      }
+      else if(!strcmp(buff3,"maxcycle"))
+      {
+	buff4=strtok(NULL," \n\t");
+	if(buff4==NULL)
+	  error(63);
+	
+	simulCond->maxminst=atoi(buff4);
+      }
+      else if(!strcmp(buff3,"maxsize"))
+      {
+	buff4=strtok(NULL," \n\t");
+	if(buff4==NULL)
+	  error(63);
+	
+	simulCond->maxminsiz=atof(buff4);
+      }
+      else
+	error(62);
+    }
     else if(!strcmp(buff2,"timestep"))
     {
       buff3=strtok(NULL," \n\t");
@@ -2385,6 +2426,11 @@ void error(int errorNumber)
     printf("Unknown van der Waals potential. This is most likely due to an\n");
     printf("error in the SIMU file. Please check this file and the manual\n");
     printf("for the list of keywords and available potentials.\n");
+    break;
+  case 310:
+    printf("Velocities quenching convergence failure, most likely due a non suitable\n");
+    printf("initial configuration. If not, you can try increasing the number of cycles or\n");
+    printf("make Shake convergence criterion more tolerant. Please check the manual.\n");
     break;
   case 311:
     printf("Shake convergence failure, most likely due a non suitable initial\n");

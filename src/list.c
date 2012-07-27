@@ -9,7 +9,7 @@ void makelist(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,CONSTRAINT *const
 {
   if(simulCond->firstener==1)
   {
-    printf("Building exclusion and Verlet lists.\n");
+//     printf("Building exclusion and Verlet lists.\n");
     exclude_list(simulCond,atom,ff,constList);
     verlet_list(simulCond,atom,ff);
     
@@ -18,7 +18,7 @@ void makelist(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,CONSTRAINT *const
   }
   else if( /*(simulCond->step>0) &&*/ (simulCond->step%simulCond->listupdate==0 ) )
   {
-    printf("Updating Verlet list at step %d.\n",simulCond->step);
+//     printf("Updating Verlet list at step %d.\n",simulCond->step);
     verlet_list_update(simulCond,atom,ff);
   }
 }
@@ -26,7 +26,7 @@ void makelist(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,CONSTRAINT *const
 void exclude_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,CONSTRAINT *constList)
 {
   int i,j,k,l,ii,jj,kk,ia,ib,ic,id,exclude;
-  int **tempAtom,**tempVer14,**tempConnect,*tempConnectNum;
+  int **tempAtom=NULL,**tempVer14=NULL,**tempConnect=NULL,*tempConnectNum=NULL;
   int nAlloc=12,nIncr=10,nConnect=12,nExclude;
   
   simulCond->excludeNum=(int*)malloc(atom->natom*sizeof(*(simulCond->excludeNum)));

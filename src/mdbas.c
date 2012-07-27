@@ -32,7 +32,7 @@ int main(int argc, char* argv[])
 //   void (*test)(int *par1,double *par2,...);
 //   test=&(elec);
 
-  FILE *ener,*traj,*frc,*numfrc;
+  FILE *ener=NULL,*traj=NULL,*frc=NULL,*numfrc=NULL;
   INPUTS inp;
   ATOM atom;
   FORCEFIELD ff;
@@ -90,9 +90,15 @@ int main(int argc, char* argv[])
   
   get_kinfromtemp(&atom,&simulCond);
   
+  //init_vel(&atom,&simulCond,constList);
+
   makelist(&simulCond,&atom,&ff,constList);
-//   steepestDescent(&atom,&ff,&enerFor,&simulCond);
-//   makelist(&simulCond,&atom,&ff,constList);
+  
+  if(simulCond.keyminim)
+  {
+    steepestDescent(&atom,&ff,&enerFor,&simulCond);
+    makelist(&simulCond,&atom,&ff,constList);
+  }
   
   init_vel(&atom,&simulCond,constList);
   
@@ -109,7 +115,7 @@ int main(int argc, char* argv[])
   {
     traj=fopen("traj.xyz","w");
     fprintf(traj,"%d\n",atom.natom);
-    fprintf(traj,"initial config (minimised)\n",simulCond.step);
+    fprintf(traj,"initial config (minimised)\n");
     for(i=0;i<atom.natom;i++)
       fprintf(traj,"%s\t%7.3lf\t%7.3lf\t%7.3lf\n",atom.atomLabel[i],atom.x[i],atom.y[i],atom.z[i]);
   }

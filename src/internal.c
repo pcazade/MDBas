@@ -115,10 +115,10 @@ void dihedral_energy(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS 
 {
   int i,j,k,l,ll,nd,ind;
   double pi,twopi;
-  double edihe,ddihe;
+  double edihe=0.,ddihe=0.;
   double cosp,sinp,phi;
-  double rab,rbc,rcd,rpb,rpc,r2pb,r2pc,pbpc;
-  double dab[3],dbc[3],dcd[3],dac[3],pb[3],pc[3];
+  double /*rab,*/rbc,/*rcd,*/rpb,rpc,r2pb,r2pc,pbpc;
+  double dab[3],dbc[3],dcd[3],/*dac[3],*/pb[3],pc[3];
   double fax,fay,faz,fbx,fby,fbz,fcx,fcy,fcz,fdx,fdy,fdz;
   
   pi=atan(-1.);
@@ -131,13 +131,13 @@ void dihedral_energy(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS 
     k=simulCond->iDihedral[ll][2];
     l=simulCond->iDihedral[ll][3];
     
-    rab=distance(j,i,atom,dab,simulCond);
+    /*rab=*/distance(j,i,atom,dab,simulCond);
     rbc=distance(k,j,atom,dbc,simulCond);
-    rcd=distance(l,k,atom,dcd,simulCond);
+    /*rcd=*/distance(l,k,atom,dcd,simulCond);
     
-    dac[0]=dab[0]+dbc[0];
+    /*dac[0]=dab[0]+dbc[0];
     dac[1]=dab[1]+dbc[1];
-    dac[2]=dab[2]+dbc[2];
+    dac[2]=dab[2]+dbc[2];*/
     
 // construct first dihedral vector
     
@@ -254,10 +254,10 @@ void improper_energy(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS 
 {
   int i,j,k,l,ll;
   double pi,twopi;
-  double edihe,ddihe;
+  double edihe=0.,ddihe=0.;
   double cosp,sinp,phi;
-  double rab,rbc,rcd,rpb,rpc,r2pb,r2pc,pbpc;
-  double dab[3],dbc[3],dcd[3],dac[3],pb[3],pc[3];
+  double /*rab,*/rbc,/*rcd,*/rpb,rpc,r2pb,r2pc,pbpc;
+  double dab[3],dbc[3],dcd[3],/*dac[3],*/pb[3],pc[3];
   double fax,fay,faz,fbx,fby,fbz,fcx,fcy,fcz,fdx,fdy,fdz;
   
   pi=atan(-1.);
@@ -270,13 +270,13 @@ void improper_energy(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS 
     k=simulCond->iImproper[ll][2];
     l=simulCond->iImproper[ll][3];
     
-    rab=distance(j,i,atom,dab,simulCond);
+    /*rab=*/distance(j,i,atom,dab,simulCond);
     rbc=distance(k,j,atom,dbc,simulCond);
-    rcd=distance(l,k,atom,dcd,simulCond);
+    /*rcd=*/distance(l,k,atom,dcd,simulCond);
     
-    dac[0]=dab[0]+dbc[0];
+    /*dac[0]=dab[0]+dbc[0];
     dac[1]=dab[1]+dbc[1];
-    dac[2]=dab[2]+dbc[2];
+    dac[2]=dab[2]+dbc[2];*/
     
 // construct first dihedral vector
     

@@ -74,11 +74,13 @@ typedef struct
   int lqpoly,nb14,step,nsteps,degfree,firstener,listupdate;
   int printo,printtr,integrator,ens,nconst,maxcycle;
   int keyrand,seed,keytraj,keyener,keyforf,keymd,keyconsth;
+  int keyminim,maxminst;
   int *excludeNum,*excludeAtom;
   int **iBond,**iUb,**iAngle,**iDihedral,**iImproper;
   int elecType,vdwType,periodicType,mdNature,numDeriv;
   int *bondType,*ubType,*angleType,*diheType,*imprType;
   double chargeConst,cutoff,cuton,delr,tolshake,kintemp0,taut;
+  double tolminim,maxminsiz;
   double temp,timeStep,periodicBox[3][3];
 }SIMULPARAMS;
 

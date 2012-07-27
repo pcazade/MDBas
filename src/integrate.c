@@ -25,8 +25,8 @@ void lf_integrate(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONST
 void lf_nve(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAINT *constList)
 {
   int i,ia,ib;
-  double *xo,*yo,*zo,*vxu,*vyu,*vzu;
-  DELTA *dd;
+  double *xo=NULL,*yo=NULL,*zo=NULL,*vxu=NULL,*vyu=NULL,*vzu=NULL;
+  DELTA *dd=NULL;
   
   vxu=(double*)malloc(atom->natom*sizeof(*vxu));
   vyu=(double*)malloc(atom->natom*sizeof(*vyu));
@@ -155,8 +155,11 @@ void lf_nvt_b(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAIN
 {
   int i,k,ia,ib,bercycle;
   double lambda,ts2;
-  double *xo,*yo,*zo,*vxo,*vyo,*vzo,*xt,*yt,*zt,*vxu,*vyu,*vzu;
-  DELTA *dd;
+  double *xo=NULL,*yo=NULL,*zo=NULL;
+  double *vxo=NULL,*vyo=NULL,*vzo=NULL;
+  double *xt=NULL,*yt=NULL,*zt=NULL;
+  double *vxu=NULL,*vyu=NULL,*vzu=NULL;
+  DELTA *dd=NULL;
   
   vxu=(double*)malloc(atom->natom*sizeof(*vxu));
   vyu=(double*)malloc(atom->natom*sizeof(*vyu));
