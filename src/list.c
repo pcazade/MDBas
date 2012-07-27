@@ -829,7 +829,7 @@ void verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
   ff->verPair=(int*)malloc((atom->natom-1)*sizeof(*(ff->verPair)));
   for(i=0;i<atom->natom-1;i++)
     ff->verPair[i]=0;
-  
+
   nalloc=((atom->natom*atom->natom/64)-(atom->natom/8))/2;
   ff->verList=(int*)malloc(nalloc*sizeof(*(ff->verList)));
   for(i=0;i<nalloc;i++)
@@ -870,6 +870,12 @@ void verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
   }
   ff->verList=(int*)realloc(ff->verList,ff->npr*sizeof(*(ff->verList)));
   
+  /** Verlet cumulatedSum list (useful for parallelisation)**/
+  ff->verCumSum=(int*)malloc((atom->natom-1)*sizeof(*(ff->verCumSum)));
+  ff->verCumSum[0] = 0;
+  for(i=1;i<atom->natom-1;i++)
+    ff->verCumSum[i] = ff->verCumSum[i-1] + ff->verPair[i-1];
+  /** **/
 }
 
 void verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
@@ -915,4 +921,11 @@ void verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
     kv+=simulCond->excludeNum[i];
   }
   ff->verList=(int*)realloc(ff->verList,ff->npr*sizeof(*(ff->verList)));
+  
+  /** Verlet cumulatedSum list (useful for parallelisation)**/
+  ff->verCumSum[0] = 0;
+  for(i=1;i<atom->natom-1;i++)
+    ff->verCumSum[i] = ff->verCumSum[i-1] + ff->verPair[i-1];
+  /** **/
+  
 }

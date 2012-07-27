@@ -126,9 +126,6 @@ void coulomb_shift2(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *
   double delta[3];
   
   ipr=0;
-#ifdef _OPENMP
-#pragma omp parallel for default(none) shared(atom,ff,enerFor,simulCond) private(i,j,k,ipr,pelec,delec,shiftFunc,dshiftFunc,r,fx,fy,fz,fxi,fyi,fzi,delta) reduction(+:elec) 
-#endif
   for(i=0;i<atom->natom-1;i++)
   {
     fxi=0.;

@@ -5,6 +5,11 @@
 #include "global.h"
 #include "energy.h"
 
+void minimise(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
+{
+  
+}
+
 void steepestDescent(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
 {
   double step = 1.0e-7 ;
@@ -42,6 +47,11 @@ void steepestDescent(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS 
     printf("Steepest Descent : after step %d : EDiff = %lf \n", currSt, diff );
     
   } while ( (diff >= prec) && (currSt<=maxSteps) ) ;
+  
+}
+
+void conjugateGradients(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
+{
   
 }
 

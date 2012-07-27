@@ -63,7 +63,7 @@ typedef struct
 {
   int nBond,nAngle,nDihedral,nImproper,nUb;
   double *q,*dq,*ddq,*qlpoly,**qpoly;
-  int *verList,*verPair,npr,**ver14,npr14,*nParmDihe;
+  int *verList,*verPair,*verCumSum,npr,**ver14,npr14,*nParmDihe;
   double **parmVdw,scal14;
   double **parmBond,**parmUb,**parmAngle,**parmDihe;
   double **parmImpr;
