@@ -1006,7 +1006,7 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
     
   int cellCheck,nlcx,nlcy,nlcz;
   int i,j,k,kv,exclude,nalloc,incr=262144;
-  double r,cutnb,delta[3];
+  double r,cutnb,dnlcx,dnlcy,dnlcz,delta[3];
   
   cutnb=simulCond->cutoff+simulCond->delr;
   
@@ -1023,7 +1023,7 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
 
   for(i=0;i<atom->natom;i++)
   {
-    link[i]=0;
+    link[i]=-1;
   }
   
   if(simulCond->linkRatio==1)
@@ -1039,9 +1039,13 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
   else
     error(411);
 
-  nlcx=int(box->a1*(double)simulCond->linkRatio/cutnb);
-  nlcy=int(box->b2*(double)simulCond->linkRatio/cutnb);
-  nlcz=int(box->c3*(double)simulCond->linkRatio/cutnb);
+  nlcx=int(simulCond->periodicBox[0][0]*(double)simulCond->linkRatio/cutnb);
+  nlcy=int(simulCond->periodicBox[1][1]*(double)simulCond->linkRatio/cutnb);
+  nlcz=int(simulCond->periodicBox[2][2]*(double)simulCond->linkRatio/cutnb);
+  
+  dnlcx=(double)nlcx;
+  dnlcy=(double)nlcy;
+  dnlcz=(double)nlcz;
   
   enoughLinkCells=1;
   if(nlcx<2*simulCond->ratio+1)
@@ -1060,46 +1064,156 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
   
   for(i=0;i<atom->natom;i++)
   {
-    head[i]=0;
+    head[i]=-1;
   }
   
-  
-  
-  kv=0;
-  ff->npr=0;
-  for(i=0;i<atom->natom-1;i++)
+  for(i=0;i<atom->natom;i++)
   {
-    for(j=i+1;j<atom->natom;j++)
-    {
-      r=distance(i,j,atom,delta,simulCond);
-      if(r<=cutnb)
-      {
-	exclude=0;
-	for (k=0;k<simulCond->excludeNum[i];k++)
-	{
-	  if(simulCond->excludeAtom[kv+k]==j)
-	  {
-	    exclude=1;
-	    break;
-	  }
-	}
-	if(!exclude)
-	{
-	  if(ff->npr>=nalloc)
-	  {
-	    nalloc+=incr;
-	    ff->verList=(int*)realloc(ff->verList,nalloc*sizeof(*(ff->verList)));
-	  }
-	  ff->verList[ff->npr]=j;
-	  ff->verPair[i]++;
-	  ff->npr++;
-	}
-      }
-    }
-    kv+=simulCond->excludeNum[i];
+    ix=(int)dnlcx*atom->x[i]/simulCond->periodicBox[0][0];
+    ix=MIN(ix,nlcx-1);
+    iy=(int)dnlcy*atom->y[i]/simulCond->periodicBox[1][1];
+    iy=MIN(iy,nlcy-1);
+    iz=(int)dnlcz*atom->z[i]/simulCond->periodicBox[2][2];
+    iz=MIN(iz,nlcz-1);
     
-//     printf("Verpair[%d] : %d\n",i,ff->verPair[i]);
+    icell=ix+nlcx*(iy+nlcy*iz);
+    
+    j=head[icell];
+    head[icell]=i;
+    link[i]=j;
   }
+  
+  ix=0;
+  iy=0;
+  iz=0;
+  
+  ff->npr=0;
+  
+  for(k=0;k<ff->ncells;k++)
+  {
+    i=head[k];
+    
+    if(i>-1)
+    {
+      for(l=0;l<cellCheck;l++)
+      {
+      
+	cx=0.;
+	cy=0.;
+	cz=0.;
+	
+	jx=ix+transx(l);
+	jy=iy+transy(l);
+	jz=iz+transz(l);
+	
+	if(jx>nlcx-1)
+	{
+	  jx=jx-nlcx;
+	  cx=1.;
+	}
+	else if(jx<0)
+	{
+	  jx=jx+nlcx
+	  cx=-1.;
+	}
+	
+	if(jy>nlcy-1)
+	{
+	  jy=jy-nlcy;
+	  cy=1.;
+	}
+	else if(jy<0)
+	{
+	  jy=jy+nlcy
+	  cy=-1.;
+	}
+	
+	if(jz>nlcz-1)
+	{
+	  jz=jz-nlcz;
+	  cz=1.;
+	}
+	else if(jz<0)
+	{
+	  jz=jz+nlcz
+	  cz=-1.;
+	}
+	
+	ll=jx+nlcx*(jy+nlcy*jz);
+	j=head(ll);
+	
+	if(j>-1)
+	{
+	  while(i!=-1)
+	  {
+	    ff->npr=0;
+	    if(k==ll)j=link[i];
+	    
+	    if(j>-1)
+	    {
+	      while(j!=-1)
+	      {
+		xt=atom->x[j]-atom->x[i]+(cx*simulCond->periodicBox[0][0]);
+		yt=atom->y[j]-atom->y[i]+(cy*simulCond->periodicBox[1][1]);
+		zt=atom->z[j]-atom->z[i]+(cz*simulCond->periodicBox[2][2]);
+		
+		r=X2(xt)+X2(yt)+X2(zt);
+		
+		if(r<=cutnb)
+		{
+		  exclude=0;
+		  for (k=0;k<simulCond->excludeNum[i];k++)
+		  {
+		    if(simulCond->excludeAtom[i][k]==j)
+		    {
+		      exclude=1;
+		      break;
+		    }
+		  }
+		  
+		  if(!exclude)
+		  {
+		    if(ff->npr>=nalloc)
+		    {
+		      nalloc+=incr;
+		      ff->verList[i]=(int*)realloc(ff->verList[i],nalloc*sizeof(**(ff->verList)));
+		    }
+		    ff->verList[ff->npr]=j;
+		    ff->verPair[i]++;
+		    ff->npr++;
+		  } //exclude
+		}//cutnb
+		
+		j=link[j];
+	      
+	      }//while j
+	      
+	    }//if j>-1
+	    
+	    j=head[ll];
+	    i=link[i];
+	    
+	  }//while i
+	}//if j>-1
+      }//for checkcell
+    }// if i >-
+    
+    ix=ix+1;
+    if(ix>nlcx-1)
+    {       
+      ix=1;
+      iy=iy+1;
+            
+      if(iy>nlcy-1)
+      {        
+	iy=1;
+	iz=iz+1;
+      }
+      
+    }
+    
+  }//for ncells
+  
   ff->verList=(int*)realloc(ff->verList,ff->npr*sizeof(*(ff->verList)));
 
 #ifdef _OPENMP
