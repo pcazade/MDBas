@@ -347,6 +347,9 @@ void vv_integrate(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONST
     case 0:
       vv_nve(atom,enerFor,simulCond,constList,stage);
       break;
+    case 1:
+      vv_nvt_b(atom,enerFor,simulCond,constList,stage);
+      break;
     default:
       vv_nve(atom,enerFor,simulCond,constList,stage);
       break;
@@ -423,6 +426,106 @@ void vv_nve(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAINT 
     }
   
     enerFor->energyKin=kinetic(atom);
+  }
+  
+  if(stage==2)
+  {
+    
+// periodic boundary condition
+    
+    image_update(atom,simulCond);
+  }
+  
+  if(simulCond->nconst>0)
+  {
+    free(dd);
+  }
+   
+}
+
+void vv_nvt_b(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAINT *constList,int stage)
+{
+  int i,ia,ib;
+  double lambda;
+  DELTA *dd=NULL;
+  
+  if(simulCond->nconst>0)
+  {
+    dd=(DELTA*)malloc(simulCond->nconst*sizeof(*dd));
+    
+    for(i=0;i<simulCond->nconst;i++)
+    {
+      ia=constList[i].a;
+      ib=constList[i].b;
+      
+      dd[i].x=atom->x[ib]-atom->x[ia];
+      dd[i].y=atom->y[ib]-atom->y[ia];
+      dd[i].z=atom->z[ib]-atom->z[ia];
+    }
+    
+    image_array(simulCond->nconst,dd,simulCond);
+    
+  }
+
+// move atoms by leapfrog algorithm
+  
+  for(i=0;i<atom->natom;i++)
+  {
+// update velocities
+    
+    atom->vx[i]+=0.5*simulCond->timeStep*atom->fx[i]/atom->m[i];
+    atom->vy[i]+=0.5*simulCond->timeStep*atom->fy[i]/atom->m[i];
+    atom->vz[i]+=0.5*simulCond->timeStep*atom->fz[i]/atom->m[i];
+  }
+  
+  if(stage==1)
+  {
+    for(i=0;i<atom->natom;i++)
+    {
+// update positions
+      
+      atom->x[i]+=simulCond->timeStep*atom->vx[i];
+      atom->y[i]+=simulCond->timeStep*atom->vy[i];
+      atom->z[i]+=simulCond->timeStep*atom->vz[i];
+      
+    }
+    
+    if(simulCond->nconst>0)
+    {
+      
+// Apply constraint with Shake algorithm.
+
+      vv_shake_r(atom,simulCond,constList,dd);
+      
+    }
+    
+  }
+  else
+  {
+// calculate kinetic energy
+
+    if(simulCond->nconst>0)
+    {
+      
+// Apply constraint with Shake algorithm.
+
+      vv_shake_v(atom,simulCond,constList,dd);
+      
+    }
+  
+    enerFor->energyKin=kinetic(atom);
+    
+    lambda=sqrt(1.0+simulCond->timeStep/simulCond->taut*(simulCond->kintemp0/enerFor->energyKin-1.0));
+    
+    for(i=0;i<atom->natom;i++)
+    {
+      atom->vx[i]*=lambda;
+      atom->vy[i]*=lambda;
+      atom->vz[i]*=lambda;
+    }
+    
+    enerFor->energyKin*=X2(lambda);
+    
   }
   
   if(stage==2)

@@ -1016,6 +1016,7 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
 
 //   nalloc=((atom->natom*atom->natom/64)-(atom->natom/8))/2;
 //   nalloc = (int) atom->natom * ( atom->natom/8 - 1  ) / 2 ;
+//   nalloc = atom->natom*4./3.*PI*X3(cutnb)/boxvolume;
   nalloc = (int) atom->natom * 1024 ;
   ff->verList=(int*)malloc(nalloc*sizeof(*(ff->verList)));
 //   for(i=0;i<nalloc;i++)
@@ -1178,9 +1179,8 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
 		      nalloc+=incr;
 		      ff->verList[i]=(int*)realloc(ff->verList[i],nalloc*sizeof(**(ff->verList)));
 		    }
-		    ff->verList[ff->npr]=j;
+		    ff->verList[i][ff->verPair[i]]=j;
 		    ff->verPair[i]++;
-		    ff->npr++;
 		  } //exclude
 		}//cutnb
 		
@@ -1214,15 +1214,7 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
     
   }//for ncells
   
-  ff->verList=(int*)realloc(ff->verList,ff->npr*sizeof(*(ff->verList)));
-
-#ifdef _OPENMP
-  /** Verlet cumulatedSum list (useful for parallelisation)**/
-  ff->verCumSum=(int*)malloc((atom->natom-1)*sizeof(*(ff->verCumSum)));
-  ff->verCumSum[0] = 0;
-  for(i=1;i<atom->natom-1;i++)
-    ff->verCumSum[i] = ff->verCumSum[i-1] + ff->verPair[i-1];
-  /** **/
-#endif
+  
+  ff->verList[i]=(int*)realloc(ff->verList,ff->npr*sizeof(*(ff->verList)));
 
 }
