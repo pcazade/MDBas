@@ -15,18 +15,18 @@ double distance(int i,int j, ATOM *atom,double *delta,SIMULPARAMS *simulCond)
   delta[1]=atom[j].y-atom[i].y;
   delta[2]=atom[j].z-atom[i].z;
   
-  if(simulCond->periodicType==1)
+  if(box->type==1)
   {
-    delta[0]=delta[0]-simulCond->periodicBox[0][0]*nint(delta[0]/simulCond->periodicBox[0][0]);
-    delta[1]=delta[1]-simulCond->periodicBox[0][0]*nint(delta[1]/simulCond->periodicBox[0][0]);
-    delta[2]=delta[2]-simulCond->periodicBox[0][0]*nint(delta[2]/simulCond->periodicBox[0][0]);
+    delta[0]=delta[0]-box->a1*nint(delta[0]/box->a1);
+    delta[1]=delta[1]-box->a1*nint(delta[1]/box->a1);
+    delta[2]=delta[2]-box->a1*nint(delta[2]/box->a1);
   }
-  else if(simulCond->periodicType==2)
+  else if(box->type==2)
   {
     
-    delta[0]=delta[0]-simulCond->periodicBox[0][0]*nint(delta[0]/simulCond->periodicBox[0][0]);
-    delta[1]=delta[1]-simulCond->periodicBox[1][1]*nint(delta[1]/simulCond->periodicBox[1][1]);
-    delta[2]=delta[2]-simulCond->periodicBox[2][2]*nint(delta[2]/simulCond->periodicBox[2][2]);
+    delta[0]=delta[0]-box->a1*nint(delta[0]/box->a1);
+    delta[1]=delta[1]-box->b2*nint(delta[1]/box->b2);
+    delta[2]=delta[2]-box->c3*nint(delta[2]/box->c3);
   }
   
   r=sqrt(X2(delta[0])+X2(delta[1])+X2(delta[2]));
@@ -43,17 +43,17 @@ double distance2(int i,int j, ATOM *atom,DELTA *d,SIMULPARAMS *simulCond)
   d->y=atom[j].y-atom[i].y;
   d->z=atom[j].z-atom[i].z;
   
-  if(simulCond->periodicType==1)
+  if(box->type==1)
   {
-    d->x-=simulCond->periodicBox[0][0]*nint(d->x/simulCond->periodicBox[0][0]);
-    d->y-=simulCond->periodicBox[0][0]*nint(d->y/simulCond->periodicBox[0][0]);
-    d->z-=simulCond->periodicBox[0][0]*nint(d->z/simulCond->periodicBox[0][0]);
+    d->x-=box->a1*nint(d->x/box->a1);
+    d->y-=box->a1*nint(d->y/box->a1);
+    d->z-=box->a1*nint(d->z/box->a1);
   }
-  else if(simulCond->periodicType==2)
+  else if(box->type==2)
   {
-    d->x-=simulCond->periodicBox[0][0]*nint(d->x/simulCond->periodicBox[0][0]);
-    d->y-=simulCond->periodicBox[1][1]*nint(d->y/simulCond->periodicBox[1][1]);
-    d->z-=simulCond->periodicBox[2][2]*nint(d->z/simulCond->periodicBox[2][2]);
+    d->x-=box->a1*nint(d->x/box->a1);
+    d->y-=box->b2*nint(d->y/box->b2);
+    d->z-=box->c3*nint(d->z/box->c3);
   }
   
   r2=( X2(d->x)+X2(d->y)+X2(d->z) );
@@ -241,25 +241,25 @@ void image_update(ATOM *atom,SIMULPARAMS *simulCond)
 
   int i;
   
-  if(simulCond->periodicType==1)
+  if(box->type==1)
   {
     
     for(i=0;i<simulCond->natom;i++)
     {
-      atom[i].x=atom[i].x-simulCond->periodicBox[0][0]*nint(atom[i].x/simulCond->periodicBox[0][0]);
-      atom[i].y=atom[i].y-simulCond->periodicBox[0][0]*nint(atom[i].y/simulCond->periodicBox[0][0]);
-      atom[i].z=atom[i].z-simulCond->periodicBox[0][0]*nint(atom[i].z/simulCond->periodicBox[0][0]);
+      atom[i].x=atom[i].x-box->a1*nint(atom[i].x/box->a1);
+      atom[i].y=atom[i].y-box->a1*nint(atom[i].y/box->a1);
+      atom[i].z=atom[i].z-box->a1*nint(atom[i].z/box->a1);
     }
     
   }
-  else if(simulCond->periodicType==2)
+  else if(box->type==2)
   {
     
     for(i=0;i<simulCond->natom;i++)
     {
-      atom[i].x=atom[i].x-simulCond->periodicBox[0][0]*nint(atom[i].x/simulCond->periodicBox[0][0]);
-      atom[i].y=atom[i].y-simulCond->periodicBox[1][1]*nint(atom[i].y/simulCond->periodicBox[1][1]);
-      atom[i].z=atom[i].z-simulCond->periodicBox[2][2]*nint(atom[i].z/simulCond->periodicBox[2][2]);
+      atom[i].x=atom[i].x-box->a1*nint(atom[i].x/box->a1);
+      atom[i].y=atom[i].y-box->b2*nint(atom[i].y/box->b2);
+      atom[i].z=atom[i].z-box->c3*nint(atom[i].z/box->c3);
     }
     
   }
@@ -271,25 +271,25 @@ void image_array(int size_array,DELTA *d,SIMULPARAMS *simulCond)
 
   int i;
   
-  if(simulCond->periodicType==1)
+  if(box->type==1)
   {
     
     for(i=0;i<size_array;i++)
     {
-      d[i].x-=simulCond->periodicBox[0][0]*nint(d[i].x/simulCond->periodicBox[0][0]);
-      d[i].y-=simulCond->periodicBox[0][0]*nint(d[i].y/simulCond->periodicBox[0][0]);
-      d[i].z-=simulCond->periodicBox[0][0]*nint(d[i].z/simulCond->periodicBox[0][0]);
+      d[i].x-=box->a1*nint(d[i].x/box->a1);
+      d[i].y-=box->a1*nint(d[i].y/box->a1);
+      d[i].z-=box->a1*nint(d[i].z/box->a1);
     }
     
   }
-  else if(simulCond->periodicType==2)
+  else if(box->type==2)
   {
     
     for(i=0;i<size_array;i++)
     {
-      d[i].x-=simulCond->periodicBox[0][0]*nint(d[i].x/simulCond->periodicBox[0][0]);
-      d[i].y-=simulCond->periodicBox[1][1]*nint(d[i].y/simulCond->periodicBox[1][1]);
-      d[i].z-=simulCond->periodicBox[2][2]*nint(d[i].z/simulCond->periodicBox[2][2]);
+      d[i].x-=box->a1*nint(d[i].x/box->a1);
+      d[i].y-=box->b2*nint(d[i].y/box->b2);
+      d[i].z-=box->c3*nint(d[i].z/box->c3);
     }
     
   }
@@ -329,7 +329,7 @@ void get_degfree(ATOM *atom,SIMULPARAMS *simulCond)
   simulCond->degfree=3*simulCond->natom-3;
   
 //   -3 degrees of freedpm for the box rotation when no PBC.
-  if(simulCond->periodicType==0)
+  if(box->type==0)
     simulCond->degfree-=3;
   
   if(simulCond->nconst>0)

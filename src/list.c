@@ -1040,9 +1040,9 @@ void verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
   else
     error(411);
 
-  nlcx=int(simulCond->periodicBox[0][0]*(double)simulCond->linkRatio/cutnb);
-  nlcy=int(simulCond->periodicBox[1][1]*(double)simulCond->linkRatio/cutnb);
-  nlcz=int(simulCond->periodicBox[2][2]*(double)simulCond->linkRatio/cutnb);
+  nlcx=int(box->a1*(double)simulCond->linkRatio/cutnb);
+  nlcy=int(box->b2*(double)simulCond->linkRatio/cutnb);
+  nlcz=int(box->c3*(double)simulCond->linkRatio/cutnb);
   
   dnlcx=(double)nlcx;
   dnlcy=(double)nlcy;
@@ -1070,11 +1070,11 @@ void verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
   
   for(i=0;i<simulCond->natom;i++)
   {
-    ix=(int)dnlcx*atom[i].x/simulCond->periodicBox[0][0];
+    ix=(int)dnlcx*atom[i].x/box->a1;
     ix=MIN(ix,nlcx-1);
-    iy=(int)dnlcy*atom[i].y/simulCond->periodicBox[1][1];
+    iy=(int)dnlcy*atom[i].y/box->b2;
     iy=MIN(iy,nlcy-1);
-    iz=(int)dnlcz*atom[i].z/simulCond->periodicBox[2][2];
+    iz=(int)dnlcz*atom[i].z/box->c3;
     iz=MIN(iz,nlcz-1);
     
     icell=ix+nlcx*(iy+nlcy*iz);
@@ -1154,9 +1154,9 @@ void verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
 	    {
 	      while(j!=-1)
 	      {
-		xt=atom[j].x-atom[i].x+(cx*simulCond->periodicBox[0][0]);
-		yt=atom[j].y-atom[i].y+(cy*simulCond->periodicBox[1][1]);
-		zt=atom[j].z-atom[i].z+(cz*simulCond->periodicBox[2][2]);
+		xt=atom[j].x-atom[i].x+(cx*box->a1);
+		yt=atom[j].y-atom[i].y+(cy*box->b2);
+		zt=atom[j].z-atom[i].z+(cz*box->c3);
 		
 		r=X2(xt)+X2(yt)+X2(zt);
 		
