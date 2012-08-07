@@ -39,14 +39,21 @@
 
 typedef struct
 {
-  int natom;
-  char **atomLabel,**segi,**resi;
-  int *atomType,*ires,*resn,*inconst;
-  double *x,*y,*z,*m;
-  double *vx,*vy,*vz;
-  double *fx,*fy,*fz;
-  double *numFx,*numFy,*numFz;
+  char label[5],segi[5],resi[5];
+  int type,resn,inconst;
+  double x,y,z;
+  double vx,vy,vz;
+  double fx,fy,fz;
+  double m,q;
 }ATOM;
+
+typedef struct
+{
+  int type;
+  double a,a1,a2,a3,b,b1,b2,b3,c,c1,c2,c3;
+  double u,u1,u2,u3,v,v1,v2,v3,w,w1,w2,w3;
+  double vol;
+}PBC;
 
 typedef struct
 {
@@ -62,7 +69,6 @@ typedef struct
 typedef struct
 {
   int nBond,nAngle,nDihedral,nImproper,nUb;
-  double *q,*dq,*ddq,*qlpoly,**qpoly;
   int *verList,*verPair,*verCumSum,npr,**ver14,npr14,*nParmDihe;
   double **parmVdw,scal14;
   double **parmBond,**parmUb,**parmAngle,**parmDihe;
@@ -71,6 +77,7 @@ typedef struct
 
 typedef struct
 {
+  int natom;
   int lqpoly,nb14,step,nsteps,degfree,firstener,listupdate;
   int printo,printtr,integrator,ens,nconst,maxcycle;
   int keyrand,seed,keytraj,keyener,keyforf,keymd,keyconsth;
@@ -86,11 +93,10 @@ typedef struct
 
 typedef struct
 {
-  double energyTot,energyPot,energyKin;
-  double energyElec,energyVdw;
-  double energyBond,energyAng,energyUb,energyDih,energyImpr;
-  double **hessian;
-}ENERGYFORCE;
+  double tot,pot,kin;
+  double elec,vdw;
+  double bond,ang,ub,dihe,impr;
+}ENERGY;
 
 typedef struct
 {

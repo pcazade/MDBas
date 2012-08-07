@@ -5,7 +5,7 @@
 #use : make DEBUG=ON for a debug build
 DEBUG=OFF
 
-CC=gcc -fopenmp 
+CC=icc -openmp 
 
 ifeq ($(DEBUG),OFF) 
 CC_OPT=-I"./dSFMT" -I"./include" -std=c99 -Wall -O2 -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937

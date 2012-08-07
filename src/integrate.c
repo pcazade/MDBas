@@ -6,31 +6,31 @@
 #include "shake.h"
 #include "integrate.h"
 
-void lf_integrate(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAINT *constList)
+void lf_integrate(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList)
 {
   switch (simulCond->ens)
   {
     case 0:
-      lf_nve(atom,enerFor,simulCond,constList);
+      lf_nve(atom,ener,simulCond,constList);
       break;
     case 1:
-      lf_nvt_b(atom,enerFor,simulCond,constList);
+      lf_nvt_b(atom,ener,simulCond,constList);
       break;
     default:
-      lf_nve(atom,enerFor,simulCond,constList);
+      lf_nve(atom,ener,simulCond,constList);
       break;
   }
 }
 
-void lf_nve(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAINT *constList)
+void lf_nve(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList)
 {
   int i,ia,ib;
   double *xo=NULL,*yo=NULL,*zo=NULL,*vxu=NULL,*vyu=NULL,*vzu=NULL;
   DELTA *dd=NULL;
   
-  vxu=(double*)malloc(atom->natom*sizeof(*vxu));
-  vyu=(double*)malloc(atom->natom*sizeof(*vyu));
-  vzu=(double*)malloc(atom->natom*sizeof(*vzu));
+  vxu=(double*)malloc(simulCond->natom*sizeof(*vxu));
+  vyu=(double*)malloc(simulCond->natom*sizeof(*vyu));
+  vzu=(double*)malloc(simulCond->natom*sizeof(*vzu));
   
   if(simulCond->nconst>0)
   {
@@ -41,25 +41,25 @@ void lf_nve(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAINT 
       ia=constList[i].a;
       ib=constList[i].b;
       
-      dd[i].x=atom->x[ib]-atom->x[ia];
-      dd[i].y=atom->y[ib]-atom->y[ia];
-      dd[i].z=atom->z[ib]-atom->z[ia];
+      dd[i].x=atom[ib].x-atom[ia].x;
+      dd[i].y=atom[ib].y-atom[ia].y;
+      dd[i].z=atom[ib].z-atom[ia].z;
     }
     
     image_array(simulCond->nconst,dd,simulCond);
     
-    xo=(double*)malloc(atom->natom*sizeof(*xo));
-    yo=(double*)malloc(atom->natom*sizeof(*yo));
-    zo=(double*)malloc(atom->natom*sizeof(*zo));
+    xo=(double*)malloc(simulCond->natom*sizeof(*xo));
+    yo=(double*)malloc(simulCond->natom*sizeof(*yo));
+    zo=(double*)malloc(simulCond->natom*sizeof(*zo));
     
-    for(i=0;i<atom->natom;i++)
+    for(i=0;i<simulCond->natom;i++)
     {
       
 // Store old coordinates.
 
-      xo[i]=atom->x[i];
-      yo[i]=atom->y[i];
-      zo[i]=atom->z[i];
+      xo[i]=atom[i].x;
+      yo[i]=atom[i].y;
+      zo[i]=atom[i].z;
       
     }
     
@@ -67,20 +67,20 @@ void lf_nve(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAINT 
 
 // move atoms by leapfrog algorithm
   
-  for(i=0;i<atom->natom;i++)
+  for(i=0;i<simulCond->natom;i++)
   {
     
 // update velocities
     
-    vxu[i]=atom->vx[i]+simulCond->timeStep*atom->fx[i]/atom->m[i];
-    vyu[i]=atom->vy[i]+simulCond->timeStep*atom->fy[i]/atom->m[i];
-    vzu[i]=atom->vz[i]+simulCond->timeStep*atom->fz[i]/atom->m[i];
+    vxu[i]=atom[i].vx+simulCond->timeStep*atom[i].fx/atom[i].m;
+    vyu[i]=atom[i].vy+simulCond->timeStep*atom[i].fy/atom[i].m;
+    vzu[i]=atom[i].vz+simulCond->timeStep*atom[i].fz/atom[i].m;
     
 // update positions
     
-    atom->x[i]+=simulCond->timeStep*vxu[i];
-    atom->y[i]+=simulCond->timeStep*vyu[i];
-    atom->z[i]+=simulCond->timeStep*vzu[i];
+    atom[i].x+=simulCond->timeStep*vxu[i];
+    atom[i].y+=simulCond->timeStep*vyu[i];
+    atom[i].z+=simulCond->timeStep*vzu[i];
     
   }
   
@@ -89,38 +89,38 @@ void lf_nve(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAINT 
 // Apply constraint with Shake algorithm.
 
     lf_shake(atom,simulCond,constList,dd);
-    for(i=0;i<atom->natom;i++)
+    for(i=0;i<simulCond->natom;i++)
     {
         
 // Corrected velocities
     
-      vxu[i]=(atom->x[i]-xo[i])/simulCond->timeStep;
-      vyu[i]=(atom->y[i]-yo[i])/simulCond->timeStep;
-      vzu[i]=(atom->z[i]-zo[i])/simulCond->timeStep;
+      vxu[i]=(atom[i].x-xo[i])/simulCond->timeStep;
+      vyu[i]=(atom[i].y-yo[i])/simulCond->timeStep;
+      vzu[i]=(atom[i].z-zo[i])/simulCond->timeStep;
     
 // Corrected Forces
     
-      atom->fx[i]=(vxu[i]-atom->vx[i])*atom->m[i]/simulCond->timeStep;
-      atom->fy[i]=(vyu[i]-atom->vy[i])*atom->m[i]/simulCond->timeStep;
-      atom->fz[i]=(vzu[i]-atom->vz[i])*atom->m[i]/simulCond->timeStep;
+      atom[i].fx=(vxu[i]-atom[i].vx)*atom[i].m/simulCond->timeStep;
+      atom[i].fy=(vyu[i]-atom[i].vy)*atom[i].m/simulCond->timeStep;
+      atom[i].fz=(vzu[i]-atom[i].vz)*atom[i].m/simulCond->timeStep;
     
     }
   }
   
 // calculate full timestep velocity
 
-  for(i=0;i<atom->natom;i++)
+  for(i=0;i<simulCond->natom;i++)
   {
     
-    atom->vx[i]=0.5*(atom->vx[i]+vxu[i]);
-    atom->vy[i]=0.5*(atom->vy[i]+vyu[i]);
-    atom->vz[i]=0.5*(atom->vz[i]+vzu[i]);
+    atom[i].vx=0.5*(atom[i].vx+vxu[i]);
+    atom[i].vy=0.5*(atom[i].vy+vyu[i]);
+    atom[i].vz=0.5*(atom[i].vz+vzu[i]);
     
   }
   
 // calculate kinetic energy
   
-  enerFor->energyKin=kinetic(atom);
+  ener->kin=kinetic(atom,simulCond);
   
 // periodic boundary condition
   
@@ -128,12 +128,12 @@ void lf_nve(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAINT 
   
 // updated velocity
   
-  for(i=0;i<atom->natom;i++)
+  for(i=0;i<simulCond->natom;i++)
   {
     
-    atom->vx[i]=vxu[i];
-    atom->vy[i]=vyu[i];
-    atom->vz[i]=vzu[i];
+    atom[i].vx=vxu[i];
+    atom[i].vy=vyu[i];
+    atom[i].vz=vzu[i];
     
   }
   
@@ -151,7 +151,7 @@ void lf_nve(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAINT 
       
 }
 
-void lf_nvt_b(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAINT *constList)
+void lf_nvt_b(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList)
 {
   int i,k,ia,ib,bercycle;
   double lambda,ts2;
@@ -161,30 +161,30 @@ void lf_nvt_b(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAIN
   double *vxu=NULL,*vyu=NULL,*vzu=NULL;
   DELTA *dd=NULL;
   
-  vxu=(double*)malloc(atom->natom*sizeof(*vxu));
-  vyu=(double*)malloc(atom->natom*sizeof(*vyu));
-  vzu=(double*)malloc(atom->natom*sizeof(*vzu));
+  vxu=(double*)malloc(simulCond->natom*sizeof(*vxu));
+  vyu=(double*)malloc(simulCond->natom*sizeof(*vyu));
+  vzu=(double*)malloc(simulCond->natom*sizeof(*vzu));
   
-  xo=(double*)malloc(atom->natom*sizeof(*xo));
-  yo=(double*)malloc(atom->natom*sizeof(*yo));
-  zo=(double*)malloc(atom->natom*sizeof(*zo));
+  xo=(double*)malloc(simulCond->natom*sizeof(*xo));
+  yo=(double*)malloc(simulCond->natom*sizeof(*yo));
+  zo=(double*)malloc(simulCond->natom*sizeof(*zo));
   
-  vxo=(double*)malloc(atom->natom*sizeof(*vxo));
-  vyo=(double*)malloc(atom->natom*sizeof(*vyo));
-  vzo=(double*)malloc(atom->natom*sizeof(*vzo));
+  vxo=(double*)malloc(simulCond->natom*sizeof(*vxo));
+  vyo=(double*)malloc(simulCond->natom*sizeof(*vyo));
+  vzo=(double*)malloc(simulCond->natom*sizeof(*vzo));
     
-  for(i=0;i<atom->natom;i++)
+  for(i=0;i<simulCond->natom;i++)
   {
     
 // Store old coordinates and old velocities.
 
-    xo[i]=atom->x[i];
-    yo[i]=atom->y[i];
-    zo[i]=atom->z[i];
+    xo[i]=atom[i].x;
+    yo[i]=atom[i].y;
+    zo[i]=atom[i].z;
     
-    vxo[i]=atom->vx[i];
-    vyo[i]=atom->vy[i];
-    vzo[i]=atom->vz[i];
+    vxo[i]=atom[i].vx;
+    vyo[i]=atom[i].vy;
+    vzo[i]=atom[i].vz;
     
   }
   
@@ -197,29 +197,29 @@ void lf_nvt_b(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAIN
       ia=constList[i].a;
       ib=constList[i].b;
       
-      dd[i].x=atom->x[ib]-atom->x[ia];
-      dd[i].y=atom->y[ib]-atom->y[ia];
-      dd[i].z=atom->z[ib]-atom->z[ia];
+      dd[i].x=atom[ib].x-atom[ia].x;
+      dd[i].y=atom[ib].y-atom[ia].y;
+      dd[i].z=atom[ib].z-atom[ia].z;
     }
     
     image_array(simulCond->nconst,dd,simulCond);
     
-    xt=(double*)malloc(atom->natom*sizeof(*xt));
-    yt=(double*)malloc(atom->natom*sizeof(*yt));
-    zt=(double*)malloc(atom->natom*sizeof(*zt));
+    xt=(double*)malloc(simulCond->natom*sizeof(*xt));
+    yt=(double*)malloc(simulCond->natom*sizeof(*yt));
+    zt=(double*)malloc(simulCond->natom*sizeof(*zt));
     
   }
   
   ts2=X2(simulCond->timeStep);
   
-  for(i=0;i<atom->natom;i++)
+  for(i=0;i<simulCond->natom;i++)
   { 
-    atom->vx[i]+=0.5*simulCond->timeStep*atom->fx[i]/atom->m[i];
-    atom->vy[i]+=0.5*simulCond->timeStep*atom->fy[i]/atom->m[i];
-    atom->vz[i]+=0.5*simulCond->timeStep*atom->fz[i]/atom->m[i];
+    atom[i].vx+=0.5*simulCond->timeStep*atom[i].fx/atom[i].m;
+    atom[i].vy+=0.5*simulCond->timeStep*atom[i].fy/atom[i].m;
+    atom[i].vz+=0.5*simulCond->timeStep*atom[i].fz/atom[i].m;
   }
   
-  enerFor->energyKin=kinetic(atom);
+  ener->kin=kinetic(atom,simulCond);
   
   if(simulCond->nconst>0)
     bercycle=2;
@@ -229,32 +229,32 @@ void lf_nvt_b(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAIN
   for(k=0;k<bercycle;k++)
   {
    
-    lambda=sqrt(1.0+simulCond->timeStep/simulCond->taut*(simulCond->kintemp0/enerFor->energyKin-1.0));
+    lambda=sqrt(1.0+simulCond->timeStep/simulCond->taut*(simulCond->kintemp0/ener->kin-1.0));
     
 // move atoms by leapfrog algorithm
     
-    for(i=0;i<atom->natom;i++)
+    for(i=0;i<simulCond->natom;i++)
     {
       
 // update velocities
       
-      vxu[i]=(vxo[i]+simulCond->timeStep*atom->fx[i]/atom->m[i])*lambda;
-      vyu[i]=(vyo[i]+simulCond->timeStep*atom->fy[i]/atom->m[i])*lambda;
-      vzu[i]=(vzo[i]+simulCond->timeStep*atom->fz[i]/atom->m[i])*lambda;
+      vxu[i]=(vxo[i]+simulCond->timeStep*atom[i].fx/atom[i].m)*lambda;
+      vyu[i]=(vyo[i]+simulCond->timeStep*atom[i].fy/atom[i].m)*lambda;
+      vzu[i]=(vzo[i]+simulCond->timeStep*atom[i].fz/atom[i].m)*lambda;
       
 // update positions
       
-      atom->x[i]=xo[i]+simulCond->timeStep*vxu[i];
-      atom->y[i]=yo[i]+simulCond->timeStep*vyu[i];
-      atom->z[i]=zo[i]+simulCond->timeStep*vzu[i];
+      atom[i].x=xo[i]+simulCond->timeStep*vxu[i];
+      atom[i].y=yo[i]+simulCond->timeStep*vyu[i];
+      atom[i].z=zo[i]+simulCond->timeStep*vzu[i];
       
 // Temporary storage of the uncorrected positions
       
       if(simulCond->nconst>0)
       {
-	xt[i]=atom->x[i];
-	yt[i]=atom->y[i];
-	zt[i]=atom->z[i];
+	xt[i]=atom[i].x;
+	yt[i]=atom[i].y;
+	zt[i]=atom[i].z;
       }
       
     }
@@ -264,38 +264,38 @@ void lf_nvt_b(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAIN
 // Apply constraint with Shake algorithm.
       
       lf_shake(atom,simulCond,constList,dd);
-      for(i=0;i<atom->natom;i++)
+      for(i=0;i<simulCond->natom;i++)
       {
         
 // Corrected velocities
       
-	vxu[i]+=(atom->x[i]-xt[i])/simulCond->timeStep;
-	vyu[i]+=(atom->y[i]-yt[i])/simulCond->timeStep;
-	vzu[i]+=(atom->z[i]-zt[i])/simulCond->timeStep;
+	vxu[i]+=(atom[i].x-xt[i])/simulCond->timeStep;
+	vyu[i]+=(atom[i].y-yt[i])/simulCond->timeStep;
+	vzu[i]+=(atom[i].z-zt[i])/simulCond->timeStep;
       
 // Corrected Forces
       
-	atom->fx[i]+=(atom->x[i]-xt[i])*atom->m[i]/ts2;
-	atom->fy[i]+=(atom->y[i]-yt[i])*atom->m[i]/ts2;
-	atom->fz[i]+=(atom->z[i]-zt[i])*atom->m[i]/ts2;
+	atom[i].fx+=(atom[i].x-xt[i])*atom[i].m/ts2;
+	atom[i].fy+=(atom[i].y-yt[i])*atom[i].m/ts2;
+	atom[i].fz+=(atom[i].z-zt[i])*atom[i].m/ts2;
       
       }
     }
     
 // calculate full timestep velocity
 
-    for(i=0;i<atom->natom;i++)
+    for(i=0;i<simulCond->natom;i++)
     {
       
-      atom->vx[i]=0.5*(vxo[i]+vxu[i]);
-      atom->vy[i]=0.5*(vyo[i]+vyu[i]);
-      atom->vz[i]=0.5*(vzo[i]+vzu[i]);
+      atom[i].vx=0.5*(vxo[i]+vxu[i]);
+      atom[i].vy=0.5*(vyo[i]+vyu[i]);
+      atom[i].vz=0.5*(vzo[i]+vzu[i]);
       
     }
     
 // calculate kinetic energy
     
-    enerFor->energyKin=kinetic(atom);
+    ener->kin=kinetic(atom,simulCond);
     
   }
   
@@ -305,12 +305,12 @@ void lf_nvt_b(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAIN
   
 // updated velocity
   
-  for(i=0;i<atom->natom;i++)
+  for(i=0;i<simulCond->natom;i++)
   {
     
-    atom->vx[i]=vxu[i];
-    atom->vy[i]=vyu[i];
-    atom->vz[i]=vzu[i];
+    atom[i].vx=vxu[i];
+    atom[i].vy=vyu[i];
+    atom[i].vz=vzu[i];
     
   }
   
@@ -340,23 +340,23 @@ void lf_nvt_b(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAIN
 }
 
 
-void vv_integrate(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAINT *constList,int stage)
+void vv_integrate(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,int stage)
 {
   switch (simulCond->ens)
   {
     case 0:
-      vv_nve(atom,enerFor,simulCond,constList,stage);
+      vv_nve(atom,ener,simulCond,constList,stage);
       break;
     case 1:
-      vv_nvt_b(atom,enerFor,simulCond,constList,stage);
+      vv_nvt_b(atom,ener,simulCond,constList,stage);
       break;
     default:
-      vv_nve(atom,enerFor,simulCond,constList,stage);
+      vv_nve(atom,ener,simulCond,constList,stage);
       break;
   }
 }
 
-void vv_nve(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAINT *constList,int stage)
+void vv_nve(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,int stage)
 {
   int i,ia,ib;
   DELTA *dd=NULL;
@@ -370,9 +370,9 @@ void vv_nve(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAINT 
       ia=constList[i].a;
       ib=constList[i].b;
       
-      dd[i].x=atom->x[ib]-atom->x[ia];
-      dd[i].y=atom->y[ib]-atom->y[ia];
-      dd[i].z=atom->z[ib]-atom->z[ia];
+      dd[i].x=atom[ib].x-atom[ia].x;
+      dd[i].y=atom[ib].y-atom[ia].y;
+      dd[i].z=atom[ib].z-atom[ia].z;
     }
     
     image_array(simulCond->nconst,dd,simulCond);
@@ -381,24 +381,24 @@ void vv_nve(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAINT 
 
 // move atoms by leapfrog algorithm
   
-  for(i=0;i<atom->natom;i++)
+  for(i=0;i<simulCond->natom;i++)
   {
 // update velocities
     
-    atom->vx[i]+=0.5*simulCond->timeStep*atom->fx[i]/atom->m[i];
-    atom->vy[i]+=0.5*simulCond->timeStep*atom->fy[i]/atom->m[i];
-    atom->vz[i]+=0.5*simulCond->timeStep*atom->fz[i]/atom->m[i];
+    atom[i].vx+=0.5*simulCond->timeStep*atom[i].fx/atom[i].m;
+    atom[i].vy+=0.5*simulCond->timeStep*atom[i].fy/atom[i].m;
+    atom[i].vz+=0.5*simulCond->timeStep*atom[i].fz/atom[i].m;
   }
   
   if(stage==1)
   {
-    for(i=0;i<atom->natom;i++)
+    for(i=0;i<simulCond->natom;i++)
     {
 // update positions
       
-      atom->x[i]+=simulCond->timeStep*atom->vx[i];
-      atom->y[i]+=simulCond->timeStep*atom->vy[i];
-      atom->z[i]+=simulCond->timeStep*atom->vz[i];
+      atom[i].x+=simulCond->timeStep*atom[i].vx;
+      atom[i].y+=simulCond->timeStep*atom[i].vy;
+      atom[i].z+=simulCond->timeStep*atom[i].vz;
       
     }
     
@@ -425,7 +425,7 @@ void vv_nve(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAINT 
       
     }
   
-    enerFor->energyKin=kinetic(atom);
+    ener->kin=kinetic(atom,simulCond);
   }
   
   if(stage==2)
@@ -443,7 +443,7 @@ void vv_nve(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAINT 
    
 }
 
-void vv_nvt_b(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAINT *constList,int stage)
+void vv_nvt_b(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,int stage)
 {
   int i,ia,ib;
   double lambda;
@@ -458,9 +458,9 @@ void vv_nvt_b(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAIN
       ia=constList[i].a;
       ib=constList[i].b;
       
-      dd[i].x=atom->x[ib]-atom->x[ia];
-      dd[i].y=atom->y[ib]-atom->y[ia];
-      dd[i].z=atom->z[ib]-atom->z[ia];
+      dd[i].x=atom[ib].x-atom[ia].x;
+      dd[i].y=atom[ib].y-atom[ia].y;
+      dd[i].z=atom[ib].z-atom[ia].z;
     }
     
     image_array(simulCond->nconst,dd,simulCond);
@@ -469,24 +469,24 @@ void vv_nvt_b(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAIN
 
 // move atoms by leapfrog algorithm
   
-  for(i=0;i<atom->natom;i++)
+  for(i=0;i<simulCond->natom;i++)
   {
 // update velocities
     
-    atom->vx[i]+=0.5*simulCond->timeStep*atom->fx[i]/atom->m[i];
-    atom->vy[i]+=0.5*simulCond->timeStep*atom->fy[i]/atom->m[i];
-    atom->vz[i]+=0.5*simulCond->timeStep*atom->fz[i]/atom->m[i];
+    atom[i].vx+=0.5*simulCond->timeStep*atom[i].fx/atom[i].m;
+    atom[i].vy+=0.5*simulCond->timeStep*atom[i].fy/atom[i].m;
+    atom[i].vz+=0.5*simulCond->timeStep*atom[i].fz/atom[i].m;
   }
   
   if(stage==1)
   {
-    for(i=0;i<atom->natom;i++)
+    for(i=0;i<simulCond->natom;i++)
     {
 // update positions
       
-      atom->x[i]+=simulCond->timeStep*atom->vx[i];
-      atom->y[i]+=simulCond->timeStep*atom->vy[i];
-      atom->z[i]+=simulCond->timeStep*atom->vz[i];
+      atom[i].x+=simulCond->timeStep*atom[i].vx;
+      atom[i].y+=simulCond->timeStep*atom[i].vy;
+      atom[i].z+=simulCond->timeStep*atom[i].vz;
       
     }
     
@@ -513,18 +513,18 @@ void vv_nvt_b(ATOM *atom, ENERGYFORCE *enerFor, SIMULPARAMS *simulCond,CONSTRAIN
       
     }
   
-    enerFor->energyKin=kinetic(atom);
+    ener->kin=kinetic(atom,simulCond);
     
-    lambda=sqrt(1.0+simulCond->timeStep/simulCond->taut*(simulCond->kintemp0/enerFor->energyKin-1.0));
+    lambda=sqrt(1.0+simulCond->timeStep/simulCond->taut*(simulCond->kintemp0/ener->kin-1.0));
     
-    for(i=0;i<atom->natom;i++)
+    for(i=0;i<simulCond->natom;i++)
     {
-      atom->vx[i]*=lambda;
-      atom->vy[i]*=lambda;
-      atom->vz[i]*=lambda;
+      atom[i].vx*=lambda;
+      atom[i].vy*=lambda;
+      atom[i].vz*=lambda;
     }
     
-    enerFor->energyKin*=X2(lambda);
+    ener->kin*=X2(lambda);
     
   }
   

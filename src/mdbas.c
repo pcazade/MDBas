@@ -7,6 +7,7 @@
  * ************************************************************/
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 #include "global.h"
 #include "energy.h"
@@ -32,13 +33,14 @@ int main(int argc, char* argv[])
 //   void (*test)(int *par1,double *par2,...);
 //   test=&(elec);
 
-  FILE *ener=NULL,*traj=NULL,*frc=NULL,*numfrc=NULL;
+  FILE *fener=NULL,*traj=NULL,*frc=NULL,*numfrc=NULL;
   INPUTS inp;
-  ATOM atom;
+  ATOM *atom=NULL;
   FORCEFIELD ff;
-  ENERGYFORCE enerFor;
+  ENERGY ener;
   SIMULPARAMS simulCond;
   CONSTRAINT *constList=NULL;
+  DELTA *nForce=NULL;
   
   char enerLabel[11][7]={ {"Step"}  , {"Etot"}  , {"Ekin"}  , {"Epot"} ,
 			  {"Ecoul"} , {"Evdw"}  , {"Ebond"} , {"Eangle"} ,
@@ -73,51 +75,51 @@ int main(int argc, char* argv[])
   
   printf("PAR file read\n");
   
-  read_CONF(&atom);
+  read_CONF(atom,&simulCond);
   
   printf("CONF file read\n");
   
-  setup(&inp,&atom,&ff,&simulCond,constList);
+  setup(&inp,atom,&ff,&simulCond,constList);
   
   printf("Setup done\n");
   
   if(simulCond.keyforf)
-    write_FORF(&inp,&atom,&ff,&simulCond);
+    write_FORF(&inp,atom,&ff,&simulCond);
   
   free_temp_array(&inp);
   
   printf("Free temp array done\n");
   
-  get_kinfromtemp(&atom,&simulCond);
+  get_kinfromtemp(atom,&simulCond);
   
   //init_vel(&atom,&simulCond,constList);
 
-  makelist(&simulCond,&atom,&ff,constList);
+  makelist(&simulCond,atom,&ff,constList);
   
   if(simulCond.keyminim)
   {
-    steepestDescent(&atom,&ff,&enerFor,&simulCond);
-    makelist(&simulCond,&atom,&ff,constList);
+    steepestDescent(atom,&ff,&ener,&simulCond);
+    makelist(&simulCond,atom,&ff,constList);
   }
   
-  init_vel(&atom,&simulCond,constList);
+  init_vel(atom,&simulCond,constList);
   
   if(simulCond.keyener)
   {
-    ener=fopen("ener.dat","w");
+    fener=fopen("ener.dat","w");
     
-    fprintf(ener,_ENERLABELS_,enerLabel[0],enerLabel[1],enerLabel[2],enerLabel[3],
-			      enerLabel[4],enerLabel[5],enerLabel[6],enerLabel[7],
-			      enerLabel[8],enerLabel[9],enerLabel[10]);
+    fprintf(fener,_ENERLABELS_,enerLabel[0],enerLabel[1],enerLabel[2],enerLabel[3],
+			       enerLabel[4],enerLabel[5],enerLabel[6],enerLabel[7],
+			       enerLabel[8],enerLabel[9],enerLabel[10]);
   }
   
   if(simulCond.keytraj)
   {
     traj=fopen("traj.xyz","w");
-    fprintf(traj,"%d\n",atom.natom);
+    fprintf(traj,"%d\n",simulCond.natom);
     fprintf(traj,"initial config (minimised)\n");
-    for(i=0;i<atom.natom;i++)
-      fprintf(traj,"%s\t%7.3lf\t%7.3lf\t%7.3lf\n",atom.atomLabel[i],atom.x[i],atom.y[i],atom.z[i]);
+    for(i=0;i<simulCond.natom;i++)
+      fprintf(traj,"%s\t%7.3lf\t%7.3lf\t%7.3lf\n",atom[i].label,atom[i].x,atom[i].y,atom[i].z);
   }
   
   if(simulCond.integrator==1 || !simulCond.keymd)
@@ -125,56 +127,58 @@ int main(int argc, char* argv[])
 
 //   Computes kinetic energy at time=0
 
-    enerFor.energyKin=kinetic(&atom);
+    ener.kin=kinetic(atom,&simulCond);
   
 //   Computes potential energies and forces at time=0
   
-    energy(&atom,&ff,&enerFor,&simulCond);
+    energy(atom,&ff,&ener,&simulCond);
     
-    enerFor.energyTot=enerFor.energyKin+enerFor.energyPot;
+    ener.tot=ener.kin+ener.pot;
     
     if(simulCond.keyener)
     { 
-      fprintf(ener,_ENERFORMAT_,
-	simulCond.step,enerFor.energyTot/kcaltoiu,enerFor.energyKin/kcaltoiu,enerFor.energyPot/kcaltoiu,
-	enerFor.energyElec/kcaltoiu,enerFor.energyVdw/kcaltoiu,enerFor.energyBond/kcaltoiu,
-	enerFor.energyAng/kcaltoiu,enerFor.energyUb/kcaltoiu,enerFor.energyDih/kcaltoiu,
-	enerFor.energyImpr/kcaltoiu);
+      fprintf(fener,_ENERFORMAT_,
+	simulCond.step,ener.tot/kcaltoiu,ener.kin/kcaltoiu,ener.pot/kcaltoiu,
+	ener.elec/kcaltoiu,ener.vdw/kcaltoiu,ener.bond/kcaltoiu,
+	ener.ang/kcaltoiu,ener.ub/kcaltoiu,ener.dihe/kcaltoiu,
+	ener.impr/kcaltoiu);
     }
     
 //     if(simulCond.keytraj)
 //     {
-//       fprintf(traj,"%d\n",atom.natom);
+//       fprintf(traj,"%d\n",simulCond.natom);
 //       fprintf(traj,"step %d\n",simulCond.step);
-//       for(i=0;i<atom.natom;i++)
-// 	  fprintf(traj,"%s\t%7.3lf\t%7.3lf\t%7.3lf\n",atom.atomLabel[i],atom.x[i],atom.y[i],atom.z[i]);
+//       for(i=0;i<simulCond.natom;i++)
+// 	  fprintf(traj,"%s\t%7.3lf\t%7.3lf\t%7.3lf\n",atom.atomLabel[i],atom[i].x,atom[i].y,atom[i].z);
 //     }
 
 //   Numerical derivatives to estimate forces for initial configuration.
       
     if(simulCond.numDeriv==1)
     {
+      nForce=(DELTA*)malloc(simulCond.natom*sizeof(*nForce));
+      
       frc=fopen("force.dat","w");
       numfrc=fopen("numforce.dat","w");
     
 //     Write analytical forces into frc file.
     
       fprintf(frc,"#step=%d\n",simulCond.step);
-      for(i=0;i<atom.natom;i++)
-	fprintf(frc,"%.15lf\t%.15lf\t%.15lf\n",atom.fx[i],atom.fy[i],atom.fz[i]);
+      for(i=0;i<simulCond.natom;i++)
+	fprintf(frc,"%.15lf\t%.15lf\t%.15lf\n",atom[i].fx,atom[i].fy,atom[i].fz);
       
-      numforce(&atom,&ff,&enerFor,&simulCond,4,1.e-4);
+      numforce(atom,nForce,&ff,&ener,&simulCond,4,1.e-4);
       
 //     Write numerical forces into numfrc file.
       
       fprintf(numfrc,"#step=%d\n",simulCond.step);
-      for(i=0;i<atom.natom;i++)
+      for(i=0;i<simulCond.natom;i++)
       {
-	fprintf(numfrc,"%.15lf\t%.15lf\t%.15lf\n",atom.numFx[i],atom.numFy[i],atom.numFz[i]);
+	fprintf(numfrc,"%.15lf\t%.15lf\t%.15lf\n",nForce[i].x,nForce[i].y,nForce[i].z);
 	
-	atom.fx[i]=atom.numFx[i];
-	atom.fy[i]=atom.numFy[i];
-	atom.fz[i]=atom.numFz[i];
+	atom[i].fx=nForce[i].x;
+	atom[i].fy=nForce[i].y;
+	atom[i].fz=nForce[i].z;
       }      
     }
   }
@@ -191,17 +195,17 @@ int main(int argc, char* argv[])
 
       if(simulCond.integrator==1)
       {
-	vv_integrate(&atom,&enerFor,&simulCond,constList,1);
+	vv_integrate(atom,&ener,&simulCond,constList,1);
 // 	printf("Velocity verlet fisrt stage done for step %d\n",simulCond.step);
       }
       
 //     List update if needed.
       
-      makelist(&simulCond,&atom,&ff,constList);
+      makelist(&simulCond,atom,&ff,constList);
       
 //     Energies calculation.
 
-      energy(&atom,&ff,&enerFor,&simulCond);
+      energy(atom,&ff,&ener,&simulCond);
 //       printf("Energy done for step %d\n",simulCond.step);
       
 //     Numerical derivatives to estimate forces.
@@ -209,27 +213,26 @@ int main(int argc, char* argv[])
       if(simulCond.numDeriv==1)
       {
 	
-	numforce(&atom,&ff,&enerFor,&simulCond,4,1.e-4);
+	numforce(atom,nForce,&ff,&ener,&simulCond,4,1.e-4);
 	
 //       Write analytical forces into frc file.
 	
 	fprintf(frc,"#step=%d\n",simulCond.step);
-	for(i=0;i<atom.natom;i++)
-	  fprintf(frc,"%.15lf\t%.15lf\t%.15lf\n",atom.fx[i],atom.fy[i],atom.fz[i]);
+	for(i=0;i<simulCond.natom;i++)
+	  fprintf(frc,"%.15lf\t%.15lf\t%.15lf\n",atom[i].fx,atom[i].fy,atom[i].fz);
 	  
 //       Write numerical forces into numfrc file.
 	
 	fprintf(numfrc,"#step=%d\n",simulCond.step);
       
-	for(i=0;i<atom.natom;i++)
+	for(i=0;i<simulCond.natom;i++)
 	{
-	  fprintf(numfrc,"%.15lf\t%.15lf\t%.15lf\n",atom.numFx[i],atom.numFy[i],atom.numFz[i]);
+	  fprintf(numfrc,"%.15lf\t%.15lf\t%.15lf\n",nForce[i].x,nForce[i].y,nForce[i].z);
 	  
 // 	Overwrite analytical forces with numerical forces.
-	  
-	  atom.fx[i]=atom.numFx[i];
-	  atom.fy[i]=atom.numFy[i];
-	  atom.fz[i]=atom.numFz[i];
+	  atom[i].fx=nForce[i].x;
+	  atom[i].fy=nForce[i].y;
+	  atom[i].fz=nForce[i].z;
 	}
 	
       }
@@ -239,34 +242,34 @@ int main(int argc, char* argv[])
       
       if(simulCond.integrator==0)
       {
-	lf_integrate(&atom,&enerFor,&simulCond,constList);
+	lf_integrate(atom,&ener,&simulCond,constList);
 // 	printf("Leap frog done for step %d\n",simulCond.step);
       }
       else if(simulCond.integrator==1)
       {
-	vv_integrate(&atom,&enerFor,&simulCond,constList,2);
+	vv_integrate(atom,&ener,&simulCond,constList,2);
 // 	printf("Velocity verlet second stage done for step %d\n",simulCond.step);
       }
       
-      enerFor.energyTot=enerFor.energyKin+enerFor.energyPot;
+      ener.tot=ener.kin+ener.pot;
       
 //     Write thermodynamics properties into ener file.
       
       if( (simulCond.keyener) && (simulCond.step%simulCond.printo==0) )
-	fprintf(ener,_ENERFORMAT_,
-	  simulCond.step,enerFor.energyTot/kcaltoiu,enerFor.energyKin/kcaltoiu,enerFor.energyPot/kcaltoiu,
-	  enerFor.energyElec/kcaltoiu,enerFor.energyVdw/kcaltoiu,enerFor.energyBond/kcaltoiu,
-	  enerFor.energyAng/kcaltoiu,enerFor.energyUb/kcaltoiu,enerFor.energyDih/kcaltoiu,
-	  enerFor.energyImpr/kcaltoiu);
+	fprintf(fener,_ENERFORMAT_,
+	  simulCond.step,ener.tot/kcaltoiu,ener.kin/kcaltoiu,ener.pot/kcaltoiu,
+	  ener.elec/kcaltoiu,ener.vdw/kcaltoiu,ener.bond/kcaltoiu,
+	  ener.ang/kcaltoiu,ener.ub/kcaltoiu,ener.dihe/kcaltoiu,
+	  ener.impr/kcaltoiu);
 	
 //     Write coordinates into traj file.
       
       if( (simulCond.keytraj) && (simulCond.step%simulCond.printtr==0) )
       {
-	fprintf(traj,"%d\n",atom.natom);
+	fprintf(traj,"%d\n",simulCond.natom);
 	fprintf(traj,"step %d\n",simulCond.step);
-	for(i=0;i<atom.natom;i++)
-	  fprintf(traj,"%s\t%7.3lf\t%7.3lf\t%7.3lf\n",atom.atomLabel[i],atom.x[i],atom.y[i],atom.z[i]);
+	for(i=0;i<simulCond.natom;i++)
+	  fprintf(traj,"%s\t%7.3lf\t%7.3lf\t%7.3lf\n",atom[i].label,atom[i].x,atom[i].y,atom[i].z);
       }
       
     }
@@ -275,7 +278,7 @@ int main(int argc, char* argv[])
   }
 
   if(simulCond.keyener)
-    fclose(ener);
+    fclose(fener);
   
   if(simulCond.keytraj)
     fclose(traj);

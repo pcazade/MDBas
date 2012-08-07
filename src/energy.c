@@ -6,24 +6,24 @@
 #include "internal.h"
 #include "io.h"
 
-void energy(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
+void energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
 {
   
   int i;
   
-  enerFor->energyElec=0.;
-  enerFor->energyVdw=0.;
-  enerFor->energyBond=0.;
-  enerFor->energyUb=0.;
-  enerFor->energyAng=0.;
-  enerFor->energyDih=0.;
-  enerFor->energyImpr=0.;
+  ener->elec=0.;
+  ener->vdw=0.;
+  ener->bond=0.;
+  ener->ub=0.;
+  ener->ang=0.;
+  ener->dihe=0.;
+  ener->impr=0.;
   
-  for(i=0;i<atom->natom;i++)
+  for(i=0;i<simulCond->natom;i++)
   {
-    atom->fx[i]=0.;
-    atom->fy[i]=0.;
-    atom->fz[i]=0.;
+    atom[i].fx=0.;
+    atom[i].fy=0.;
+    atom[i].fz=0.;
   }
   
   /* Performing electrostatic interactions */
@@ -34,30 +34,30 @@ void energy(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCon
   }
   else if (simulCond->elecType==FULL)
   {
-    coulomb_full(atom,ff,enerFor,simulCond);
+    coulomb_full(atom,ff,ener,simulCond);
     if(simulCond->nb14)
-      coulomb14_full(atom,ff,enerFor,simulCond);
+      coulomb14_full(atom,ff,ener,simulCond);
   }
   else if(simulCond->elecType==SHIFT1)
   {
-    coulomb_shift1(atom,ff,enerFor,simulCond);
+    coulomb_shift1(atom,ff,ener,simulCond);
     
     if(simulCond->nb14)
-      coulomb14_shift1(atom,ff,enerFor,simulCond);
+      coulomb14_shift1(atom,ff,ener,simulCond);
   }
   else if(simulCond->elecType==SHIFT2)
   {
-    coulomb_shift2(atom,ff,enerFor,simulCond);
+    coulomb_shift2(atom,ff,ener,simulCond);
     
     if(simulCond->nb14)
-      coulomb14_shift2(atom,ff,enerFor,simulCond);
+      coulomb14_shift2(atom,ff,ener,simulCond);
   }
   else if (simulCond->elecType==SWITCH)
   {
-    coulomb_switch(atom,ff,enerFor,simulCond);
+    coulomb_switch(atom,ff,ener,simulCond);
     
     if(simulCond->nb14)
-      coulomb14_switch(atom,ff,enerFor,simulCond);
+      coulomb14_switch(atom,ff,ener,simulCond);
   }
   else
   {
@@ -72,16 +72,16 @@ void energy(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCon
   }
   else if (simulCond->vdwType==VFULL)
   {
-    vdw_full(atom,ff,enerFor,simulCond);
+    vdw_full(atom,ff,ener,simulCond);
     if(simulCond->nb14)
-      vdw14_full(atom,ff,enerFor,simulCond);
+      vdw14_full(atom,ff,ener,simulCond);
   }
   else if(simulCond->vdwType==VSWITCH)
   {
-    vdw_switch(atom,ff,enerFor,simulCond);
+    vdw_switch(atom,ff,ener,simulCond);
     
     if(simulCond->nb14)
-      vdw14_switch(atom,ff,enerFor,simulCond);
+      vdw14_switch(atom,ff,ener,simulCond);
   }
   else
   {
@@ -91,31 +91,31 @@ void energy(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCon
   /* Performing bond terms */
   
   if(ff->nBond>0)
-    bond_energy(atom,ff,enerFor,simulCond);
+    bond_energy(atom,ff,ener,simulCond);
   
   /* Performing angle terms */
   
   if(ff->nAngle>0)
-    angle_energy(atom,ff,enerFor,simulCond);
+    angle_energy(atom,ff,ener,simulCond);
   
   /* Performing Urey-Bradley terms */
   
    if(ff->nUb>0)
-    ub_energy(atom,ff,enerFor,simulCond);
+    ub_energy(atom,ff,ener,simulCond);
    
   /* Performing diherdral terms */
   
   if(ff->nDihedral>0)
-    dihedral_energy(atom,ff,enerFor,simulCond);
+    dihedral_energy(atom,ff,ener,simulCond);
   
   /* Performing improper terms */
   
   if(ff->nImproper>0)
-    improper_energy(atom,ff,enerFor,simulCond);
+    improper_energy(atom,ff,ener,simulCond);
   
   /* Calculate potential energy */
     
-  enerFor->energyPot=enerFor->energyElec+enerFor->energyVdw+enerFor->energyBond+
-    enerFor->energyAng+enerFor->energyUb+enerFor->energyDih+enerFor->energyImpr;
+  ener->pot=ener->elec+ener->vdw+ener->bond+
+    ener->ang+ener->ub+ener->dihe+ener->impr;
 
 }

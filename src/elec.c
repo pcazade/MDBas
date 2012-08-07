@@ -1,7 +1,7 @@
 #include "global.h"
 #include "utils.h"
 
-void coulomb_full(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
+void coulomb_full(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
 {
   
   int i,j;
@@ -9,18 +9,18 @@ void coulomb_full(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *si
   double r,fx,fy,fz,fxi,fyi,fzi;
   double delta[3];
   
-  for(i=0;i<atom->natom-1;i++)
+  for(i=0;i<simulCond->natom-1;i++)
   {
     fxi=0.;
     fyi=0.;
     fzi=0.;
     
-    for(j=i+1;j<atom->natom;j++)
+    for(j=i+1;j<simulCond->natom;j++)
     {
       
       r=distance(i,j,atom,delta,simulCond);
       
-      pelec=simulCond->chargeConst*ff->q[i]*ff->q[j]/r;
+      pelec=simulCond->chargeConst*atom[i].q*atom[j].q/r;
       elec+=pelec;
       delec=-pelec/r;
       
@@ -32,21 +32,21 @@ void coulomb_full(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *si
       fyi+=fy;
       fzi+=fz;
       
-      atom->fx[j]+=-fx;
-      atom->fy[j]+=-fy;
-      atom->fz[j]+=-fz;
+      atom[j].fx+=-fx;
+      atom[j].fy+=-fy;
+      atom[j].fz+=-fz;
       
     }
     
-    atom->fx[i]+=fxi;
-    atom->fy[i]+=fyi;
-    atom->fz[i]+=fzi;
+    atom[i].fx+=fxi;
+    atom[i].fy+=fyi;
+    atom[i].fz+=fzi;
   }
-  enerFor->energyElec+=elec;
+  ener->elec+=elec;
   
 }
 
-void coulomb_shift1(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
+void coulomb_shift1(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
 {
   
  /*****************************************************************************
@@ -67,11 +67,11 @@ void coulomb_shift1(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *
   #ifndef _OPENMP
   int ipr=0;
   #else
-  #pragma omp parallel default(none) shared(atom,ff,enerFor,simulCond) private(i,j,k,pelec,delec,shiftFunc,dshiftFunc,r,fx,fy,fz,fxi,fyi,fzi,delta) reduction(+:elec)
+  #pragma omp parallel default(none) shared(atom,ff,ener,simulCond) private(i,j,k,pelec,delec,shiftFunc,dshiftFunc,r,fx,fy,fz,fxi,fyi,fzi,delta) reduction(+:elec)
   {
-  #pragma omp for nowait
+  #pragma omp for schedule(dynamic) nowait
   #endif
-    for(i=0;i<atom->natom-1;i++)
+    for(i=0;i<simulCond->natom-1;i++)
     {
       fxi=0.;
       fyi=0.;
@@ -93,7 +93,7 @@ void coulomb_shift1(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *
 	  shiftFunc=1.-2.*r/simulCond->cutoff+X2(r/simulCond->cutoff);
 	  dshiftFunc=-2./simulCond->cutoff+2.*r/X2(simulCond->cutoff);
 	    
-	  pelec=simulCond->chargeConst*ff->q[i]*ff->q[j]/r;
+	  pelec=simulCond->chargeConst*atom[i].q*atom[j].q/r;
 	  elec+=pelec*shiftFunc;
 	  delec=pelec*(dshiftFunc-shiftFunc/r);
 	  
@@ -106,32 +106,32 @@ void coulomb_shift1(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *
 	  fzi+=fz;
 	  
 	  #pragma omp atomic
-	  atom->fx[j]+=-fx;
+	  atom[j].fx+=-fx;
 	  #pragma omp atomic
-	  atom->fy[j]+=-fy;
+	  atom[j].fy+=-fy;
 	  #pragma omp atomic
-	  atom->fz[j]+=-fz; 
+	  atom[j].fz+=-fz; 
 	  
 	} 
       }
       
       #pragma omp atomic
-      atom->fx[i]+=fxi;
+      atom[i].fx+=fxi;
       #pragma omp atomic
-      atom->fy[i]+=fyi;
+      atom[i].fy+=fyi;
       #pragma omp atomic
-      atom->fz[i]+=fzi;
+      atom[i].fz+=fzi;
 
     }
   #ifdef _OPENMP
   }
   #endif
   
-  enerFor->energyElec+=elec;
+  ener->elec+=elec;
   
 }
 
-void coulomb_shift2(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
+void coulomb_shift2(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
 {
   
 /*****************************************************************************
@@ -153,11 +153,11 @@ void coulomb_shift2(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *
   #ifndef _OPENMP
   int ipr=0;
   #else
-  #pragma omp parallel default(none) shared(atom,ff,enerFor,simulCond) private(i,j,k,pelec,delec,shiftFunc,dshiftFunc,r,fx,fy,fz,fxi,fyi,fzi,delta) reduction(+:elec)
+  #pragma omp parallel default(none) shared(atom,ff,ener,simulCond) private(i,j,k,pelec,delec,shiftFunc,dshiftFunc,r,fx,fy,fz,fxi,fyi,fzi,delta) reduction(+:elec)
   {
-    #pragma omp for nowait
+    #pragma omp for schedule(dynamic) nowait
     #endif
-    for(i=0;i<atom->natom-1;i++)
+    for(i=0;i<simulCond->natom-1;i++)
     {
       fxi=0.;
       fyi=0.;
@@ -179,7 +179,7 @@ void coulomb_shift2(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *
 	  shiftFunc=1.-2.*X2(r/simulCond->cutoff)+X4(r/simulCond->cutoff);
 	  dshiftFunc=-4.*r/X2(simulCond->cutoff)+4.*X3(r)/X4(simulCond->cutoff);
 	  
-	  pelec=simulCond->chargeConst*ff->q[i]*ff->q[j]/r;
+	  pelec=simulCond->chargeConst*atom[i].q*atom[j].q/r;
 	  elec+=pelec*shiftFunc;
 	  delec=pelec*(dshiftFunc-shiftFunc/r);
 	  
@@ -192,22 +192,22 @@ void coulomb_shift2(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *
 	  fzi+=fz;
 	  
 	  #pragma omp atomic
-	  atom->fx[j]+=-fx;
+	  atom[j].fx+=-fx;
 	  #pragma omp atomic
-	  atom->fy[j]+=-fy;
+	  atom[j].fy+=-fy;
 	  #pragma omp atomic
-	  atom->fz[j]+=-fz;
+	  atom[j].fz+=-fz;
 
 	  
 	}	//END of if
       }	//END of inner for
       
       #pragma omp atomic
-      atom->fx[i]+=fxi;
+      atom[i].fx+=fxi;
       #pragma omp atomic
-      atom->fy[i]+=fyi;
+      atom[i].fy+=fyi;
       #pragma omp atomic
-      atom->fz[i]+=fzi;
+      atom[i].fz+=fzi;
       
     } //END of main for
   
@@ -215,11 +215,11 @@ void coulomb_shift2(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *
   }
   #endif
   
-  enerFor->energyElec+=elec;
+  ener->elec+=elec;
   
 } //END of function
 
-void coulomb_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
+void coulomb_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
 {
   
 /*****************************************************************************
@@ -240,11 +240,11 @@ void coulomb_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *
   #ifndef _OPENMP
   int ipr=0;
   #else
-  #pragma omp parallel default(none) shared(atom,ff,enerFor,simulCond) private(i,j,k,pelec,delec,switchFunc,dswitchFunc,r,fx,fy,fz,fxi,fyi,fzi,delta) reduction(+:elec)
+  #pragma omp parallel default(none) shared(atom,ff,ener,simulCond) private(i,j,k,pelec,delec,switchFunc,dswitchFunc,r,fx,fy,fz,fxi,fyi,fzi,delta) reduction(+:elec)
   {
-    #pragma omp for nowait
+    #pragma omp for schedule(dynamic) nowait
   #endif
-    for(i=0;i<atom->natom-1;i++)
+    for(i=0;i<simulCond->natom-1;i++)
     {
       fxi=0.;
       fyi=0.;
@@ -264,7 +264,7 @@ void coulomb_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *
 	if(r<=simulCond->cuton)
 	{
 	  
-	  pelec=simulCond->chargeConst*ff->q[i]*ff->q[j]/r;
+	  pelec=simulCond->chargeConst*atom[i].q*atom[j].q/r;
 	  elec+=pelec;
 	  delec=-pelec/r;
 	  
@@ -277,11 +277,11 @@ void coulomb_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *
 	  fzi+=fz;
 	  
 	  #pragma omp atomic
-	  atom->fx[j]+=-fx;
+	  atom[j].fx+=-fx;
 	  #pragma omp atomic
-	  atom->fy[j]+=-fy;
+	  atom[j].fy+=-fy;
 	  #pragma omp atomic
-	  atom->fz[j]+=-fz;
+	  atom[j].fz+=-fz;
 	  
 	}
 	else if(r<=simulCond->cutoff)
@@ -294,7 +294,7 @@ void coulomb_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *
 	    (X2(simulCond->cuton)-X2(r))/
 	    X3(X2(simulCond->cutoff)-X2(simulCond->cuton));
 	  
-	  pelec=simulCond->chargeConst*ff->q[i]*ff->q[j]/r;
+	  pelec=simulCond->chargeConst*atom[i].q*atom[j].q/r;
 	  elec+=pelec*switchFunc;
 	  delec=pelec*(dswitchFunc-switchFunc/r);
 	  
@@ -307,30 +307,30 @@ void coulomb_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *
 	  fzi+=fz;
 	  
 	  #pragma omp atomic
-	  atom->fx[j]+=-fx;
+	  atom[j].fx+=-fx;
 	  #pragma omp atomic
-	  atom->fy[j]+=-fy;
+	  atom[j].fy+=-fy;
 	  #pragma omp atomic
-	  atom->fz[j]+=-fz;
+	  atom[j].fz+=-fz;
 	  
 	}     
       }
       
       #pragma omp atomic
-      atom->fx[i]+=fxi;
+      atom[i].fx+=fxi;
       #pragma omp atomic
-      atom->fy[i]+=fyi;
+      atom[i].fy+=fyi;
       #pragma omp atomic
-      atom->fz[i]+=fzi;
+      atom[i].fz+=fzi;
 
     }
   #ifdef _OPENMP
   }
   #endif
-  enerFor->energyElec+=elec;
+  ener->elec+=elec;
 }
 
-void coulomb14_full(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
+void coulomb14_full(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
 {
   
   int i,j,k;
@@ -344,7 +344,7 @@ void coulomb14_full(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *
     j=ff->ver14[k][1];
     
     r=distance(i,j,atom,delta,simulCond);
-    pelec=ff->scal14*simulCond->chargeConst*ff->q[i]*ff->q[j]/r;
+    pelec=ff->scal14*simulCond->chargeConst*atom[i].q*atom[j].q/r;
     elec+=pelec;
     delec=-pelec/r;
     
@@ -352,19 +352,19 @@ void coulomb14_full(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *
     fy=delec*delta[1]/r;
     fz=delec*delta[2]/r;
     
-    atom->fx[i]+=fx;
-    atom->fy[i]+=fy;
-    atom->fz[i]+=fz;
+    atom[i].fx+=fx;
+    atom[i].fy+=fy;
+    atom[i].fz+=fz;
     
-    atom->fx[j]+=-fx;
-    atom->fy[j]+=-fy;
-    atom->fz[j]+=-fz;
+    atom[j].fx+=-fx;
+    atom[j].fy+=-fy;
+    atom[j].fz+=-fz;
     
   }
-  enerFor->energyElec+=elec;
+  ener->elec+=elec;
 }
 
-void coulomb14_shift1(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
+void coulomb14_shift1(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
 {
   
  /*****************************************************************************
@@ -394,7 +394,7 @@ void coulomb14_shift1(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS
       shiftFunc=1.-2.*r/simulCond->cutoff+X2(r/simulCond->cutoff);
       dshiftFunc=-2./simulCond->cutoff+2.*r/X2(simulCond->cutoff);
       
-      pelec=ff->scal14*simulCond->chargeConst*ff->q[i]*ff->q[j]/r;
+      pelec=ff->scal14*simulCond->chargeConst*atom[i].q*atom[j].q/r;
       elec+=pelec*shiftFunc;
       delec=pelec*(dshiftFunc-shiftFunc/r);
       
@@ -402,20 +402,20 @@ void coulomb14_shift1(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS
       fy=delec*delta[1]/r;
       fz=delec*delta[2]/r;
     
-      atom->fx[i]+=fx;
-      atom->fy[i]+=fy;
-      atom->fz[i]+=fz;
+      atom[i].fx+=fx;
+      atom[i].fy+=fy;
+      atom[i].fz+=fz;
     
-      atom->fx[j]+=-fx;
-      atom->fy[j]+=-fy;
-      atom->fz[j]+=-fz;
+      atom[j].fx+=-fx;
+      atom[j].fy+=-fy;
+      atom[j].fz+=-fz;
       
     }
   }
-  enerFor->energyElec+=elec;
+  ener->elec+=elec;
 }
 
-void coulomb14_shift2(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
+void coulomb14_shift2(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
 {
   
 /*****************************************************************************
@@ -445,7 +445,7 @@ void coulomb14_shift2(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS
       shiftFunc=1.-2.*X2(r/simulCond->cutoff)+X4(r/simulCond->cutoff);
       dshiftFunc=-4.*r/X2(simulCond->cutoff)+4.*X3(r)/X4(simulCond->cutoff);
       
-      pelec=ff->scal14*simulCond->chargeConst*ff->q[i]*ff->q[j]/r;
+      pelec=ff->scal14*simulCond->chargeConst*atom[i].q*atom[j].q/r;
       elec+=pelec*shiftFunc;
       delec=pelec*(dshiftFunc-shiftFunc/r);
       
@@ -453,21 +453,21 @@ void coulomb14_shift2(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS
       fy=delec*delta[1]/r;
       fz=delec*delta[2]/r;
     
-      atom->fx[i]+=fx;
-      atom->fy[i]+=fy;
-      atom->fz[i]+=fz;
+      atom[i].fx+=fx;
+      atom[i].fy+=fy;
+      atom[i].fz+=fz;
     
-      atom->fx[j]+=-fx;
-      atom->fy[j]+=-fy;
-      atom->fz[j]+=-fz;
+      atom[j].fx+=-fx;
+      atom[j].fy+=-fy;
+      atom[j].fz+=-fz;
       
     }     
   }
     
-  enerFor->energyElec+=elec;
+  ener->elec+=elec;
 }
 
-void coulomb14_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
+void coulomb14_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
 {
   
 /*****************************************************************************
@@ -494,7 +494,7 @@ void coulomb14_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS
     
     if(r<=simulCond->cuton)
     {
-	pelec=ff->scal14*simulCond->chargeConst*ff->q[i]*ff->q[j]/r;
+	pelec=ff->scal14*simulCond->chargeConst*atom[i].q*atom[j].q/r;
 	elec+=pelec;
 	delec=-pelec/r;
 	
@@ -502,13 +502,13 @@ void coulomb14_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS
 	fy=delec*delta[1]/r;
 	fz=delec*delta[2]/r;
     
-	atom->fx[i]+=fx;
-	atom->fy[i]+=fy;
-	atom->fz[i]+=fz;
+	atom[i].fx+=fx;
+	atom[i].fy+=fy;
+	atom[i].fz+=fz;
     
-	atom->fx[j]+=-fx;
-	atom->fy[j]+=-fy;
-	atom->fz[j]+=-fz;
+	atom[j].fx+=-fx;
+	atom[j].fy+=-fy;
+	atom[j].fz+=-fz;
 	
     }
     else if(r<=simulCond->cutoff)
@@ -521,7 +521,7 @@ void coulomb14_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS
 	  (X2(simulCond->cuton)-X2(r))/
 	  X3(X2(simulCond->cutoff)-X2(simulCond->cuton));
 	
-	pelec=ff->scal14*simulCond->chargeConst*ff->q[i]*ff->q[j]/r;
+	pelec=ff->scal14*simulCond->chargeConst*atom[i].q*atom[j].q/r;
 	elec+=pelec*switchFunc;
 	delec=pelec*(dswitchFunc-switchFunc/r);
 	
@@ -529,16 +529,16 @@ void coulomb14_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS
 	fy=delec*delta[1]/r;
 	fz=delec*delta[2]/r;
     
-	atom->fx[i]+=fx;
-	atom->fy[i]+=fy;
-	atom->fz[i]+=fz;
+	atom[i].fx+=fx;
+	atom[i].fy+=fy;
+	atom[i].fz+=fz;
     
-	atom->fx[j]+=-fx;
-	atom->fy[j]+=-fy;
-	atom->fz[j]+=-fz;
+	atom[j].fx+=-fx;
+	atom[j].fy+=-fy;
+	atom[j].fz+=-fz;
 	
     }     
   }
   
-  enerFor->energyElec+=elec;
+  ener->elec+=elec;
 }

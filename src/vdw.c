@@ -1,7 +1,7 @@
 #include "global.h"
 #include "utils.h"
 
-void vdw_full(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
+void vdw_full(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
 {
     
   int i,j;
@@ -9,13 +9,13 @@ void vdw_full(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulC
   double r,fx,fy,fz,fxi,fyi,fzi;
   double delta[3];
   
-  for(i=0;i<atom->natom-1;i++)
+  for(i=0;i<simulCond->natom-1;i++)
   {
     fxi=0.;
     fyi=0.;
     fzi=0.;
     
-    for(j=i+1;j<atom->natom;j++)
+    for(j=i+1;j<simulCond->natom;j++)
     {
       
       r=distance(i,j,atom,delta,simulCond);
@@ -36,19 +36,19 @@ void vdw_full(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulC
       fyi+=fy;
       fzi+=fz;
       
-      atom->fx[j]+=-fx;
-      atom->fy[j]+=-fy;
-      atom->fz[j]+=-fz;
+      atom[j].fx+=-fx;
+      atom[j].fy+=-fy;
+      atom[j].fz+=-fz;
       
     }
-    atom->fx[i]+=fxi;
-    atom->fy[i]+=fyi;
-    atom->fz[i]+=fzi;
+    atom[i].fx+=fxi;
+    atom[i].fy+=fyi;
+    atom[i].fz+=fzi;
   }
-  enerFor->energyVdw+=vdw;
+  ener->vdw+=vdw;
 }
 
-void vdw_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
+void vdw_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
 {
   
 /*****************************************************************************
@@ -69,11 +69,11 @@ void vdw_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simu
   #ifndef _OPENMP
   int ipr=0;
   #else
-  #pragma omp parallel default(none) shared(atom,ff,enerFor,simulCond) private(i,j,k,pvdw,dpvdw,dvdw,switchFunc,dswitchFunc,r,fx,fy,fz,fxi,fyi,fzi,delta) reduction(+:vdw)
+  #pragma omp parallel default(none) shared(atom,ff,ener,simulCond) private(i,j,k,pvdw,dpvdw,dvdw,switchFunc,dswitchFunc,r,fx,fy,fz,fxi,fyi,fzi,delta) reduction(+:vdw)
   {
-    #pragma omp for nowait
+    #pragma omp for schedule(dynamic) nowait
     #endif
-    for(i=0;i<atom->natom-1;i++)
+    for(i=0;i<simulCond->natom-1;i++)
     {
       fxi=0.;
       fyi=0.;
@@ -109,11 +109,11 @@ void vdw_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simu
 	  fzi+=fz;
 	
 	  #pragma omp atomic
-	  atom->fx[j]+=-fx;
+	  atom[j].fx+=-fx;
 	  #pragma omp atomic
-	  atom->fy[j]+=-fy;
+	  atom[j].fy+=-fy;
 	  #pragma omp atomic
-	  atom->fz[j]+=-fz;
+	  atom[j].fz+=-fz;
 		  
 	}
 	else if(r<=simulCond->cutoff)
@@ -145,31 +145,31 @@ void vdw_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simu
 	  fzi+=fz;
 	
 	  #pragma omp atomic
-	  atom->fx[j]+=-fx;
+	  atom[j].fx+=-fx;
 	  #pragma omp atomic
-	  atom->fy[j]+=-fy;
+	  atom[j].fy+=-fy;
 	  #pragma omp atomic
-	  atom->fz[j]+=-fz;
+	  atom[j].fz+=-fz;
 	  
 	}
       }
       
       #pragma omp atomic
-      atom->fx[i]+=fxi;
+      atom[i].fx+=fxi;
       #pragma omp atomic
-      atom->fy[i]+=fyi;
+      atom[i].fy+=fyi;
       #pragma omp atomic
-      atom->fz[i]+=fzi;
+      atom[i].fz+=fzi;
 
     }
   #ifdef _OPENMP
   }
   #endif
-  enerFor->energyVdw+=vdw;
+  ener->vdw+=vdw;
   
 }
 
-void vdw14_full(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
+void vdw14_full(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
 {
     
   int i,j,k;
@@ -196,18 +196,18 @@ void vdw14_full(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simu
     fy=dvdw*delta[1]/r;
     fz=dvdw*delta[2]/r;
     
-    atom->fx[i]+=fx;
-    atom->fy[i]+=fy;
-    atom->fz[i]+=fz;
+    atom[i].fx+=fx;
+    atom[i].fy+=fy;
+    atom[i].fz+=fz;
     
-    atom->fx[j]+=-fx;
-    atom->fy[j]+=-fy;
-    atom->fz[j]+=-fz;
+    atom[j].fx+=-fx;
+    atom[j].fy+=-fy;
+    atom[j].fz+=-fz;
   }
-  enerFor->energyVdw+=vdw;
+  ener->vdw+=vdw;
 }
 
-void vdw14_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
+void vdw14_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
 {
   
 /*****************************************************************************
@@ -246,13 +246,13 @@ void vdw14_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *si
       fy=dvdw*delta[1]/r;
       fz=dvdw*delta[2]/r;
     
-      atom->fx[i]+=fx;
-      atom->fy[i]+=fy;
-      atom->fz[i]+=fz;
+      atom[i].fx+=fx;
+      atom[i].fy+=fy;
+      atom[i].fz+=fz;
     
-      atom->fx[j]+=-fx;
-      atom->fy[j]+=-fy;
-      atom->fz[j]+=-fz;
+      atom[j].fx+=-fx;
+      atom[j].fy+=-fy;
+      atom[j].fz+=-fz;
       	
     }
     else if(r<=simulCond->cutoff)
@@ -279,15 +279,15 @@ void vdw14_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *si
       fy=dvdw*delta[1]/r;
       fz=dvdw*delta[2]/r;
     
-      atom->fx[i]+=fx;
-      atom->fy[i]+=fy;
-      atom->fz[i]+=fz;
+      atom[i].fx+=fx;
+      atom[i].fy+=fy;
+      atom[i].fz+=fz;
     
-      atom->fx[j]+=-fx;
-      atom->fy[j]+=-fy;
-      atom->fz[j]+=-fz;
+      atom[j].fx+=-fx;
+      atom[j].fy+=-fy;
+      atom[j].fz+=-fz;
       
     }     
   }
-  enerFor->energyVdw+=vdw;
+  ener->vdw+=vdw;
 }
