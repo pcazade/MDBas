@@ -6,23 +6,23 @@
 #include "shake.h"
 #include "integrate.h"
 
-void lf_integrate(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList)
+void lf_integrate(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
 {
   switch (simulCond->ens)
   {
     case 0:
-      lf_nve(atom,ener,simulCond,constList);
+      lf_nve(atom,ener,simulCond,constList,box);
       break;
     case 1:
-      lf_nvt_b(atom,ener,simulCond,constList);
+      lf_nvt_b(atom,ener,simulCond,constList,box);
       break;
     default:
-      lf_nve(atom,ener,simulCond,constList);
+      lf_nve(atom,ener,simulCond,constList,box);
       break;
   }
 }
 
-void lf_nve(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList)
+void lf_nve(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
 {
   int i,ia,ib;
   double *xo=NULL,*yo=NULL,*zo=NULL,*vxu=NULL,*vyu=NULL,*vzu=NULL;
@@ -46,7 +46,7 @@ void lf_nve(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constLi
       dd[i].z=atom[ib].z-atom[ia].z;
     }
     
-    image_array(simulCond->nconst,dd,simulCond);
+    image_array(simulCond->nconst,dd,simulCond,box);
     
     xo=(double*)malloc(simulCond->natom*sizeof(*xo));
     yo=(double*)malloc(simulCond->natom*sizeof(*yo));
@@ -88,7 +88,7 @@ void lf_nve(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constLi
   {
 // Apply constraint with Shake algorithm.
 
-    lf_shake(atom,simulCond,constList,dd);
+    lf_shake(atom,simulCond,constList,dd,box);
     for(i=0;i<simulCond->natom;i++)
     {
         
@@ -124,7 +124,7 @@ void lf_nve(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constLi
   
 // periodic boundary condition
   
-  image_update(atom,simulCond);
+  image_update(atom,simulCond,box);
   
 // updated velocity
   
@@ -151,7 +151,7 @@ void lf_nve(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constLi
       
 }
 
-void lf_nvt_b(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList)
+void lf_nvt_b(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
 {
   int i,k,ia,ib,bercycle;
   double lambda,ts2;
@@ -202,7 +202,7 @@ void lf_nvt_b(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *const
       dd[i].z=atom[ib].z-atom[ia].z;
     }
     
-    image_array(simulCond->nconst,dd,simulCond);
+    image_array(simulCond->nconst,dd,simulCond,box);
     
     xt=(double*)malloc(simulCond->natom*sizeof(*xt));
     yt=(double*)malloc(simulCond->natom*sizeof(*yt));
@@ -263,7 +263,7 @@ void lf_nvt_b(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *const
     {
 // Apply constraint with Shake algorithm.
       
-      lf_shake(atom,simulCond,constList,dd);
+      lf_shake(atom,simulCond,constList,dd,box);
       for(i=0;i<simulCond->natom;i++)
       {
         
@@ -301,7 +301,7 @@ void lf_nvt_b(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *const
   
 // periodic boundary condition
   
-  image_update(atom,simulCond);
+  image_update(atom,simulCond,box);
   
 // updated velocity
   
@@ -340,23 +340,23 @@ void lf_nvt_b(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *const
 }
 
 
-void vv_integrate(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,int stage)
+void vv_integrate(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box,int stage)
 {
   switch (simulCond->ens)
   {
     case 0:
-      vv_nve(atom,ener,simulCond,constList,stage);
+      vv_nve(atom,ener,simulCond,constList,box,stage);
       break;
     case 1:
-      vv_nvt_b(atom,ener,simulCond,constList,stage);
+      vv_nvt_b(atom,ener,simulCond,constList,box,stage);
       break;
     default:
-      vv_nve(atom,ener,simulCond,constList,stage);
+      vv_nve(atom,ener,simulCond,constList,box,stage);
       break;
   }
 }
 
-void vv_nve(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,int stage)
+void vv_nve(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box,int stage)
 {
   int i,ia,ib;
   DELTA *dd=NULL;
@@ -375,7 +375,7 @@ void vv_nve(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constLi
       dd[i].z=atom[ib].z-atom[ia].z;
     }
     
-    image_array(simulCond->nconst,dd,simulCond);
+    image_array(simulCond->nconst,dd,simulCond,box);
     
   }
 
@@ -407,7 +407,7 @@ void vv_nve(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constLi
       
 // Apply constraint with Shake algorithm.
 
-      vv_shake_r(atom,simulCond,constList,dd);
+      vv_shake_r(atom,simulCond,constList,dd,box);
       
     }
     
@@ -433,7 +433,7 @@ void vv_nve(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constLi
     
 // periodic boundary condition
     
-    image_update(atom,simulCond);
+    image_update(atom,simulCond,box);
   }
   
   if(simulCond->nconst>0)
@@ -443,7 +443,7 @@ void vv_nve(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constLi
    
 }
 
-void vv_nvt_b(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,int stage)
+void vv_nvt_b(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box,int stage)
 {
   int i,ia,ib;
   double lambda;
@@ -463,7 +463,7 @@ void vv_nvt_b(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *const
       dd[i].z=atom[ib].z-atom[ia].z;
     }
     
-    image_array(simulCond->nconst,dd,simulCond);
+    image_array(simulCond->nconst,dd,simulCond,box);
     
   }
 
@@ -495,7 +495,7 @@ void vv_nvt_b(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *const
       
 // Apply constraint with Shake algorithm.
 
-      vv_shake_r(atom,simulCond,constList,dd);
+      vv_shake_r(atom,simulCond,constList,dd,box);
       
     }
     
@@ -533,7 +533,7 @@ void vv_nvt_b(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *const
     
 // periodic boundary condition
     
-    image_update(atom,simulCond);
+    image_update(atom,simulCond,box);
   }
   
   if(simulCond->nconst>0)

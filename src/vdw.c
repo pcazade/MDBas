@@ -1,7 +1,7 @@
 #include "global.h"
 #include "utils.h"
 
-void vdw_full(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
+void vdw_full(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
     
   int i,j;
@@ -18,7 +18,7 @@ void vdw_full(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
     for(j=i+1;j<simulCond->natom;j++)
     {
       
-      r=distance(i,j,atom,delta,simulCond);
+      r=distance(i,j,atom,delta,simulCond,box);
       
       pvdw=4.*ff->parmVdw[i][0]*ff->parmVdw[j][0]*(X12((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r)-
 	X6((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r));
@@ -48,7 +48,7 @@ void vdw_full(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
   ener->vdw+=vdw;
 }
 
-void vdw_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
+void vdw_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
   
 /*****************************************************************************
@@ -88,7 +88,7 @@ void vdw_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
 	j=ff->verList[ ff->verCumSum[i] + k ];
 	#endif
 	
-	r=distance(i,j,atom,delta,simulCond);
+	r=distance(i,j,atom,delta,simulCond,box);
 	
 	if(r<=simulCond->cuton)
 	{
@@ -169,7 +169,7 @@ void vdw_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
   
 }
 
-void vdw14_full(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
+void vdw14_full(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
     
   int i,j,k;
@@ -182,7 +182,7 @@ void vdw14_full(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
     i=ff->ver14[k][0];
     j=ff->ver14[k][1];
     
-    r=distance(i,j,atom,delta,simulCond);
+    r=distance(i,j,atom,delta,simulCond,box);
     
     pvdw=4.*ff->scal14*ff->parmVdw[i][3]*ff->parmVdw[j][3]*(X12((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r)-
       X6((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r));
@@ -207,7 +207,7 @@ void vdw14_full(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
   ener->vdw+=vdw;
 }
 
-void vdw14_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
+void vdw14_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
   
 /*****************************************************************************
@@ -230,7 +230,7 @@ void vdw14_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
     i=ff->ver14[k][0];
     j=ff->ver14[k][1];
     
-    r=distance(i,j,atom,delta,simulCond);
+    r=distance(i,j,atom,delta,simulCond,box);
     
     if(r<=simulCond->cuton)
     {

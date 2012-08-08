@@ -8,7 +8,7 @@
 #include "memory.h"
 #include "utils.h"
 
-void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
+void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff,PBC *box)
 {
   char buff1[1024]="", *buff2=NULL, *buff3=NULL, *buff4=NULL;
   FILE *simuFile;

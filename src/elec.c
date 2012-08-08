@@ -1,7 +1,7 @@
 #include "global.h"
 #include "utils.h"
 
-void coulomb_full(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
+void coulomb_full(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
   
   int i,j;
@@ -18,7 +18,7 @@ void coulomb_full(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
     for(j=i+1;j<simulCond->natom;j++)
     {
       
-      r=distance(i,j,atom,delta,simulCond);
+      r=distance(i,j,atom,delta,simulCond,box);
       
       pelec=simulCond->chargeConst*atom[i].q*atom[j].q/r;
       elec+=pelec;
@@ -46,7 +46,7 @@ void coulomb_full(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
   
 }
 
-void coulomb_shift1(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
+void coulomb_shift1(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
   
  /*****************************************************************************
@@ -86,7 +86,7 @@ void coulomb_shift1(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
 	j=ff->verList[ ff->verCumSum[i] + k ];
 	#endif
 	
-	r=distance(i,j,atom,delta,simulCond);
+	r=distance(i,j,atom,delta,simulCond,box);
 	
 	if(r<=simulCond->cutoff)
 	{
@@ -131,7 +131,7 @@ void coulomb_shift1(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
   
 }
 
-void coulomb_shift2(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
+void coulomb_shift2(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
   
 /*****************************************************************************
@@ -172,7 +172,7 @@ void coulomb_shift2(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
 	j=ff->verList[ ff->verCumSum[i] + k ];
 	#endif
 	
-	r=distance(i,j,atom,delta,simulCond);
+	r=distance(i,j,atom,delta,simulCond,box);
 	
 	if(r<=simulCond->cutoff)
 	{
@@ -219,7 +219,7 @@ void coulomb_shift2(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
   
 } //END of function
 
-void coulomb_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
+void coulomb_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
   
 /*****************************************************************************
@@ -259,7 +259,7 @@ void coulomb_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
 	j=ff->verList[ ff->verCumSum[i] + k ];
 	#endif
 	
-	r=distance(i,j,atom,delta,simulCond);
+	r=distance(i,j,atom,delta,simulCond,box);
 	
 	if(r<=simulCond->cuton)
 	{
@@ -330,7 +330,7 @@ void coulomb_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
   ener->elec+=elec;
 }
 
-void coulomb14_full(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
+void coulomb14_full(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
   
   int i,j,k;
@@ -343,7 +343,7 @@ void coulomb14_full(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
     i=ff->ver14[k][0];
     j=ff->ver14[k][1];
     
-    r=distance(i,j,atom,delta,simulCond);
+    r=distance(i,j,atom,delta,simulCond,box);
     pelec=ff->scal14*simulCond->chargeConst*atom[i].q*atom[j].q/r;
     elec+=pelec;
     delec=-pelec/r;
@@ -364,7 +364,7 @@ void coulomb14_full(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
   ener->elec+=elec;
 }
 
-void coulomb14_shift1(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
+void coulomb14_shift1(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
   
  /*****************************************************************************
@@ -387,7 +387,7 @@ void coulomb14_shift1(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulC
     i=ff->ver14[k][0];
     j=ff->ver14[k][1];
     
-    r=distance(i,j,atom,delta,simulCond);
+    r=distance(i,j,atom,delta,simulCond,box);
       
     if(r<=simulCond->cutoff)
     {
@@ -415,7 +415,7 @@ void coulomb14_shift1(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulC
   ener->elec+=elec;
 }
 
-void coulomb14_shift2(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
+void coulomb14_shift2(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
   
 /*****************************************************************************
@@ -438,7 +438,7 @@ void coulomb14_shift2(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulC
     i=ff->ver14[k][0];
     j=ff->ver14[k][1];
     
-    r=distance(i,j,atom,delta,simulCond);
+    r=distance(i,j,atom,delta,simulCond,box);
     
     if(r<=simulCond->cutoff)
     {
@@ -467,7 +467,7 @@ void coulomb14_shift2(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulC
   ener->elec+=elec;
 }
 
-void coulomb14_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
+void coulomb14_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
   
 /*****************************************************************************
@@ -490,7 +490,7 @@ void coulomb14_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulC
     i=ff->ver14[k][0];
     j=ff->ver14[k][1];
     
-    r=distance(i,j,atom,delta,simulCond);
+    r=distance(i,j,atom,delta,simulCond,box);
     
     if(r<=simulCond->cuton)
     {

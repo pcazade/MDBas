@@ -4,7 +4,7 @@
 #include "global.h"
 #include "utils.h"
 
-void bond_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
+void bond_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
   int i,j,ll;
   double r,fx,fy,fz,dbond,delta[3];
@@ -15,7 +15,7 @@ void bond_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
     i=simulCond->iBond[ll][0];
     j=simulCond->iBond[ll][1];
     
-    r=distance(i,j,atom,delta,simulCond);
+    r=distance(i,j,atom,delta,simulCond,box);
     
     ener->bond+=0.5*ff->parmBond[ll][0]*X2(r-ff->parmBond[ll][1]);
     dbond=ff->parmBond[ll][0]*(r-ff->parmBond[ll][1]);
@@ -35,7 +35,7 @@ void bond_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
   }
 }
 
-void ub_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
+void ub_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
   int i,j,ll;
   double r,fx,fy,fz,dub,delta[3];
@@ -45,7 +45,7 @@ void ub_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
     i=simulCond->iUb[ll][0];
     j=simulCond->iUb[ll][1];
     
-    r=distance(i,j,atom,delta,simulCond);
+    r=distance(i,j,atom,delta,simulCond,box);
     
     ener->ub+=0.5*ff->parmUb[ll][0]*X2(r-ff->parmUb[ll][1]);
     dub=ff->parmUb[ll][0]*(r-ff->parmUb[ll][1]);
@@ -65,7 +65,7 @@ void ub_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
   }
 }
 
-void angle_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
+void angle_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
   int i,j,k,ll;
   double dangle,rab,rbc,cost,sint,theta,dab[3],dbc[3];
@@ -78,8 +78,8 @@ void angle_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
     j=simulCond->iAngle[ll][1];
     k=simulCond->iAngle[ll][2];
     
-    rab=distance(j,i,atom,dab,simulCond);
-    rbc=distance(j,k,atom,dbc,simulCond);
+    rab=distance(j,i,atom,dab,simulCond,box);
+    rbc=distance(j,k,atom,dbc,simulCond,box);
     
     cost=(dab[0]*dbc[0]+dab[1]*dbc[1]+dab[2]*dbc[2])/(rab*rbc);
     sint=MAX(1.e-8,sqrt(1.-(cost*cost)));
@@ -111,7 +111,7 @@ void angle_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
   }
 }
 
-void dihedral_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
+void dihedral_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
   int i,j,k,l,ll,nd,ind;
   double pi,twopi;
@@ -131,9 +131,9 @@ void dihedral_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCo
     k=simulCond->iDihedral[ll][2];
     l=simulCond->iDihedral[ll][3];
     
-    /*rab=*/distance(j,i,atom,dab,simulCond);
-    rbc=distance(k,j,atom,dbc,simulCond);
-    /*rcd=*/distance(l,k,atom,dcd,simulCond);
+    /*rab=*/distance(j,i,atom,dab,simulCond,box);
+    rbc=distance(k,j,atom,dbc,simulCond,box);
+    /*rcd=*/distance(l,k,atom,dcd,simulCond,box);
     
     /*dac[0]=dab[0]+dbc[0];
     dac[1]=dab[1]+dbc[1];
@@ -250,7 +250,7 @@ void dihedral_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCo
   }
 }
 
-void improper_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
+void improper_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
   int i,j,k,l,ll;
   double pi,twopi;
@@ -270,9 +270,9 @@ void improper_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCo
     k=simulCond->iImproper[ll][2];
     l=simulCond->iImproper[ll][3];
     
-    /*rab=*/distance(j,i,atom,dab,simulCond);
-    rbc=distance(k,j,atom,dbc,simulCond);
-    /*rcd=*/distance(l,k,atom,dcd,simulCond);
+    /*rab=*/distance(j,i,atom,dab,simulCond,box);
+    rbc=distance(k,j,atom,dbc,simulCond,box);
+    /*rcd=*/distance(l,k,atom,dcd,simulCond,box);
     
     /*dac[0]=dab[0]+dbc[0];
     dac[1]=dab[1]+dbc[1];

@@ -52,7 +52,7 @@ typedef struct
   int type;
   double a,a1,a2,a3,b,b1,b2,b3,c,c1,c2,c3;
   double u,u1,u2,u3,v,v1,v2,v3,w,w1,w2,w3;
-  double vol;
+  double pa,pb,pc,det,vol;
 }PBC;
 
 typedef struct

@@ -1,7 +1,7 @@
 #ifndef IOH_INCLUDED
 #define IOH_INCLUDED
 
-void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff);
+void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff,PBC *box);
 void read_TOP(INPUTS *inp);
 void read_PSF(INPUTS *inp,ATOM **atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAINT **constList);
 void read_PAR(INPUTS *inp);

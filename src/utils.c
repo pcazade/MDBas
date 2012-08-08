@@ -7,9 +7,9 @@
 #include "rand.h"
 #include "io.h"
 
-double distance(int i,int j, ATOM *atom,double *delta,SIMULPARAMS *simulCond)
+double distance(int i,int j, ATOM *atom,double *delta,SIMULPARAMS *simulCond,PBC *box)
 {
-  double r;
+  double r,xt,yt,zt;
   
   delta[0]=atom[j].x-atom[i].x;
   delta[1]=atom[j].y-atom[i].y;
@@ -17,16 +17,29 @@ double distance(int i,int j, ATOM *atom,double *delta,SIMULPARAMS *simulCond)
   
   if(box->type==1)
   {
-    delta[0]=delta[0]-box->a1*nint(delta[0]/box->a1);
-    delta[1]=delta[1]-box->a1*nint(delta[1]/box->a1);
-    delta[2]=delta[2]-box->a1*nint(delta[2]/box->a1);
+    delta[0]-=box->a1*nint(delta[0]/box->a1);
+    delta[1]-=box->a1*nint(delta[1]/box->a1);
+    delta[2]-=box->a1*nint(delta[2]/box->a1);
   }
   else if(box->type==2)
   {
+    delta[0]-=box->a1*nint(delta[0]/box->a1);
+    delta[1]-=box->b2*nint(delta[1]/box->b2);
+    delta[2]-=box->c3*nint(delta[2]/box->c3);
+  }
+  else if(box->type==3)
+  {
+    xt=delta[0]*box->u1+delta[1]*box->u2+delta[2]*box->u3;
+    yt=delta[0]*box->v1+delta[1]*box->v2+delta[2]*box->v3;
+    zt=delta[0]*box->w1+delta[1]*box->w2+delta[2]*box->w3;
     
-    delta[0]=delta[0]-box->a1*nint(delta[0]/box->a1);
-    delta[1]=delta[1]-box->b2*nint(delta[1]/box->b2);
-    delta[2]=delta[2]-box->c3*nint(delta[2]/box->c3);
+    xt-=nint(xt);
+    yt-=nint(yt);
+    zt-=nint(zt);
+    
+    delta[0]=xt*box->a1+yt*box->b1+zt*box->c1;
+    delta[1]=xt*box->a2+yt*box->b2+zt*box->c2;
+    delta[2]=xt*box->a3+yt*box->b3+zt*box->c3;
   }
   
   r=sqrt(X2(delta[0])+X2(delta[1])+X2(delta[2]));
@@ -35,9 +48,9 @@ double distance(int i,int j, ATOM *atom,double *delta,SIMULPARAMS *simulCond)
   
 }
 
-double distance2(int i,int j, ATOM *atom,DELTA *d,SIMULPARAMS *simulCond)
+double distance2(int i,int j, ATOM *atom,DELTA *d,SIMULPARAMS *simulCond,PBC *box)
 {
-  double r2;
+  double r2,xt,yt,zt;
   
   d->x=atom[j].x-atom[i].x;
   d->y=atom[j].y-atom[i].y;
@@ -55,6 +68,20 @@ double distance2(int i,int j, ATOM *atom,DELTA *d,SIMULPARAMS *simulCond)
     d->y-=box->b2*nint(d->y/box->b2);
     d->z-=box->c3*nint(d->z/box->c3);
   }
+  else if(box->type==3)
+  {
+    xt=d->x*box->u1+d->y*box->u2+d->z*box->u3;
+    yt=d->x*box->v1+d->y*box->v2+d->z*box->v3;
+    zt=d->x*box->w1+d->y*box->w2+d->z*box->w3;
+    
+    xt-=nint(xt);
+    yt-=nint(yt);
+    zt-=nint(zt);
+    
+    d->x=xt*box->a1+yt*box->b1+zt*box->c1;
+    d->y=xt*box->a2+yt*box->b2+zt*box->c2;
+    d->z=xt*box->a3+yt*box->b3+zt*box->c3;
+  }
   
   r2=( X2(d->x)+X2(d->y)+X2(d->z) );
   
@@ -62,7 +89,7 @@ double distance2(int i,int j, ATOM *atom,DELTA *d,SIMULPARAMS *simulCond)
   
 }
 
-void init_vel(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList)
+void init_vel(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
 {
   int i,natoms;
   double cmvx=0.,cmvy=0.,cmvz=0.,cmm=0.,initKin=0.;
@@ -99,7 +126,7 @@ void init_vel(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList)
   }
   
   if(simulCond->nconst>0)
-    init_constvel(atom,simulCond,constList);
+    init_constvel(atom,simulCond,constList,box);
   
 //   Set the system total momentum to zero to acheive momentum conservation.
   
@@ -136,7 +163,7 @@ void init_vel(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList)
   
 }
 
-void init_constvel(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList)
+void init_constvel(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
 {
   int i,ia,ib,icycle,converged;
   double *vxu=NULL,*vyu=NULL,*vzu=NULL;
@@ -154,7 +181,7 @@ void init_constvel(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList)
     ia=constList[i].a;
     ib=constList[i].b;
       
-    rt=sqrt(distance2(ia,ib,atom,&(dt[i]),simulCond));
+    rt=sqrt(distance2(ia,ib,atom,&(dt[i]),simulCond,box));
     
     dt[i].x/=rt;
     dt[i].y/=rt;
@@ -236,10 +263,11 @@ void init_constvel(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList)
   free(dt);
 }
 
-void image_update(ATOM *atom,SIMULPARAMS *simulCond)
+void image_update(ATOM *atom,SIMULPARAMS *simulCond,PBC *box)
 {
 
   int i;
+  double xt,yt,zt;
   
   if(box->type==1)
   {
@@ -263,10 +291,29 @@ void image_update(ATOM *atom,SIMULPARAMS *simulCond)
     }
     
   }
+  else if(box->type==3)
+  {
+    
+    for(i=0;i<simulCond->natom;i++)
+    {
+      xt=d->x*box->u1+d->y*box->u2+d->z*box->u3;
+      yt=d->x*box->v1+d->y*box->v2+d->z*box->v3;
+      zt=d->x*box->w1+d->y*box->w2+d->z*box->w3;
+    
+      xt-=nint(xt);
+      yt-=nint(yt);
+      zt-=nint(zt);
+    
+      d->x=xt*box->a1+yt*box->b1+zt*box->c1;
+      d->y=xt*box->a2+yt*box->b2+zt*box->c2;
+      d->z=xt*box->a3+yt*box->b3+zt*box->c3;
+    }
+    
+  }
   
 }
 
-void image_array(int size_array,DELTA *d,SIMULPARAMS *simulCond)
+void image_array(int size_array,DELTA *d,SIMULPARAMS *simulCond,PBC *box)
 {
 
   int i;
@@ -296,6 +343,68 @@ void image_array(int size_array,DELTA *d,SIMULPARAMS *simulCond)
   
 }
 
+void init_box(PBC *box)
+{
+  
+  box->a=sqrt(X2(box->a1)+X2(box->a2)+X2(box->a3));
+  box->b=sqrt(X2(box->b1)+X2(box->b2)+X2(box->b3));
+  box->c=sqrt(X2(box->c1)+X2(box->c2)+X2(box->c3));
+  
+  box->u1=box->b2*box->c3-box->c2*box->b3;
+  box->u2=box->c1*box->b3-box->b1*box->c3;
+  box->u3=box->b1*box->c2-box->c1*box->b2;
+  
+  box->v1=box->c2*box->a3-box->a2*box->c3;
+  box->v2=box->a1*box->c3-box->c1*box->a3;
+  box->v3=box->c1*box->a2-box->a1*box->c2;
+  
+  box->w1=box->a2*box->b3-box->b2*box->a3;
+  box->w2=box->b1*box->a3-box->a1*box->b3;
+  box->w3=box->a1*box->b2-box->b1*box->a2;
+  
+  box->det=box->a1*box->u1+box->a2*box->u2+box->a3*box->u3;
+  
+  box->vol=fabs(box->det);
+  
+  box->pa=box->vol/sqrt(X2(box->u1)+X2(box->u2)+X2(box->u3));
+  box->pb=box->vol/sqrt(X2(box->v1)+X2(box->v2)+X2(box->v3));
+  box->pc=box->vol/sqrt(X2(box->w1)+X2(box->w2)+X2(box->w3));
+  
+  box->u=1.0/box->pa;
+  box->v=1.0/box->pb;
+  box->w=1.0/box->pc;
+  
+  if(fabs(box->det)>0.)
+  {
+    box->u1/=box->det;
+    box->u2/=box->det;
+    box->u3/=box->det;
+    
+    box->v1/=box->det;
+    box->v2/=box->det;
+    box->v3/=box->det;
+    
+    box->w1/=box->det;
+    box->w2/=box->det;
+    box->w3/=box->det;
+  }
+  else
+  {
+    box->u1=0.0;
+    box->v1=0.0;
+    box->w1=0.0;
+    
+    box->u2=0.0;
+    box->v2=0.0;
+    box->w2=0.0;
+    
+    box->u3=0.0;
+    box->v3=0.0;
+    box->w3=0.0;
+  }
+  
+}
+
 double kinetic(ATOM *atom,SIMULPARAMS *simulCond)
 {
   int i;
@@ -310,11 +419,11 @@ double kinetic(ATOM *atom,SIMULPARAMS *simulCond)
   return ( ekin*0.5 );
 }
 
-void get_kinfromtemp(ATOM *atom,SIMULPARAMS *simulCond)
+void get_kinfromtemp(ATOM *atom,SIMULPARAMS *simulCond,PBC *box)
 {
   double degf;
   
-  get_degfree(atom,simulCond);
+  get_degfree(atom,simulCond,box);
   
   //   Energy in internal units 10 J/mol. rboltzui=R/10.
   
@@ -322,7 +431,7 @@ void get_kinfromtemp(ATOM *atom,SIMULPARAMS *simulCond)
   simulCond->kintemp0=0.5*simulCond->temp*degf*rboltzui;
 }
 
-void get_degfree(ATOM *atom,SIMULPARAMS *simulCond)
+void get_degfree(ATOM *atom,SIMULPARAMS *simulCond,PBC *box)
 {
   
 //   Atoms degrees of freedom - 3 degrees of freedom of the CoM.

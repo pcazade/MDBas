@@ -4,7 +4,7 @@
 #include "utils.h"
 #include "io.h"
 
-void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd)
+void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd,PBC *box)
 {
   int i,ia,ib,icycle,converged;
   double *xt,*yt,*zt,*rt2,ts2,maxdist,dist;
@@ -33,7 +33,7 @@ void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd)
       ia=constList[i].a;
       ib=constList[i].b;
       
-      rt2[i]=distance2(ia,ib,atom,&(dt[i]),simulCond);
+      rt2[i]=distance2(ia,ib,atom,&(dt[i]),simulCond,box);
       
       dist=fabs(rt2[i]-constList[i].rc2)/sqrt(constList[i].rc2);
       maxdist=MAX(maxdist,dist);
@@ -111,7 +111,7 @@ void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd)
   
 }
 
-void vv_shake_r(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd)
+void vv_shake_r(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd,PBC *box)
 {
   int i,ia,ib,icycle,converged;
   double *xt,*yt,*zt,*rt2,maxdist,dist;
@@ -138,7 +138,7 @@ void vv_shake_r(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *d
       ia=constList[i].a;
       ib=constList[i].b;
       
-      rt2[i]=distance2(ia,ib,atom,&(dt[i]),simulCond);
+      rt2[i]=distance2(ia,ib,atom,&(dt[i]),simulCond,box);
       
       dist=fabs(rt2[i]-constList[i].rc2)/sqrt(constList[i].rc2);
       maxdist=MAX(maxdist,dist);

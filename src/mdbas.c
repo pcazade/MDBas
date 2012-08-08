@@ -41,6 +41,7 @@ int main(int argc, char* argv[])
   SIMULPARAMS simulCond;
   CONSTRAINT *constList=NULL;
   DELTA *nForce=NULL;
+  PBC box;
   
   char enerLabel[11][7]={ {"Step"}  , {"Etot"}  , {"Ekin"}  , {"Epot"} ,
 			  {"Ecoul"} , {"Evdw"}  , {"Ebond"} , {"Eangle"} ,
@@ -49,7 +50,7 @@ int main(int argc, char* argv[])
   
   init_rand(time(NULL));
   
-  read_SIMU(&simulCond,&ff);
+  read_SIMU(&simulCond,&ff,&box);
   
   printf("SIMU file read\n");
   
@@ -63,7 +64,7 @@ int main(int argc, char* argv[])
   else
     simulCond.chargeConst=mu0*X2(clight)*X2(elemchg)*NA*0.1/(angstr);
   
-  read_PSF(&inp,&atom,&ff,&simulCond, &constList);
+  read_PSF(&inp,&atom,&ff,&simulCond,&constList);
   
   printf("PSF file read\n");
   
@@ -90,19 +91,21 @@ int main(int argc, char* argv[])
   
   printf("Free temp array done\n");
   
-  get_kinfromtemp(atom,&simulCond);
+  get_kinfromtemp(atom,&simulCond,&box);
   
-  //init_vel(&atom,&simulCond,constList);
+  //init_vel(atom,&simulCond,constList,&box);
+  
+  init_box(&box);
 
-  makelist(&simulCond,atom,&ff,constList);
+  makelist(&simulCond,atom,&ff,constList,&box);
   
   if(simulCond.keyminim)
   {
-    steepestDescent(atom,&ff,&ener,&simulCond);
-    makelist(&simulCond,atom,&ff,constList);
+    steepestDescent(atom,&ff,&ener,&simulCond,&box);
+    makelist(&simulCond,atom,&ff,constList,&box);
   }
   
-  init_vel(atom,&simulCond,constList);
+  init_vel(atom,&simulCond,constList,&box);
   
   if(simulCond.keyener)
   {
@@ -131,7 +134,7 @@ int main(int argc, char* argv[])
   
 //   Computes potential energies and forces at time=0
   
-    energy(atom,&ff,&ener,&simulCond);
+    energy(atom,&ff,&ener,&simulCond,&box);
     
     ener.tot=ener.kin+ener.pot;
     
@@ -167,7 +170,7 @@ int main(int argc, char* argv[])
       for(i=0;i<simulCond.natom;i++)
 	fprintf(frc,"%.15lf\t%.15lf\t%.15lf\n",atom[i].fx,atom[i].fy,atom[i].fz);
       
-      numforce(atom,nForce,&ff,&ener,&simulCond,4,1.e-4);
+      numforce(atom,nForce,&ff,&ener,&simulCond,&box,4,1.e-4);
       
 //     Write numerical forces into numfrc file.
       
@@ -195,17 +198,17 @@ int main(int argc, char* argv[])
 
       if(simulCond.integrator==1)
       {
-	vv_integrate(atom,&ener,&simulCond,constList,1);
+	vv_integrate(atom,&ener,&simulCond,constList,&box,1);
 // 	printf("Velocity verlet fisrt stage done for step %d\n",simulCond.step);
       }
       
 //     List update if needed.
       
-      makelist(&simulCond,atom,&ff,constList);
+      makelist(&simulCond,atom,&ff,constList,&box);
       
 //     Energies calculation.
 
-      energy(atom,&ff,&ener,&simulCond);
+      energy(atom,&ff,&ener,&simulCond,&box);
 //       printf("Energy done for step %d\n",simulCond.step);
       
 //     Numerical derivatives to estimate forces.
@@ -213,7 +216,7 @@ int main(int argc, char* argv[])
       if(simulCond.numDeriv==1)
       {
 	
-	numforce(atom,nForce,&ff,&ener,&simulCond,4,1.e-4);
+	numforce(atom,nForce,&ff,&ener,&simulCond,&box,4,1.e-4);
 	
 //       Write analytical forces into frc file.
 	
@@ -242,12 +245,12 @@ int main(int argc, char* argv[])
       
       if(simulCond.integrator==0)
       {
-	lf_integrate(atom,&ener,&simulCond,constList);
+	lf_integrate(atom,&ener,&simulCond,constList,&box);
 // 	printf("Leap frog done for step %d\n",simulCond.step);
       }
       else if(simulCond.integrator==1)
       {
-	vv_integrate(atom,&ener,&simulCond,constList,2);
+	vv_integrate(atom,&ener,&simulCond,constList,&box,2);
 // 	printf("Velocity verlet second stage done for step %d\n",simulCond.step);
       }
       

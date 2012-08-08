@@ -10,7 +10,7 @@ void minimise(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
   
 }
 
-void steepestDescent(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
+void steepestDescent(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
   double step = 1.0e-7 ;
   double prec = 1.0e-3 ;
@@ -21,7 +21,7 @@ void steepestDescent(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCo
   
   int i, currSt=0 ;
   
-  energy(atom, ff, ener, simulCond);
+  energy(atom, ff, ener, simulCond, box);
   eprev = ener->pot;
   
 //   printf("eprev : %lf\n",eprev);
@@ -35,7 +35,7 @@ void steepestDescent(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCo
       atom[i].z += step * atom[i].fz ;
     }
     
-    energy(atom, ff, ener, simulCond);
+    energy(atom, ff, ener, simulCond, box);
     enow = ener->pot;
 //     printf("enow : %lf\n",enow);
     

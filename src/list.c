@@ -5,14 +5,14 @@
 #include "io.h"
 #include "list.h"
 
-void makelist(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,CONSTRAINT *constList)
+void makelist(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,CONSTRAINT *constList,PBC *box)
 {
   if(simulCond->firstener==1)
   {
     //printf("Building exclusion and Verlet lists.\n");
     exclude_list(simulCond,atom,ff,constList);
     //printf("Exclude list done\n");
-    verlet_list(simulCond,atom,ff);
+    verlet_list(simulCond,atom,ff,box);
     //printf("Verlet list done\n");
     
     simulCond->firstener=0;
@@ -21,7 +21,7 @@ void makelist(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,CONSTRAINT *const
   else if( /*(simulCond->step>0) &&*/ (simulCond->step%simulCond->listupdate==0 ) )
   {
     //printf("Updating Verlet list at step %d.\n",simulCond->step);
-    verlet_list_update(simulCond,atom,ff);
+    verlet_list_update(simulCond,atom,ff,box);
     //printf("Update done\n\n");
   }
 }
@@ -822,7 +822,7 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,CONSTRAINT *c
 
 }
 
-void verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
+void verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *box)
 {
   int i,j,k,kv,exclude,nalloc,incr=262144;
   double r,cutnb,delta[3];
@@ -846,7 +846,7 @@ void verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
   {
     for(j=i+1;j<simulCond->natom;j++)
     {
-      r=distance(i,j,atom,delta,simulCond);
+      r=distance(i,j,atom,delta,simulCond,box);
       if(r<=cutnb)
       {
 	exclude=0;
@@ -888,7 +888,7 @@ void verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
 
 }
 
-void verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
+void verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *box)
 {
   int i,j,k,kv,exclude,nalloc,incr=1000;
   double r,cutnb,delta[3];
@@ -903,7 +903,7 @@ void verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff)
     ff->verPair[i]=0;
     for(j=i+1;j<simulCond->natom;j++)
     {
-      r=distance(i,j,atom,delta,simulCond);
+      r=distance(i,j,atom,delta,simulCond,box);
       if(r<=cutnb)
       {
 	exclude=0;
