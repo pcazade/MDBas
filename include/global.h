@@ -68,8 +68,8 @@ typedef struct
 
 typedef struct
 {
-  int nBond,nAngle,nDihedral,nImproper,nUb;
-  int *verList,*verPair,*verCumSum,npr,**ver14,npr14,*nParmDihe;
+  int nBond,nAngle,nDihedral,nImproper,nUb,ncells;
+  int **verList,*verPair,*verCumSum,npr,**ver14,npr14,*nParmDihe;
   double **parmVdw,scal14;
   double **parmBond,**parmUb,**parmAngle,**parmDihe;
   double **parmImpr;
@@ -77,18 +77,16 @@ typedef struct
 
 typedef struct
 {
-  int natom;
-  int lqpoly,nb14,step,nsteps,degfree,firstener,listupdate;
+  int natom,nb14,step,nsteps,degfree,firstener,listupdate;
   int printo,printtr,integrator,ens,nconst,maxcycle;
   int keyrand,seed,keytraj,keyener,keyforf,keymd,keyconsth;
-  int keyminim,maxminst;
-  int *excludeNum,*excludeAtom;
-  int **iBond,**iUb,**iAngle,**iDihedral,**iImproper;
-  int elecType,vdwType,periodicType,mdNature,numDeriv;
+  int keyminim,maxminst,elecType,vdwType,mdNature,numDeriv;
+  int linkRatio;
+  int *excludeNum,**excludeAtom;
   int *bondType,*ubType,*angleType,*diheType,*imprType;
+  int **iBond,**iUb,**iAngle,**iDihedral,**iImproper;
   double chargeConst,cutoff,cuton,delr,tolshake,kintemp0,taut;
-  double tolminim,maxminsiz;
-  double temp,timeStep,periodicBox[3][3];
+  double tolminim,maxminsiz,temp,timeStep;
 }SIMULPARAMS;
 
 typedef struct

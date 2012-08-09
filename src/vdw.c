@@ -4,7 +4,7 @@
 void vdw_full(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
     
-  int i,j;
+  int i,j,k,exclude;;
   double vdw=0.,pvdw,dvdw;
   double r,fx,fy,fz,fxi,fyi,fzi;
   double delta[3];
@@ -18,27 +18,42 @@ void vdw_full(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC 
     for(j=i+1;j<simulCond->natom;j++)
     {
       
-      r=distance(i,j,atom,delta,simulCond,box);
+      exclude=0;
+      for (k=0;k<simulCond->excludeNum[i];k++)
+      {
+	if(simulCond->excludeAtom[i][k]==j)
+	{
+	  exclude=1;
+	  break;
+	}
+      }
       
-      pvdw=4.*ff->parmVdw[i][0]*ff->parmVdw[j][0]*(X12((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r)-
-	X6((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r));
-      
-      dvdw=24.*ff->parmVdw[i][0]*ff->parmVdw[j][0]/r*(X6((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r)-
-	2.*X12((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r));
-      
-      vdw+=pvdw;
-      
-      fx=dvdw*delta[0]/r;
-      fy=dvdw*delta[1]/r;
-      fz=dvdw*delta[2]/r;
-      
-      fxi+=fx;
-      fyi+=fy;
-      fzi+=fz;
-      
-      atom[j].fx+=-fx;
-      atom[j].fy+=-fy;
-      atom[j].fz+=-fz;
+      if(!exclude)
+      {
+	
+	r=distance(i,j,atom,delta,simulCond,box);
+	
+	pvdw=4.*ff->parmVdw[i][0]*ff->parmVdw[j][0]*(X12((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r)-
+	  X6((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r));
+	
+	dvdw=24.*ff->parmVdw[i][0]*ff->parmVdw[j][0]/r*(X6((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r)-
+	  2.*X12((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r));
+	
+	vdw+=pvdw;
+	
+	fx=dvdw*delta[0]/r;
+	fy=dvdw*delta[1]/r;
+	fz=dvdw*delta[2]/r;
+	
+	fxi+=fx;
+	fyi+=fy;
+	fzi+=fz;
+	
+	atom[j].fx+=-fx;
+	atom[j].fy+=-fy;
+	atom[j].fz+=-fz;
+	
+      }
       
     }
     atom[i].fx+=fxi;
@@ -67,7 +82,7 @@ void vdw_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PB
   double delta[3];
   
   #ifndef _OPENMP
-  int ipr=0;
+//   int ipr=0;
   #else
   #pragma omp parallel default(none) shared(atom,ff,ener,simulCond) private(i,j,k,pvdw,dpvdw,dvdw,switchFunc,dswitchFunc,r,fx,fy,fz,fxi,fyi,fzi,delta) reduction(+:vdw)
   {
@@ -82,8 +97,8 @@ void vdw_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PB
       for(k=0;k<ff->verPair[i];k++)
       {
 	#ifndef _OPENMP
-	j=ff->verList[ipr];
-	ipr++;
+	j=ff->verList[i][k];
+// 	ipr++;
 	#else
 	j=ff->verList[ ff->verCumSum[i] + k ];
 	#endif

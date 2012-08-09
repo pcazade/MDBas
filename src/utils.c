@@ -296,17 +296,17 @@ void image_update(ATOM *atom,SIMULPARAMS *simulCond,PBC *box)
     
     for(i=0;i<simulCond->natom;i++)
     {
-      xt=d->x*box->u1+d->y*box->u2+d->z*box->u3;
-      yt=d->x*box->v1+d->y*box->v2+d->z*box->v3;
-      zt=d->x*box->w1+d->y*box->w2+d->z*box->w3;
+      xt=atom[i].x*box->u1+atom[i].y*box->u2+atom[i].z*box->u3;
+      yt=atom[i].x*box->v1+atom[i].y*box->v2+atom[i].z*box->v3;
+      zt=atom[i].x*box->w1+atom[i].y*box->w2+atom[i].z*box->w3;
     
       xt-=nint(xt);
       yt-=nint(yt);
       zt-=nint(zt);
     
-      d->x=xt*box->a1+yt*box->b1+zt*box->c1;
-      d->y=xt*box->a2+yt*box->b2+zt*box->c2;
-      d->z=xt*box->a3+yt*box->b3+zt*box->c3;
+      atom[i].x=xt*box->a1+yt*box->b1+zt*box->c1;
+      atom[i].y=xt*box->a2+yt*box->b2+zt*box->c2;
+      atom[i].z=xt*box->a3+yt*box->b3+zt*box->c3;
     }
     
   }
@@ -317,6 +317,7 @@ void image_array(int size_array,DELTA *d,SIMULPARAMS *simulCond,PBC *box)
 {
 
   int i;
+  double xt,yt,zt;
   
   if(box->type==1)
   {
@@ -337,6 +338,25 @@ void image_array(int size_array,DELTA *d,SIMULPARAMS *simulCond,PBC *box)
       d[i].x-=box->a1*nint(d[i].x/box->a1);
       d[i].y-=box->b2*nint(d[i].y/box->b2);
       d[i].z-=box->c3*nint(d[i].z/box->c3);
+    }
+    
+  }
+  else if(box->type==3)
+  {
+    
+    for(i=0;i<size_array;i++)
+    {
+      xt=d[i].x*box->u1+d[i].y*box->u2+d[i].z*box->u3;
+      yt=d[i].x*box->v1+d[i].y*box->v2+d[i].z*box->v3;
+      zt=d[i].x*box->w1+d[i].y*box->w2+d[i].z*box->w3;
+    
+      xt-=nint(xt);
+      yt-=nint(yt);
+      zt-=nint(zt);
+    
+      d[i].x=xt*box->a1+yt*box->b1+zt*box->c1;
+      d[i].y=xt*box->a2+yt*box->b2+zt*box->c2;
+      d[i].z=xt*box->a3+yt*box->b3+zt*box->c3;
     }
     
   }
