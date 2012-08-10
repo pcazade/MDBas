@@ -1016,7 +1016,7 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC 
   
   cutnb=simulCond->cutoff+simulCond->delr;
   
-  nalloc = (int) ( simulCond->natom*4./3.*PI*X3(cutnb)/box->vol );
+  nalloc = (int) ( 1.5*simulCond->natom*4./3.*PI*X3(cutnb)/box->vol );
   incr=nalloc;
   
   ff->verPair=(int*)malloc(simulCond->natom*sizeof(*(ff->verPair)));
@@ -1064,10 +1064,9 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC 
   
   ff->ncells=nlcx*nlcy*nlcz;
   
-  if(ff->ncells>simulCond->maxcells)
-    error(413);
+//   if(ff->ncells>simulCond->maxcells)
+//     error(413);
   
-    
   int* link=(int*)malloc(simulCond->natom*sizeof(*link));
   
   for(i=0;i<simulCond->natom;i++)
@@ -1126,9 +1125,9 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC 
 	cy=0.;
 	cz=0.;
 	
-	jx=ix+transx(l);
-	jy=iy+transy(l);
-	jz=iz+transz(l);
+	jx=ix+transx[l];
+	jy=iy+transy[l];
+	jz=iz+transz[l];
 	
 	if(jx>nlcx-1)
 	{
