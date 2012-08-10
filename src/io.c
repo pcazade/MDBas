@@ -49,6 +49,8 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff,PBC *box)
   ff->scal14=1.0;
   simulCond->numDeriv=0;
   simulCond->listupdate=20;
+  simulCond->linkRatio=1;
+  simulCond->nolink=0;
 
   simulCond->integrator=1;
   simulCond->ens=0;
@@ -224,6 +226,18 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff,PBC *box)
 	error(63);
       
       simulCond->listupdate=atoi(buff3);
+    }
+    else if(!strcmp(buff2,"link"))
+    {
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	error(63);
+      
+      simulCond->linkRatio=atoi(buff3);
+    }
+    else if(!strcmp(buff2,"nolink"))
+    {
+      simulCond->nolink=1;
     }
     else if(!strcmp(buff2,"integrator"))
     {

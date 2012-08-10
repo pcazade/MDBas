@@ -163,6 +163,7 @@ void coulomb_shift2(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
   double r,fx,fy,fz,fxi,fyi,fzi;
   double delta[3];
   
+  int numpr=0; /*debug*/
 
   #ifndef _OPENMP
 //   int ipr=0;
@@ -179,6 +180,7 @@ void coulomb_shift2(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
       
       for(k=0;k<ff->verPair[i];k++)
       {
+	numpr++; //debug
 	#ifndef _OPENMP
 	j=ff->verList[i][k];
 // 	ipr++;
@@ -228,7 +230,7 @@ void coulomb_shift2(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
   #ifdef _OPENMP
   }
   #endif
-  
+  printf("numpr=%d\n",numpr);
   ener->elec+=elec;
   
 } //END of function

@@ -81,7 +81,7 @@ typedef struct
   int printo,printtr,integrator,ens,nconst,maxcycle;
   int keyrand,seed,keytraj,keyener,keyforf,keymd,keyconsth;
   int keyminim,maxminst,elecType,vdwType,mdNature,numDeriv;
-  int linkRatio;
+  int linkRatio,keylink,nolink;
   int *excludeNum,**excludeAtom;
   int *bondType,*ubType,*angleType,*diheType,*imprType;
   int **iBond,**iUb,**iAngle,**iDihedral,**iImproper;
