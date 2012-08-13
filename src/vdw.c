@@ -88,7 +88,7 @@ void vdw_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PB
   {
     #pragma omp for schedule(dynamic) nowait
     #endif
-    for(i=0;i<simulCond->natom-1;i++)
+    for(i=0;i<simulCond->natom;i++)
     {
       fxi=0.;
       fyi=0.;

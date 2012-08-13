@@ -1939,8 +1939,6 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC 
 	      
 	    }//if j>-1
 	    
-	    ff->verList[i]=(int*)realloc(ff->verList[i],ff->verPair[i]*sizeof(**(ff->verList)));
-	    
 	    j=head[ll];
 	    i=link[i];
 	    
@@ -1964,6 +1962,9 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC 
     }
     
   }//for ncells
+  
+  for(i=0;i<simulCond->natom;i++)
+    ff->verList[i]=(int*)realloc(ff->verList[i],ff->verPair[i]*sizeof(**(ff->verList)));
   
   free(xu);
   free(yu);
