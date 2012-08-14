@@ -16,6 +16,9 @@ void lf_integrate(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *c
     case 1:
       lf_nvt_b(atom,ener,simulCond,constList,box);
       break;
+    case 3:
+      lf_nvt_h(atom,ener,simulCond,constList,box);
+      break;
     default:
       lf_nve(atom,ener,simulCond,constList,box);
       break;
@@ -259,7 +262,7 @@ void lf_nvt_b(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *const
       
     }
     
-    if(simulCond->nconst>0)
+    if( (simulCond->nconst>0) && (k==0) )
     {
 // Apply constraint with Shake algorithm.
       
@@ -339,6 +342,208 @@ void lf_nvt_b(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *const
       
 }
 
+void lf_nvt_h(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
+{
+  int i,k,ia,ib,nosecycle;
+  double lambda,lambdb,lambdc,ts2,qmass;
+  double *xo=NULL,*yo=NULL,*zo=NULL;
+  double *vxo=NULL,*vyo=NULL,*vzo=NULL;
+  double *xt=NULL,*yt=NULL,*zt=NULL;
+  double *vxu=NULL,*vyu=NULL,*vzu=NULL;
+  DELTA *dd=NULL;
+  
+  vxu=(double*)malloc(simulCond->natom*sizeof(*vxu));
+  vyu=(double*)malloc(simulCond->natom*sizeof(*vyu));
+  vzu=(double*)malloc(simulCond->natom*sizeof(*vzu));
+  
+  xo=(double*)malloc(simulCond->natom*sizeof(*xo));
+  yo=(double*)malloc(simulCond->natom*sizeof(*yo));
+  zo=(double*)malloc(simulCond->natom*sizeof(*zo));
+  
+  vxo=(double*)malloc(simulCond->natom*sizeof(*vxo));
+  vyo=(double*)malloc(simulCond->natom*sizeof(*vyo));
+  vzo=(double*)malloc(simulCond->natom*sizeof(*vzo));
+    
+  for(i=0;i<simulCond->natom;i++)
+  {
+    
+// Store old coordinates and old velocities.
+
+    xo[i]=atom[i].x;
+    yo[i]=atom[i].y;
+    zo[i]=atom[i].z;
+    
+    vxo[i]=atom[i].vx;
+    vyo[i]=atom[i].vy;
+    vzo[i]=atom[i].vz;
+    
+  }
+  
+  if(simulCond->nconst>0)
+  {
+    dd=(DELTA*)malloc(simulCond->nconst*sizeof(*dd));
+    
+    for(i=0;i<simulCond->nconst;i++)
+    {
+      ia=constList[i].a;
+      ib=constList[i].b;
+      
+      dd[i].x=atom[ib].x-atom[ia].x;
+      dd[i].y=atom[ib].y-atom[ia].y;
+      dd[i].z=atom[ib].z-atom[ia].z;
+    }
+    
+    image_array(simulCond->nconst,dd,simulCond,box);
+    
+    xt=(double*)malloc(simulCond->natom*sizeof(*xt));
+    yt=(double*)malloc(simulCond->natom*sizeof(*yt));
+    zt=(double*)malloc(simulCond->natom*sizeof(*zt));
+    
+  }
+  
+  //   Mass parameter for Nose-Hoover thermostat
+  
+  qmass=2.0*simulCond->kintemp0*X2(simulCond->taut);
+  
+  ts2=X2(simulCond->timeStep);
+  
+  for(i=0;i<simulCond->natom;i++)
+  { 
+    atom[i].vx+=0.5*simulCond->timeStep*atom[i].fx/atom[i].m;
+    atom[i].vy+=0.5*simulCond->timeStep*atom[i].fy/atom[i].m;
+    atom[i].vz+=0.5*simulCond->timeStep*atom[i].fz/atom[i].m;
+  }
+  
+  ener->kin=kinetic(atom,simulCond);
+  
+  lambdb=2.0*(ener->kin-simulCond->kintemp0)/qmass;
+  lambdc=simulCond->lambdat+simulCond->timeStep*lambdb;
+  lambda=0.5*(simulCond->lambdat+lambdc);
+  
+  if(simulCond->nconst>0)
+    nosecycle=3;
+  else
+    nosecycle=4;
+  
+  for(k=0;k<nosecycle;k++)
+  {
+    
+// move atoms by leapfrog algorithm
+    
+    for(i=0;i<simulCond->natom;i++)
+    {
+      
+// update velocities
+      
+      vxu[i]=vxo[i]+simulCond->timeStep*(atom[i].fx/atom[i].m-atom[i].vx*lambda);
+      vyu[i]=vyo[i]+simulCond->timeStep*(atom[i].fy/atom[i].m-atom[i].vy*lambda);
+      vzu[i]=vzo[i]+simulCond->timeStep*(atom[i].fz/atom[i].m-atom[i].vz*lambda);
+      
+// update positions
+      
+      atom[i].x=xo[i]+simulCond->timeStep*vxu[i];
+      atom[i].y=yo[i]+simulCond->timeStep*vyu[i];
+      atom[i].z=zo[i]+simulCond->timeStep*vzu[i];
+      
+// Temporary storage of the uncorrected positions
+      
+      if(simulCond->nconst>0)
+      {
+	xt[i]=atom[i].x;
+	yt[i]=atom[i].y;
+	zt[i]=atom[i].z;
+      }
+      
+    }
+    
+    if( (simulCond->nconst>0) && (k==0) )
+    {
+// Apply constraint with Shake algorithm.
+      
+      lf_shake(atom,simulCond,constList,dd,box);
+      for(i=0;i<simulCond->natom;i++)
+      {
+        
+// Corrected velocities
+      
+	vxu[i]+=(atom[i].x-xt[i])/simulCond->timeStep;
+	vyu[i]+=(atom[i].y-yt[i])/simulCond->timeStep;
+	vzu[i]+=(atom[i].z-zt[i])/simulCond->timeStep;
+      
+// Corrected Forces
+      
+	atom[i].fx+=(atom[i].x-xt[i])*atom[i].m/ts2;
+	atom[i].fy+=(atom[i].y-yt[i])*atom[i].m/ts2;
+	atom[i].fz+=(atom[i].z-zt[i])*atom[i].m/ts2;
+      
+      }
+    }
+    
+// calculate full timestep velocity
+
+    for(i=0;i<simulCond->natom;i++)
+    {
+      
+      atom[i].vx=0.5*(vxo[i]+vxu[i]);
+      atom[i].vy=0.5*(vyo[i]+vyu[i]);
+      atom[i].vz=0.5*(vzo[i]+vzu[i]);
+      
+    }
+    
+// calculate kinetic energy
+    
+    ener->kin=kinetic(atom,simulCond);
+    
+    lambdb=2.0*(ener->kin-simulCond->kintemp0)/qmass;
+    lambdc=simulCond->lambdat+simulCond->timeStep*lambdb;
+    lambda=0.5*(simulCond->lambdat+lambdc);
+    
+  }
+  
+  simulCond->lambdat=lambdc;
+  
+  ener->conint+=simulCond->timeStep*lambda*qmass/X2(simulCond->taut);
+  ener->consv=ener->conint+0.5*qmass*X2(lambda);
+  
+// periodic boundary condition
+  
+  image_update(atom,simulCond,box);
+  
+// updated velocity
+  
+  for(i=0;i<simulCond->natom;i++)
+  {
+    
+    atom[i].vx=vxu[i];
+    atom[i].vy=vyu[i];
+    atom[i].vz=vzu[i];
+    
+  }
+  
+// Free temporary arrays
+  
+  free(vxu);
+  free(vyu);
+  free(vzu);
+  
+  free(xo);
+  free(yo);
+  free(zo);
+  
+  free(vxo);
+  free(vyo);
+  free(vzo);
+  
+  if(simulCond->nconst>0)
+  {
+    free(dd);
+    
+    free(xt);
+    free(yt);
+    free(zt);
+  }
+      
+}
 
 void vv_integrate(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box,int stage)
 {
@@ -349,6 +554,9 @@ void vv_integrate(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *c
       break;
     case 1:
       vv_nvt_b(atom,ener,simulCond,constList,box,stage);
+      break;
+    case 3:
+      vv_nvt_h(atom,ener,simulCond,constList,box,stage);
       break;
     default:
       vv_nve(atom,ener,simulCond,constList,box,stage);
@@ -525,6 +733,142 @@ void vv_nvt_b(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *const
     }
     
     ener->kin*=X2(lambda);
+    
+  }
+  
+  if(stage==2)
+  {
+    
+// periodic boundary condition
+    
+    image_update(atom,simulCond,box);
+  }
+  
+  if(simulCond->nconst>0)
+  {
+    free(dd);
+  }
+   
+}
+
+void vv_nvt_h(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box,int stage)
+{
+  int i,ia,ib;
+  double lambda,qmass;
+  DELTA *dd=NULL;
+  
+  if(simulCond->nconst>0)
+  {
+    dd=(DELTA*)malloc(simulCond->nconst*sizeof(*dd));
+    
+    for(i=0;i<simulCond->nconst;i++)
+    {
+      ia=constList[i].a;
+      ib=constList[i].b;
+      
+      dd[i].x=atom[ib].x-atom[ia].x;
+      dd[i].y=atom[ib].y-atom[ia].y;
+      dd[i].z=atom[ib].z-atom[ia].z;
+    }
+    
+    image_array(simulCond->nconst,dd,simulCond,box);
+    
+  }
+  
+  qmass=2.0*simulCond->kintemp0*X2(simulCond->taut);
+  
+  if(stage==1)
+  {
+    
+    ener->kin=kinetic(atom,simulCond);
+    
+    simulCond->lambdat+=0.5*simulCond->timeStep*(ener->kin-simulCond->kintemp0)/qmass;
+    
+    lambda=exp(-0.5*simulCond->timeStep*simulCond->lambdat);
+    
+    for(i=0;i<simulCond->natom;i++)
+    {
+  // scale velocities
+      
+      atom[i].vx*=lambda;
+      atom[i].vy*=lambda;
+      atom[i].vz*=lambda;
+      
+  // update velocities
+      
+      atom[i].vx+=0.5*simulCond->timeStep*atom[i].fx/atom[i].m;
+      atom[i].vy+=0.5*simulCond->timeStep*atom[i].fy/atom[i].m;
+      atom[i].vz+=0.5*simulCond->timeStep*atom[i].fz/atom[i].m;
+    }
+    
+    ener->kin*=X2(lambda);
+    
+    ener->conint+=0.5*simulCond->timeStep*simulCond->lambdat*qmass/X2(simulCond->taut);
+    
+    simulCond->lambdat+=0.5*simulCond->timeStep*(ener->kin-simulCond->kintemp0)/qmass;
+    
+    for(i=0;i<simulCond->natom;i++)
+    {
+// update positions
+      
+      atom[i].x+=simulCond->timeStep*atom[i].vx;
+      atom[i].y+=simulCond->timeStep*atom[i].vy;
+      atom[i].z+=simulCond->timeStep*atom[i].vz;
+      
+    }
+    
+    if(simulCond->nconst>0)
+    {
+      
+// Apply constraint with Shake algorithm.
+
+      vv_shake_r(atom,simulCond,constList,dd,box);
+      
+    }
+    
+  }
+  else
+  {
+// calculate kinetic energy
+
+    for(i=0;i<simulCond->natom;i++)
+    {
+  // update velocities
+      
+      atom[i].vx+=0.5*simulCond->timeStep*atom[i].fx/atom[i].m;
+      atom[i].vy+=0.5*simulCond->timeStep*atom[i].fy/atom[i].m;
+      atom[i].vz+=0.5*simulCond->timeStep*atom[i].fz/atom[i].m;
+    }
+
+    if(simulCond->nconst>0)
+    {
+      
+// Apply constraint with Shake algorithm.
+
+      vv_shake_v(atom,simulCond,constList,dd);
+      
+    }
+  
+    ener->kin=kinetic(atom,simulCond);
+    
+    simulCond->lambdat+=0.5*simulCond->timeStep*(ener->kin-simulCond->kintemp0)/qmass;
+    
+    lambda=exp(-0.5*simulCond->timeStep*simulCond->lambdat);
+    
+    for(i=0;i<simulCond->natom;i++)
+    {
+      atom[i].vx*=lambda;
+      atom[i].vy*=lambda;
+      atom[i].vz*=lambda;
+    }
+    
+    ener->kin*=X2(lambda);
+    
+    ener->conint+=0.5*simulCond->timeStep*simulCond->lambdat*qmass/X2(simulCond->taut);
+    
+    simulCond->lambdat+=0.5*simulCond->timeStep*(ener->kin-simulCond->kintemp0)/qmass;
+    
+    ener->consv=ener->conint+0.5*qmass*X2(simulCond->lambdat);
     
   }
   

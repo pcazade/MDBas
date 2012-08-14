@@ -107,6 +107,10 @@ int main(int argc, char* argv[])
   
   init_vel(atom,&simulCond,constList,&box);
   
+  simulCond.lambdat=0.;
+  simulCond.lambdap=0.;
+  ener.conint=0.;
+  
   if(simulCond.keyener)
   {
     fener=fopen("ener.dat","w");
@@ -192,6 +196,8 @@ int main(int argc, char* argv[])
 
     for(simulCond.step=1;simulCond.step<=simulCond.nsteps;simulCond.step++)
     {
+      
+      ener.consv=0.;
       
 //     Integration of the Newtonian equations. First stage
 //     of Velocity Verlet algorithm.

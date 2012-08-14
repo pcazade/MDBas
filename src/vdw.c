@@ -84,7 +84,7 @@ void vdw_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PB
   #ifndef _OPENMP
 //   int ipr=0;
   #else
-  #pragma omp parallel default(none) shared(atom,ff,ener,simulCond) private(i,j,k,pvdw,dpvdw,dvdw,switchFunc,dswitchFunc,r,fx,fy,fz,fxi,fyi,fzi,delta) reduction(+:vdw)
+  #pragma omp parallel default(none) shared(atom,ff,simulCond,box) private(i,j,k,pvdw,dpvdw,dvdw,switchFunc,dswitchFunc,r,fx,fy,fz,fxi,fyi,fzi,delta) reduction(+:vdw)
   {
     #pragma omp for schedule(dynamic) nowait
     #endif
@@ -96,12 +96,12 @@ void vdw_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PB
       
       for(k=0;k<ff->verPair[i];k++)
       {
-	#ifndef _OPENMP
+// 	#ifndef _OPENMP
 	j=ff->verList[i][k];
 // 	ipr++;
-	#else
-	j=ff->verList[ ff->verCumSum[i] + k ];
-	#endif
+// 	#else
+// 	j=ff->verList[ ff->verCumSum[i] + k ];
+// 	#endif
 	
 	r=distance(i,j,atom,delta,simulCond,box);
 	

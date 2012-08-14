@@ -268,6 +268,10 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff,PBC *box)
 	simulCond->ens=1;
       else if(!strcmp(buff3,"nptb"))
 	simulCond->ens=2;
+      else if(!strcmp(buff3,"nvth"))
+	simulCond->ens=3;
+      else if(!strcmp(buff3,"npth"))
+	simulCond->ens=4;
       else
 	error(62);
       

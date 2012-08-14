@@ -82,11 +82,11 @@ void coulomb_shift1(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
   #ifndef _OPENMP
 
   #else
-  #pragma omp parallel default(none) shared(atom,ff,ener,simulCond) private(i,j,k,pelec,delec,shiftFunc,dshiftFunc,r,fx,fy,fz,fxi,fyi,fzi,delta) reduction(+:elec)
+  #pragma omp parallel default(none) shared(atom,ff,simulCond,box) private(i,j,k,pelec,delec,shiftFunc,dshiftFunc,r,fx,fy,fz,fxi,fyi,fzi,delta) reduction(+:elec)
   {
   #pragma omp for schedule(dynamic) nowait
   #endif
-    for(i=0;i<simulCond->natom-1;i++)
+    for(i=0;i<simulCond->natom;i++)
     {
       fxi=0.;
       fyi=0.;
@@ -94,11 +94,11 @@ void coulomb_shift1(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
       
       for(k=0;k<ff->verPair[i];k++)
       {
-	#ifndef _OPENMP
+// 	#ifndef _OPENMP
 	j=ff->verList[i][k];
-	#else
-	j=ff->verList[ ff->verCumSum[i] + k ];
-	#endif
+// 	#else
+// 	j=ff->verList[ ff->verCumSum[i] + k ];
+// 	#endif
 	
 	r=distance(i,j,atom,delta,simulCond,box);
 	
@@ -162,13 +162,11 @@ void coulomb_shift2(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
   double elec=0.,pelec,delec,shiftFunc,dshiftFunc;
   double r,fx,fy,fz,fxi,fyi,fzi;
   double delta[3];
-  
-  int numpr=0; /*debug*/
 
   #ifndef _OPENMP
 //   int ipr=0;
   #else
-  #pragma omp parallel default(none) shared(atom,ff,ener,simulCond) private(i,j,k,pelec,delec,shiftFunc,dshiftFunc,r,fx,fy,fz,fxi,fyi,fzi,delta) reduction(+:elec)
+  #pragma omp parallel default(none) shared(atom,ff,simulCond,box) private(i,j,k,pelec,delec,shiftFunc,dshiftFunc,r,fx,fy,fz,fxi,fyi,fzi,delta) reduction(+:elec)
   {
     #pragma omp for schedule(dynamic) nowait
     #endif
@@ -180,13 +178,12 @@ void coulomb_shift2(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
       
       for(k=0;k<ff->verPair[i];k++)
       {
-	numpr++; //debug
-	#ifndef _OPENMP
+// 	#ifndef _OPENMP
 	j=ff->verList[i][k];
 // 	ipr++;
-	#else
-	j=ff->verList[ ff->verCumSum[i] + k ];
-	#endif
+// 	#else
+// 	j=ff->verList[ ff->verCumSum[i] + k ];
+// 	#endif
 	
 	r=distance(i,j,atom,delta,simulCond,box);
 	
@@ -230,7 +227,6 @@ void coulomb_shift2(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
   #ifdef _OPENMP
   }
   #endif
-  printf("numpr=%d\n",numpr);
   ener->elec+=elec;
   
 } //END of function
@@ -256,11 +252,11 @@ void coulomb_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
   #ifndef _OPENMP
 //   int ipr=0;
   #else
-  #pragma omp parallel default(none) shared(atom,ff,ener,simulCond) private(i,j,k,pelec,delec,switchFunc,dswitchFunc,r,fx,fy,fz,fxi,fyi,fzi,delta) reduction(+:elec)
+  #pragma omp parallel default(none) shared(atom,ff,simulCond,box) private(i,j,k,pelec,delec,switchFunc,dswitchFunc,r,fx,fy,fz,fxi,fyi,fzi,delta) reduction(+:elec)
   {
     #pragma omp for schedule(dynamic) nowait
   #endif
-    for(i=0;i<simulCond->natom-1;i++)
+    for(i=0;i<simulCond->natom;i++)
     {
       fxi=0.;
       fyi=0.;
@@ -268,12 +264,12 @@ void coulomb_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
       
       for(k=0;k<ff->verPair[i];k++)
       {
-	#ifndef _OPENMP
+// 	#ifndef _OPENMP
 	j=ff->verList[i][k];
 // 	ipr++;
-	#else
-	j=ff->verList[ ff->verCumSum[i] + k ];
-	#endif
+// 	#else
+// 	j=ff->verList[ ff->verCumSum[i] + k ];
+// 	#endif
 	
 	r=distance(i,j,atom,delta,simulCond,box);
 	

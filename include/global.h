@@ -16,6 +16,8 @@
 #define sq6rt2  (1.12246204830937)
 #define PI      (3.14159265358979)
 
+#define MAXLIST 2048
+
 #define X2(x) ((x)*(x))
 #define X3(x) (X2(x)*(x))
 #define X4(x) (X2(x)*X2(x))
@@ -69,7 +71,7 @@ typedef struct
 typedef struct
 {
   int nBond,nAngle,nDihedral,nImproper,nUb,ncells;
-  int **verList,*verPair,*verCumSum,npr,**ver14,npr14,*nParmDihe;
+  int **verList,*verPair/*,*verCumSum*//*,npr*/,**ver14,npr14,*nParmDihe;
   double **parmVdw,scal14;
   double **parmBond,**parmUb,**parmAngle,**parmDihe;
   double **parmImpr;
@@ -85,7 +87,8 @@ typedef struct
   int *excludeNum,**excludeAtom;
   int *bondType,*ubType,*angleType,*diheType,*imprType;
   int **iBond,**iUb,**iAngle,**iDihedral,**iImproper;
-  double chargeConst,cutoff,cuton,delr,tolshake,kintemp0,taut;
+  double chargeConst,cutoff,cuton,delr,tolshake;
+  double lambdat,lambdap,kintemp0,taut;
   double tolminim,maxminsiz,temp,timeStep;
 }SIMULPARAMS;
 
@@ -94,6 +97,7 @@ typedef struct
   double tot,pot,kin;
   double elec,vdw;
   double bond,ang,ub,dihe,impr;
+  double conint,consv;
 }ENERGY;
 
 typedef struct

@@ -34,15 +34,10 @@ void makelist(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,CONSTRAINT *const
     if(simulCond->nolink)
       simulCond->keylink=0;
     
-    printf("%d %d %d %d\n",simulCond->keylink,nlcx,nlcy,nlcz);
-    
     if(simulCond->keylink)
     {
-      link_cell_exclude_list(simulCond,atom,ff,constList);
-      printf("Link cell exclude list done.\n");
-      
+      link_cell_exclude_list(simulCond,atom,ff,constList);     
       link_cell_verlet_list(simulCond,atom,ff,box);
-      printf("Link cell Verlet list done.\n");
     }
     else
     {
@@ -840,17 +835,11 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,CONSTRAINT *c
   for(i=0;i<simulCond->natom-1;i++)
     simulCond->excludeAtom[i]=(int*)malloc(simulCond->excludeNum[i]*sizeof(**(simulCond->excludeAtom)));
   
-  FILE* out=fopen("exclude.dat","w");
   for(i=0;i<simulCond->natom-1;i++)
   {
     for(j=0;j<simulCond->excludeNum[i];j++)
-    {
       simulCond->excludeAtom[i][j]=tempAtom[i][j];
-      fprintf(out,"%d\t",tempAtom[i][j]);
-    }
-    fprintf(out,"\n");
   }
-  fclose(out);
   
   free_2D(simulCond->natom,tempAtom,NULL);
 
@@ -858,24 +847,24 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,CONSTRAINT *c
 
 void verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *box)
 {
-  int i,j,k,exclude,nalloc,incr;
+  int i,j,k,exclude,nalloc;/*,incr;*/
   double r,cutnb,delta[3];
   
   cutnb=simulCond->cutoff+simulCond->delr;
   
   nalloc = (int) ( 1.5*simulCond->natom*4./3.*PI*X3(cutnb)/box->vol );
-  nalloc = MIN(nalloc,simulCond->natom);
-  incr=nalloc;
+  nalloc = MIN(nalloc,MAXLIST);
+  /*incr=nalloc*/;
   
-  ff->verPair=(int*)malloc((simulCond->natom-1)*sizeof(*(ff->verPair)));
+  ff->verPair=(int*)malloc((simulCond->natom)*sizeof(*(ff->verPair)));
+  
+  for(i=0;i<simulCond->natom;i++)
+    ff->verPair[i]=0;
 
   ff->verList=(int**)malloc((simulCond->natom-1)*sizeof(*(ff->verList)));
   
   for(i=0;i<simulCond->natom-1;i++)
-  {
     ff->verList[i]=(int*)malloc(nalloc*sizeof(**(ff->verList)));
-    ff->verPair[i]=0;
-  }
   
   for(i=0;i<simulCond->natom-1;i++)
   {
@@ -896,9 +885,11 @@ void verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *box)
 	if(!exclude)
 	{
 	  
-	  if(ff->verPair[i]>=nalloc)
+	  /*if(ff->verPair[i]>=nalloc)
 	    ff->verList[i]=(int*)realloc(ff->verList[i],(nalloc+incr)*sizeof(**(ff->verList)));
 	  else if(ff->verPair[i]>=nalloc+incr)
+	    error(120);*/
+	  if(ff->verPair[i]>=nalloc)
 	    error(120);
 	  
 	  ff->verList[i][ff->verPair[i]]=j;
@@ -910,72 +901,80 @@ void verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *box)
     ff->verList[i]=(int*)realloc(ff->verList[i],ff->verPair[i]*sizeof(**(ff->verList)));
   }
 
-#ifdef _OPENMP
-  /** Verlet cumulatedSum list (useful for parallelisation)**/
+/*#ifdef _OPENMP
   ff->verCumSum=(int*)malloc((simulCond->natom-1)*sizeof(*(ff->verCumSum)));
   ff->verCumSum[0] = 0;
   for(i=1;i<simulCond->natom-1;i++)
     ff->verCumSum[i] = ff->verCumSum[i-1] + ff->verPair[i-1];
-  /** **/
-#endif
+#endif*/
 
 }
 
 void verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *box)
 {
-  int i,j,k,exclude,nalloc,incr;
+  int i,j,k,exclude,nalloc;/*,incr;*/
   double r,cutnb,delta[3];
   
   cutnb=simulCond->cutoff+simulCond->delr;
   
   nalloc = (int) ( 1.5*simulCond->natom*4./3.*PI*X3(cutnb)/box->vol );
-  nalloc = MIN(nalloc,simulCond->natom);
-  incr=nalloc;
+  nalloc = MIN(nalloc,MAXLIST);
+  /*incr=nalloc;*/
   
   for(i=0;i<simulCond->natom-1;i++)
     ff->verList[i]=(int*)realloc(ff->verList[i],nalloc*sizeof(**(ff->verList)));
   
-  for(i=0;i<simulCond->natom-1;i++)
+  #ifdef _OPENMP
+  #pragma omp parallel default(none) shared(simulCond,atom,ff,box,cutnb,nalloc) private(i,j,k,r,delta,exclude)
   {
-    ff->verPair[i]=0;
-    for(j=i+1;j<simulCond->natom;j++)
+    #pragma omp for schedule(dynamic) nowait
+  #endif
+    for(i=0;i<simulCond->natom-1;i++)
     {
-      r=distance(i,j,atom,delta,simulCond,box);
-      if(r<=cutnb)
+      ff->verPair[i]=0;
+      for(j=i+1;j<simulCond->natom;j++)
       {
-	exclude=0;
-	for (k=0;k<simulCond->excludeNum[i];k++)
+	r=distance(i,j,atom,delta,simulCond,box);
+	if(r<=cutnb)
 	{
-	  if(simulCond->excludeAtom[i][k]==j)
+	  exclude=0;
+	  for (k=0;k<simulCond->excludeNum[i];k++)
 	  {
-	    exclude=1;
-	    break;
+	    if(simulCond->excludeAtom[i][k]==j)
+	    {
+	      exclude=1;
+	      break;
+	    }
 	  }
-	}
-	if(!exclude)
-	{
-	  
-	  if(ff->verPair[i]>=nalloc)
-	    ff->verList[i]=(int*)realloc(ff->verList[i],(nalloc+incr)*sizeof(**(ff->verList)));
-	  else if(ff->verPair[i]>=nalloc+incr)
-	    error(120);
-	  
-	  ff->verList[i][ff->verPair[i]]=j;
-	  ff->verPair[i]++;
-	  
+	  if(!exclude)
+	  {
+	    
+	    /*if(ff->verPair[i]>=nalloc)
+	      ff->verList[i]=(int*)realloc(ff->verList[i],(nalloc+incr)*sizeof(**(ff->verList)));
+	    else if(ff->verPair[i]>=nalloc+incr)
+	      error(120);*/
+	    if(ff->verPair[i]>=nalloc)
+	      error(120);
+	    
+	    ff->verList[i][ff->verPair[i]]=j;
+	    ff->verPair[i]++;
+	    
+	  }
 	}
       }
     }
+  #ifdef _OPENMP
+  } // END OF parallel zone
+  #endif
+  
+  for(i=0;i<simulCond->natom-1;i++)
     ff->verList[i]=(int*)realloc(ff->verList[i],ff->verPair[i]*sizeof(**(ff->verList)));
-  }
 
-#ifdef _OPENMP
-  /** Verlet cumulatedSum list (useful for parallelisation)**/
+/*#ifdef _OPENMP
   ff->verCumSum[0] = 0;
   for(i=1;i<simulCond->natom-1;i++)
     ff->verCumSum[i] = ff->verCumSum[i-1] + ff->verPair[i-1];
-  /** **/
-#endif
+#endif*/
 
 }
 
@@ -1637,17 +1636,11 @@ void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,CON
   for(i=0;i<simulCond->natom;i++)
     simulCond->excludeAtom[i]=(int*)malloc(simulCond->excludeNum[i]*sizeof(**(simulCond->excludeAtom)));
   
-  FILE* out=fopen("excludelink.dat","w");
   for(i=0;i<simulCond->natom;i++)
   {
     for(j=0;j<simulCond->excludeNum[i];j++)
-    {
       simulCond->excludeAtom[i][j]=tempAtom[i][j];
-      fprintf(out,"%d\t",tempAtom[i][j]);
-    }
-    fprintf(out,"\n");
   }
-  fclose(out);
   
   free_2D(simulCond->natom,tempAtom,NULL);
 
@@ -1716,7 +1709,7 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC 
     2,2,2,2,3,3,3,3,3,3,3,3,5,5,5,5,5,5,5,5,3,3,3,3,3,3,3,3,5,5,5,5};
     
   int cellCheck,enoughLinkCells,nlcx,nlcy,nlcz;
-  int i,j,k,l,ll,ii,kk,icell,exclude,nalloc,incr;
+  int i,j,k,l,ll,ii,kk,icell,exclude,nalloc;/*,incr;*/
   int ix,iy,iz,jx,jy,jz;
   double r,cutnb,dnlcx,dnlcy,dnlcz;
   double cx,cy,cz,xt,yt,zt,xd,yd,zd,*xu,*yu,*zu;
@@ -1728,8 +1721,8 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC 
   cutnb=simulCond->cutoff+simulCond->delr;
   
   nalloc = (int) ( 1.5*simulCond->natom*4./3.*PI*X3(cutnb)/box->vol );
-  nalloc = MIN(nalloc,simulCond->natom);
-  incr=nalloc;
+  nalloc = MIN(nalloc,MAXLIST);
+  /*incr=nalloc;*/
   
   ff->verPair=(int*)malloc(simulCond->natom*sizeof(*(ff->verPair)));
 
@@ -1825,10 +1818,6 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC 
   iy=0;
   iz=0;
   
-//   for(i=0;i<ff->ncells;i++)
-//     printf("%d\t",head[i]);
-//    printf("\n");
-  
   for(k=0;k<ff->ncells;k++)
   {
     ii=head[k];
@@ -1846,8 +1835,6 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC 
 	jx=ix+transx[l];
 	jy=iy+transy[l];
 	jz=iz+transz[l];
-	
-// 	printf("%d %d %d %d %d %d\n",k,l,cellCheck,jx,jy,jz);
 	
 	if(jx>nlcx-1)
 	{
@@ -1883,7 +1870,7 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC 
 	}
 	
 	ll=jx+nlcx*(jy+nlcy*jz);
-// 	printf("%d %d %d %d %d %d %d\n",k,l,cellCheck,jx,jy,jz,ll);
+	
 	j=head[ll];
 	
 	if(j>-1)
@@ -1922,9 +1909,11 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC 
 		  if(!exclude)
 		  {
 		    
-		    if(ff->npr>=nalloc)
+		    /*if(ff->verPair[i]>=nalloc)
 		      ff->verList[i]=(int*)realloc(ff->verList[i],(nalloc+incr)*sizeof(**(ff->verList)));
 		    else if(ff->verPair[i]>=nalloc+incr)
+		      error(120);*/
+		    if(ff->verPair[i]>=nalloc)
 		      error(120);
 		    
 		    ff->verList[i][ff->verPair[i]]=j;
@@ -2035,7 +2024,7 @@ void link_cell_verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *
     2,2,2,2,3,3,3,3,3,3,3,3,5,5,5,5,5,5,5,5,3,3,3,3,3,3,3,3,5,5,5,5};
     
   int cellCheck,enoughLinkCells,nlcx,nlcy,nlcz;
-  int i,j,k,l,ll,ii,kk,icell,exclude,nalloc,incr;
+  int i,j,k,l,ll,ii,kk,icell,exclude,nalloc;/*,incr;*/
   int ix,iy,iz,jx,jy,jz;
   double r,cutnb,dnlcx,dnlcy,dnlcz;
   double cx,cy,cz,xt,yt,zt,xd,yd,zd,*xu,*yu,*zu;
@@ -2047,8 +2036,8 @@ void link_cell_verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *
   cutnb=simulCond->cutoff+simulCond->delr;
   
   nalloc = (int) ( 1.5*simulCond->natom*4./3.*PI*X3(cutnb)/box->vol );
-  nalloc = MIN(nalloc,simulCond->natom);
-  incr=nalloc;
+  nalloc = MIN(nalloc,MAXLIST);
+  /*incr=nalloc;*/
   
   for(i=0;i<simulCond->natom;i++)
   {
@@ -2226,9 +2215,11 @@ void link_cell_verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *
 		  if(!exclude)
 		  {
 		    
-		    if(ff->npr>=nalloc)
+		    /*if(ff->verPair[i]>=nalloc)
 		      ff->verList[i]=(int*)realloc(ff->verList[i],(nalloc+incr)*sizeof(**(ff->verList)));
 		    else if(ff->verPair[i]>=nalloc+incr)
+		      error(120);*/
+		    if(ff->verPair[i]>=nalloc)
 		      error(120);
 		    
 		    ff->verList[i][ff->verPair[i]]=j;
@@ -2242,8 +2233,6 @@ void link_cell_verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *
 	      }//while j
 	      
 	    }//if j>-1
-	    
-	    ff->verList[i]=(int*)realloc(ff->verList[i],ff->verPair[i]*sizeof(**(ff->verList)));
 	    
 	    j=head[ll];
 	    i=link[i];
@@ -2268,6 +2257,9 @@ void link_cell_verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *
     }
     
   }//for ncells
+  
+  for(i=0;i<simulCond->natom;i++)
+    ff->verList[i]=(int*)realloc(ff->verList[i],ff->verPair[i]*sizeof(**(ff->verList)));
   
   free(xu);
   free(yu);

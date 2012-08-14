@@ -3,7 +3,7 @@
 #################################################################
 
 #use : make DEBUG=ON for a debug build
-DEBUG=ON
+DEBUG=OFF
 COMP=gcc
 OMP=OFF
 
