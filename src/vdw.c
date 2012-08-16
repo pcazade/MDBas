@@ -1,6 +1,13 @@
 #include "global.h"
 #include "utils.h"
 
+double vdw_none(ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
+		int i, int j, double r, double *dvdw)
+{
+  *dvdw=0.;
+  return 0.;
+}
+
 void vdw_full(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
     
@@ -63,7 +70,8 @@ void vdw_full(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC 
   ener->vdw+=vdw;
 }
 
-void vdw_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
+double vdw_switch(ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
+		int i, int j, double r, double *dvdw)
 {
   
 /*****************************************************************************
@@ -76,233 +84,118 @@ void vdw_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PB
  * dswitchFunc(r)=-12*r*(rc**2-r**2)*(ro**2-r**2)/(rc**2-ro**2)**3
  ****************************************************************************/
   
-  int i,j,k;
-  double vdw=0.,pvdw,dpvdw,dvdw,switchFunc,dswitchFunc;
-  double r,fx,fy,fz,fxi,fyi,fzi;
-  double delta[3];
+  double vdw=0.,pvdw,dpvdw,switchFunc,dswitchFunc;
   
-  #ifndef _OPENMP
-//   int ipr=0;
-  #else
-  #pragma omp parallel default(none) shared(atom,ff,simulCond,box) private(i,j,k,pvdw,dpvdw,dvdw,switchFunc,dswitchFunc,r,fx,fy,fz,fxi,fyi,fzi,delta) reduction(+:vdw)
+  if(r<=simulCond->cuton)
   {
-    #pragma omp for schedule(dynamic) nowait
-    #endif
-    for(i=0;i<simulCond->natom;i++)
-    {
-      fxi=0.;
-      fyi=0.;
-      fzi=0.;
-      
-      for(k=0;k<ff->verPair[i];k++)
-      {
-// 	#ifndef _OPENMP
-	j=ff->verList[i][k];
-// 	ipr++;
-// 	#else
-// 	j=ff->verList[ ff->verCumSum[i] + k ];
-// 	#endif
-	
-	r=distance(i,j,atom,delta,simulCond,box);
-	
-	if(r<=simulCond->cuton)
-	{
-	  pvdw=4.*ff->parmVdw[i][0]*ff->parmVdw[j][0]*(X12((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r)-
-	    X6((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r));
-	  
-	  dvdw=24.*ff->parmVdw[i][0]*ff->parmVdw[j][0]/r*(X6((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r)-
-	    2.*X12((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r));
-	  
-	  vdw+=pvdw;
-	  
-	  fx=dvdw*delta[0]/r;
-	  fy=dvdw*delta[1]/r;
-	  fz=dvdw*delta[2]/r;
-	
-	  fxi+=fx;
-	  fyi+=fy;
-	  fzi+=fz;
-	
-	  #pragma omp atomic
-	  atom[j].fx+=-fx;
-	  #pragma omp atomic
-	  atom[j].fy+=-fy;
-	  #pragma omp atomic
-	  atom[j].fz+=-fz;
-		  
-	}
-	else if(r<=simulCond->cutoff)
-	{
-	  switchFunc=X2(X2(simulCond->cutoff)-X2(r))*
-	    (X2(simulCond->cutoff)+2.*X2(r)-3.*X2(simulCond->cuton))/
-	    X3(X2(simulCond->cutoff)-X2(simulCond->cuton));
-	    
-	  dswitchFunc=12.*r*(X2(simulCond->cutoff)-X2(r))*
-	    (X2(simulCond->cuton)-X2(r))/
-	    X3(X2(simulCond->cutoff)-X2(simulCond->cuton));
-	  
-	  pvdw=4.*ff->parmVdw[i][0]*ff->parmVdw[j][0]*(X12((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r)-
-	    X6((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r));
-	  
-	  dpvdw=24.*ff->parmVdw[i][0]*ff->parmVdw[j][0]/r*(X6((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r)-
-	    2.*X12((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r));
-	  
-	  vdw+=pvdw*switchFunc;
-	  
-	  dvdw=pvdw*dswitchFunc+dpvdw*switchFunc;
-	  
-	  fx=dvdw*delta[0]/r;
-	  fy=dvdw*delta[1]/r;
-	  fz=dvdw*delta[2]/r;
-	
-	  fxi+=fx;
-	  fyi+=fy;
-	  fzi+=fz;
-	
-	  #pragma omp atomic
-	  atom[j].fx+=-fx;
-	  #pragma omp atomic
-	  atom[j].fy+=-fy;
-	  #pragma omp atomic
-	  atom[j].fz+=-fz;
-	  
-	}
-      }
-      
-      #pragma omp atomic
-      atom[i].fx+=fxi;
-      #pragma omp atomic
-      atom[i].fy+=fyi;
-      #pragma omp atomic
-      atom[i].fz+=fzi;
-
-    }
-  #ifdef _OPENMP
+    
+    pvdw=4.*ff->parmVdw[i][0]*ff->parmVdw[j][0]*(X12((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r)-
+      X6((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r));
+    
+    *dvdw=24.*ff->parmVdw[i][0]*ff->parmVdw[j][0]/r*(X6((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r)-
+      2.*X12((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r));
+    
+    vdw=pvdw;
+    
   }
-  #endif
-  ener->vdw+=vdw;
-  
+  else
+  {
+    
+    switchFunc=X2(X2(simulCond->cutoff)-X2(r))*
+      (X2(simulCond->cutoff)+2.*X2(r)-3.*X2(simulCond->cuton))/
+      X3(X2(simulCond->cutoff)-X2(simulCond->cuton));
+      
+    dswitchFunc=12.*r*(X2(simulCond->cutoff)-X2(r))*
+      (X2(simulCond->cuton)-X2(r))/
+      X3(X2(simulCond->cutoff)-X2(simulCond->cuton));
+    
+    pvdw=4.*ff->parmVdw[i][0]*ff->parmVdw[j][0]*(X12((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r)-
+      X6((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r));
+    
+    dpvdw=24.*ff->parmVdw[i][0]*ff->parmVdw[j][0]/r*(X6((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r)-
+      2.*X12((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r));
+    
+    vdw=pvdw*switchFunc;
+    
+    *dvdw=pvdw*dswitchFunc+dpvdw*switchFunc;
+    
+  }
+
+  return vdw;
 }
 
-void vdw14_full(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
+double vdw14_none(ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
+		  int i, int j, double r, double *dvdw)
 {
-    
-  int i,j,k;
-  double vdw=0.,pvdw,dvdw;
-  double r,fx,fy,fz;
-  double delta[3];
+  *dvdw=0;
+  return 0.;
+}
+
+double vdw14_full(ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
+		int i, int j, double r, double *dvdw)
+{
   
-  for(k=0;k<ff->npr14;k++)
+  double vdw=0.;
+  
+  vdw=4.*ff->scal14*ff->parmVdw[i][3]*ff->parmVdw[j][3]*(X12((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r)-
+    X6((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r));
+  
+  *dvdw=24.*ff->scal14*ff->parmVdw[i][3]*ff->parmVdw[j][3]/r*(X6((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r)-
+    2.*X12((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r));
+  
+  return vdw;
+}
+
+double vdw14_switch(ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
+		  int i, int j, double r, double *dvdw)
+{
+  
+/*****************************************************************************
+ * Switched van der Waals potential :
+ * vdwSwitch=elecPot(r)*switchFunc(r)
+ * vdwPot=4*eps*((sig/r)**12-(sig/r)**6)
+ * switchFunc=(rc**2+2r**2-3ro**2)*(rc**2-r**2)**2/(rc**2-ro**2)**3
+ * dvdwSwitch=delecPot(r)*switchFunc(r)+elecPot(r)*dswitchFunc(r)
+ * dvdwPot(r)=-elecPot(r)/r
+ * dswitchFunc(r)=-12*r*(rc**2-r**2)*(ro**2-r**2)/(rc**2-ro**2)**3
+ ****************************************************************************/
+  
+  double vdw=0.,pvdw,dpvdw,switchFunc,dswitchFunc;
+  
+  if(r<=simulCond->cuton)
   {
-    i=ff->ver14[k][0];
-    j=ff->ver14[k][1];
-    
-    r=distance(i,j,atom,delta,simulCond,box);
     
     pvdw=4.*ff->scal14*ff->parmVdw[i][3]*ff->parmVdw[j][3]*(X12((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r)-
       X6((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r));
     
-    dvdw=24.*ff->scal14*ff->parmVdw[i][3]*ff->parmVdw[j][3]/r*(X6((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r)-
+    *dvdw=24.*ff->scal14*ff->parmVdw[i][3]*ff->parmVdw[j][3]/r*(X6((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r)-
       2.*X12((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r));
     
-    vdw+=pvdw;
-        
-    fx=dvdw*delta[0]/r;
-    fy=dvdw*delta[1]/r;
-    fz=dvdw*delta[2]/r;
+    vdw=pvdw;
     
-    atom[i].fx+=fx;
-    atom[i].fy+=fy;
-    atom[i].fz+=fz;
-    
-    atom[j].fx+=-fx;
-    atom[j].fy+=-fy;
-    atom[j].fz+=-fz;
   }
-  ener->vdw+=vdw;
-}
-
-void vdw14_switch(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
-{
-  
-/*****************************************************************************
- * Switched van der Waals potential :
- * vdwSwitch=elecPot(r)*switchFunc(r)
- * vdwPot=4*eps*((sig/r)**12-(sig/r)**6)
- * switchFunc=(rc**2+2r**2-3ro**2)*(rc**2-r**2)**2/(rc**2-ro**2)**3
- * dvdwSwitch=delecPot(r)*switchFunc(r)+elecPot(r)*dswitchFunc(r)
- * dvdwPot(r)=-elecPot(r)/r
- * dswitchFunc(r)=-12*r*(rc**2-r**2)*(ro**2-r**2)/(rc**2-ro**2)**3
- ****************************************************************************/
-  
-  int i,j,k;
-  double vdw=0.,pvdw,dpvdw,dvdw,switchFunc,dswitchFunc;
-  double r,fx,fy,fz;
-  double delta[3];
-  
-  for(k=0;k<ff->npr14;k++)
+  else if(r<=simulCond->cutoff)
   {
-    i=ff->ver14[k][0];
-    j=ff->ver14[k][1];
     
-    r=distance(i,j,atom,delta,simulCond,box);
+    switchFunc=X2(X2(simulCond->cutoff)-X2(r))*
+      (X2(simulCond->cutoff)+2.*X2(r)-3.*X2(simulCond->cuton))/
+      X3(X2(simulCond->cutoff)-X2(simulCond->cuton));
+      
+    dswitchFunc=12.*r*(X2(simulCond->cutoff)-X2(r))*
+      (X2(simulCond->cuton)-X2(r))/
+      X3(X2(simulCond->cutoff)-X2(simulCond->cuton));
     
-    if(r<=simulCond->cuton)
-    {
-      pvdw=4.*ff->scal14*ff->parmVdw[i][3]*ff->parmVdw[j][3]*(X12((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r)-
-	X6((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r));
-      
-      dvdw=24.*ff->scal14*ff->parmVdw[i][3]*ff->parmVdw[j][3]/r*(X6((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r)-
-	2.*X12((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r));
-      
-      vdw+=pvdw;
-      
-      fx=dvdw*delta[0]/r;
-      fy=dvdw*delta[1]/r;
-      fz=dvdw*delta[2]/r;
+    pvdw=4.*ff->scal14*ff->parmVdw[i][3]*ff->parmVdw[j][3]*(X12((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r)-
+      X6((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r));
     
-      atom[i].fx+=fx;
-      atom[i].fy+=fy;
-      atom[i].fz+=fz;
+    dpvdw=24.*ff->scal14*ff->parmVdw[i][3]*ff->parmVdw[j][3]/r*(X6((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r)-
+      2.*X12((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r));
     
-      atom[j].fx+=-fx;
-      atom[j].fy+=-fy;
-      atom[j].fz+=-fz;
-      	
-    }
-    else if(r<=simulCond->cutoff)
-    {
-      switchFunc=X2(X2(simulCond->cutoff)-X2(r))*
-	(X2(simulCond->cutoff)+2.*X2(r)-3.*X2(simulCond->cuton))/
-	X3(X2(simulCond->cutoff)-X2(simulCond->cuton));
-	
-      dswitchFunc=12.*r*(X2(simulCond->cutoff)-X2(r))*
-	(X2(simulCond->cuton)-X2(r))/
-	X3(X2(simulCond->cutoff)-X2(simulCond->cuton));
-      
-      pvdw=4.*ff->scal14*ff->parmVdw[i][3]*ff->parmVdw[j][3]*(X12((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r)-
-	X6((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r));
-      
-      dpvdw=24.*ff->scal14*ff->parmVdw[i][3]*ff->parmVdw[j][3]/r*(X6((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r)-
-	2.*X12((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r));
-      
-      vdw+=pvdw*switchFunc;
-      
-      dvdw=pvdw*dswitchFunc+dpvdw*switchFunc;
-      
-      fx=dvdw*delta[0]/r;
-      fy=dvdw*delta[1]/r;
-      fz=dvdw*delta[2]/r;
+    vdw=pvdw*switchFunc;
     
-      atom[i].fx+=fx;
-      atom[i].fy+=fy;
-      atom[i].fz+=fz;
+    *dvdw=pvdw*dswitchFunc+dpvdw*switchFunc;
     
-      atom[j].fx+=-fx;
-      atom[j].fy+=-fy;
-      atom[j].fz+=-fz;
-      
-    }     
   }
-  ener->vdw+=vdw;
+  
+  return vdw;
 }

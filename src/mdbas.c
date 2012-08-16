@@ -106,6 +106,7 @@ int main(int argc, char* argv[])
   }
   
   init_vel(atom,&simulCond,constList,&box);
+  init_energy_ptrs(&simulCond);
   
   simulCond.lambdat=0.;
   simulCond.lambdap=0.;
