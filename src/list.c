@@ -2118,6 +2118,7 @@ void link_cell_verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *
     j=head[icell];
     head[icell]=i;
     link[i]=j;
+    
   }
   
   ix=0;
@@ -2265,4 +2266,149 @@ void link_cell_verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *
   free(yu);
   free(zu);
 
+}
+
+void fast_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *box);
+{
+  /************************************************************
+   * This routine is derived from the algorithm described
+   * by Tim. N. Heinz and Philippe H. Hunenberger
+   * J. Comput. Chem., Vol. 25, No. 12, 1474--1486 (2004)
+   * DOI: 10.1002/jcc.20071
+   * **********************************************************/
+  
+  int i,j,k,dm,stripes,m,atpercell;
+  int ilx,ily,ilz,nlcx,nlcy,nlcx;
+  int dmx,dmy,dmz,dnx,dny,dnz;
+  int t1ny,t2ny,t1nz,t2nz;
+  
+  double r2,rlcx,rlcy,rlcx,rlcx2,rlcy2,rlcx2,cutnb,cutnb2;
+  
+  int *ptrmask=NULL,*ptrcell=NULL,*cell=NULL,*tempcell,*xu=NULL,*yu=NULL,*zu=NULL;
+  
+  xu=(double*)malloc(simulCond->natom*sizeof(*xu));
+  yu=(double*)malloc(simulCond->natom*sizeof(*yu));
+  zu=(double*)malloc(simulCond->natom*sizeof(*zu));;
+  
+  cutnb=simulCond->cutoff+simulCond->delr;
+  cutnb2=X2(cutnb);
+  
+  nlcx=(int)(box->pa*(double)simulCond->linkRatio/cutnb);
+  nlcy=(int)(box->pb*(double)simulCond->linkRatio/cutnb);
+  nlcz=(int)(box->pc*(double)simulCond->linkRatio/cutnb);
+  
+  ff->ncells=nlcx*nlcy*nlcz;
+  
+  dnlcx=(double)nlcx;
+  dnlcy=(double)nlcy;
+  dnlcz=(double)nlcz;
+  
+  rlcx=box->pa*dnlcx;
+  rlcy=box->pb*dnlcy;
+  rlcz=box->pc*dnlcz;
+  
+  rlcx2=X2(rlcx);
+  rlcy2=X2(rlcy);
+  rlcz2=X2(rlcz);
+  
+  stripes=(int)(1.5*PI*cutnb2*dnlcy*dnlcz/(box->pb*box->pc));
+  atpercell=(int)(1.5*simulCond->natom/ff->ncells);
+  
+  ptrmask=(int*)malloc(2*stripes*sizeof(*ptrmask));
+  for(i=0;i<2*stripes;i++)
+    ptrmask[i]=-1;
+  
+  cell=(int*)malloc(simulCond->natom*sizeof(*cell));
+  tempcell=(int*)malloc(ff->ncells*atpercell*sizeof(*tempcell));
+  
+  ptrcell=(int*)malloc((ff->ncells+1)*sizeof(*ptrcell));
+  for(i=0;i<ff->ncells+1;i++)
+    ptrcell[i]=i*atpercell;
+  
+  ptrcell[ff->ncells]=simulCond->natom+1;
+  
+  k=0;
+  for(dm=1;dm<ff->ncells-1;dm++)
+  {
+    
+    dmz=(int)( dm / ( nlcx * nlcy ) ) ;
+    dmy=(int)( ( dm % ( nlcx * nlcy ) ) / nlcx ) ;
+    dmx= dm % nlcx ;
+    
+    dnx=abs(dmx-nclx*nint((double)dmx/(double)nclx));
+    
+    if( ( dmx==0 ) || ( ( dmy==ncly-1 ) && ( dmz==nclz-1 ) ) )
+      dny=dmy-ncly*nint((double)dmy/(double)ncly);
+    else
+    {
+      t1ny=abs( dmy-ncly*nint((double)dmy/(double)ncly)) );
+      t2ny=abs( (dmy+1)-ncly*nint((double)(dmy+1)/(double)ncly) );
+      dny=MIN(t1ny,t2ny);
+    }
+    
+    if( ( dmz==nclz-1 ) || ( ( dmx==0 ) && ( dmy==0 ) ) )
+      dnz=dmz-nclz*nint((double)dmz/(double)nclz);
+    else
+    {
+      t1nz=abs( dmz-nclz*nint((double)dmz/(double)nclz) );
+      t2nz=abs( (dmz+1)-nclz*nint((double)(dmz+1)/(double)nclz) );
+      dnz=MIN(t1nz,t2nz);
+    }
+    
+    r=X2( MAX(dnx,1)-1 )*rclx2+X2( MAX(dny,1)-1 )*rcly2+X2( MAX(dnz,1)-1 )*rclz2;
+    
+    if(r<=cutnb2)
+    {
+      
+      if(ptrmask[k]==-1)
+	ptrmask[k]=dm;
+      
+      ptrmask[k+1]=dm;
+      
+    }
+    else
+    {
+      if(ptrmask[k]!=-1)
+	k+=2;
+    }
+    
+  }
+  
+  for(i=0;i<simulCond->natom;i++)
+  {
+    xu[i]=(atom[i].x*box->u1+atom[i].y*box->u2+atom[i].z*box->u3)+0.5;
+    yu[i]=(atom[i].x*box->v1+atom[i].y*box->v2+atom[i].z*box->v3)+0.5;
+    zu[i]=(atom[i].x*box->w1+atom[i].y*box->w2+atom[i].z*box->w3)+0.5;
+  }
+  
+  for(i=0;i<simulCond->natom;i++)
+  {
+    
+    ix=(int)dnlcx*xu[i];
+    ix=MIN(ix,nlcx-1);
+    
+    iy=(int)dnlcy*yu[i];
+    iy=MIN(iy,nlcy-1);
+    
+    iz=(int)dnlcz*zu[i];
+    iz=MIN(iz,nlcz-1);
+    
+    m=ix+nlcx*(iy+nlcy*iz);
+    
+    cell[ptrcell[m]]=i;
+    if(ptrcell[m]<(m+1)*atpercell)
+      ptrcell[m]++;
+    else
+      error(130);
+    
+  }
+  
+  for(m=0;m<ff->ncells;m++)
+  {
+    
+  }
+  
+  
+  
+  
 }
