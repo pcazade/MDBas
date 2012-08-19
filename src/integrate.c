@@ -39,6 +39,9 @@ void lf_nve(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constLi
   {
     dd=(DELTA*)malloc(simulCond->nconst*sizeof(*dd));
     
+    #ifdef _OPENMP
+    #pragma omp parallel for default(none) shared(simulCond,atom,constList,dd) private(i,ia,ib)
+    #endif
     for(i=0;i<simulCond->nconst;i++)
     {
       ia=constList[i].a;
@@ -55,6 +58,9 @@ void lf_nve(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constLi
     yo=(double*)malloc(simulCond->natom*sizeof(*yo));
     zo=(double*)malloc(simulCond->natom*sizeof(*zo));
     
+    #ifdef _OPENMP
+    #pragma omp parallel for default(none) shared(simulCond,xo,yo,zo,atom) private(i)
+    #endif
     for(i=0;i<simulCond->natom;i++)
     {
       
@@ -69,7 +75,9 @@ void lf_nve(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constLi
   }
 
 // move atoms by leapfrog algorithm
-  
+  #ifdef _OPENMP
+  #pragma omp parallel for default(none) shared(simulCond,vxu,vyu,vzu,atom) private(i)
+  #endif
   for(i=0;i<simulCond->natom;i++)
   {
     
@@ -92,6 +100,10 @@ void lf_nve(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constLi
 // Apply constraint with Shake algorithm.
 
     lf_shake(atom,simulCond,constList,dd,box);
+    
+    #ifdef _OPENMP
+    #pragma omp parallel for default(none) shared(simulCond,vxu,vyu,vzu,xo,yo,zo,atom) private(i)
+    #endif
     for(i=0;i<simulCond->natom;i++)
     {
         
@@ -111,7 +123,9 @@ void lf_nve(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constLi
   }
   
 // calculate full timestep velocity
-
+  #ifdef _OPENMP
+  #pragma omp parallel for default(none) shared(simulCond,vxu,vyu,vzu,atom) private(i)
+  #endif
   for(i=0;i<simulCond->natom;i++)
   {
     
@@ -130,7 +144,9 @@ void lf_nve(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constLi
   image_update(atom,simulCond,box);
   
 // updated velocity
-  
+  #ifdef _OPENMP
+  #pragma omp parallel for default(none) shared(simulCond,vxu,vyu,vzu,atom) private(i)
+  #endif
   for(i=0;i<simulCond->natom;i++)
   {
     
@@ -176,6 +192,9 @@ void lf_nvt_b(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *const
   vyo=(double*)malloc(simulCond->natom*sizeof(*vyo));
   vzo=(double*)malloc(simulCond->natom*sizeof(*vzo));
     
+  #ifdef _OPENMP
+  #pragma omp parallel for default(none) shared(simulCond,xo,yo,zo,vxo,vyo,vzo,atom) private(i)
+  #endif
   for(i=0;i<simulCond->natom;i++)
   {
     
@@ -195,6 +214,9 @@ void lf_nvt_b(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *const
   {
     dd=(DELTA*)malloc(simulCond->nconst*sizeof(*dd));
     
+    #ifdef _OPENMP
+    #pragma omp parallel for default(none) shared(simulCond,atom,constList,dd) private(i,ia,ib)
+    #endif
     for(i=0;i<simulCond->nconst;i++)
     {
       ia=constList[i].a;
@@ -215,6 +237,9 @@ void lf_nvt_b(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *const
   
   ts2=X2(simulCond->timeStep);
   
+  #ifdef _OPENMP
+  #pragma omp parallel for default(none) shared(simulCond,atom) private(i)
+  #endif
   for(i=0;i<simulCond->natom;i++)
   { 
     atom[i].vx+=0.5*simulCond->timeStep*atom[i].fx/atom[i].m;
@@ -236,6 +261,9 @@ void lf_nvt_b(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *const
     
 // move atoms by leapfrog algorithm
     
+    #ifdef _OPENMP
+    #pragma omp parallel for default(none) shared(simulCond,atom,xo,yo,zo,xt,yt,zt,vxo,vyo,vzo,vxu,vyu,vzu,lambda) private(i)
+    #endif
     for(i=0;i<simulCond->natom;i++)
     {
       
@@ -267,6 +295,10 @@ void lf_nvt_b(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *const
 // Apply constraint with Shake algorithm.
       
       lf_shake(atom,simulCond,constList,dd,box);
+      
+      #ifdef _OPENMP
+      #pragma omp parallel for default(none) shared(simulCond,atom,xt,yt,zt,vxu,vyu,vzu,ts2) private(i)
+      #endif
       for(i=0;i<simulCond->natom;i++)
       {
         
@@ -286,7 +318,9 @@ void lf_nvt_b(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *const
     }
     
 // calculate full timestep velocity
-
+    #ifdef _OPENMP
+    #pragma omp parallel for default(none) shared(simulCond,vxo,vyo,vzo,vxu,vyu,vzu,atom) private(i)
+    #endif
     for(i=0;i<simulCond->natom;i++)
     {
       
@@ -308,6 +342,9 @@ void lf_nvt_b(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *const
   
 // updated velocity
   
+  #ifdef _OPENMP
+  #pragma omp parallel for default(none) shared(simulCond,vxu,vyu,vzu,atom) private(i)
+  #endif
   for(i=0;i<simulCond->natom;i++)
   {
     

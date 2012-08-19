@@ -2268,15 +2268,15 @@ void link_cell_verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *
 
 }
 
-void fast_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *box);
-{
+// void fast_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *box)
+// {
   /************************************************************
    * This routine is derived from the algorithm described
    * by Tim. N. Heinz and Philippe H. Hunenberger
    * J. Comput. Chem., Vol. 25, No. 12, 1474--1486 (2004)
    * DOI: 10.1002/jcc.20071
    * **********************************************************/
-  
+/*  
   int i,j,k,dm,stripes,m,atpercell;
   int ilx,ily,ilz,nlcx,nlcy,nlcx;
   int dmx,dmy,dmz,dnx,dny,dnz;
@@ -2411,4 +2411,4 @@ void fast_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *box)
   
   
   
-}
+}*/
