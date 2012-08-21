@@ -26,18 +26,32 @@
 #define MAX(x,y) ((x)>=(y)?(x):(y))
 #define MIN(x,y) ((x)<=(y)?(x):(y))
 
-#define NOELEC 0
-#define FULL   1
-#define SHIFT1 2
-#define SHIFT2 3
-#define SWITCH 4
-
-#define NOVDW   0
-#define VFULL   1
-#define VSWITCH 2
-
 #define COSDIH  1
 #define HARMDIH 2
+
+/**
+ * it can replace some of the previous defines
+ **/
+enum ELEC_TYPE{
+  NOELEC = 0,
+  FULL   = 1,
+  SHIFT1 = 2,
+  SHIFT2 = 3,
+  SWITCH = 4
+};
+
+enum VDW_TYPE{
+  NOVDW   = 0,
+  VFULL   = 1,
+  VSWITCH = 2
+};
+
+enum BOX_TYPE{
+  NOBOX = 0,
+  CUBIC = 1, 
+  ORBIC = 2,
+  TCLIN = 3
+};
 
 typedef struct
 {
@@ -51,7 +65,7 @@ typedef struct
 
 typedef struct
 {
-  int type;
+  enum BOX_TYPE type;
   double a,a1,a2,a3,b,b1,b2,b3,c,c1,c2,c3;
   double u,u1,u2,u3,v,v1,v2,v3,w,w1,w2,w3;
   double pa,pb,pc,det,vol;
@@ -71,7 +85,7 @@ typedef struct
 typedef struct
 {
   int nBond,nAngle,nDihedral,nImproper,nUb,ncells;
-  int **verList,*verPair/*,*verCumSum*//*,npr*/,**ver14,npr14,*nParmDihe;
+  int **verList,*verPair,**ver14,npr14,*nParmDihe;
   double **parmVdw,scal14;
   double **parmBond,**parmUb,**parmAngle,**parmDihe;
   double **parmImpr;
@@ -82,7 +96,7 @@ typedef struct
   int natom,nb14,step,nsteps,degfree,firstener,listupdate;
   int printo,printtr,integrator,ens,nconst,maxcycle;
   int keyrand,seed,keytraj,keyener,keyforf,keymd,keyconsth;
-  int keyminim,maxminst,elecType,vdwType,mdNature,numDeriv;
+  int keyminim,maxminst,mdNature,numDeriv;
   int linkRatio,keylink,nolink;
   int *excludeNum,**excludeAtom;
   int *bondType,*ubType,*angleType,*diheType,*imprType;
@@ -90,6 +104,8 @@ typedef struct
   double chargeConst,cutoff,cuton,delr,tolshake;
   double lambdat,lambdap,kintemp0,taut;
   double tolminim,maxminsiz,temp,timeStep;
+  enum ELEC_TYPE elecType;
+  enum VDW_TYPE  vdwType;
 }SIMULPARAMS;
 
 typedef struct

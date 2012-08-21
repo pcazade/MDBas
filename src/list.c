@@ -52,9 +52,17 @@ void makelist(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,CONSTRAINT *const
   {
     
     if(simulCond->keylink)
+    {
+      printf("\nCalling link_cell_verlet_list_update at step %d\n",simulCond->step);
       link_cell_verlet_list_update(simulCond,atom,ff,box);
+      printf("List update done.\n\n");
+    }
     else
+    {
+      printf("\nCalling verlet_list_update at step %d\n",simulCond->step);
       verlet_list_update(simulCond,atom,ff,box);
+      printf("List update done.\n\n");
+    }
     
   }
 }
@@ -885,10 +893,6 @@ void verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *box)
 	if(!exclude)
 	{
 	  
-	  /*if(ff->verPair[i]>=nalloc)
-	    ff->verList[i]=(int*)realloc(ff->verList[i],(nalloc+incr)*sizeof(**(ff->verList)));
-	  else if(ff->verPair[i]>=nalloc+incr)
-	    error(120);*/
 	  if(ff->verPair[i]>=nalloc)
 	    error(120);
 	  
@@ -900,13 +904,6 @@ void verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *box)
     }
     ff->verList[i]=(int*)realloc(ff->verList[i],ff->verPair[i]*sizeof(**(ff->verList)));
   }
-
-/*#ifdef _OPENMP
-  ff->verCumSum=(int*)malloc((simulCond->natom-1)*sizeof(*(ff->verCumSum)));
-  ff->verCumSum[0] = 0;
-  for(i=1;i<simulCond->natom-1;i++)
-    ff->verCumSum[i] = ff->verCumSum[i-1] + ff->verPair[i-1];
-#endif*/
 
 }
 
@@ -948,11 +945,7 @@ void verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *bo
 	  }
 	  if(!exclude)
 	  {
-	    
-	    /*if(ff->verPair[i]>=nalloc)
-	      ff->verList[i]=(int*)realloc(ff->verList[i],(nalloc+incr)*sizeof(**(ff->verList)));
-	    else if(ff->verPair[i]>=nalloc+incr)
-	      error(120);*/
+
 	    if(ff->verPair[i]>=nalloc)
 	      error(120);
 	    
@@ -969,12 +962,6 @@ void verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *bo
   
   for(i=0;i<simulCond->natom-1;i++)
     ff->verList[i]=(int*)realloc(ff->verList[i],ff->verPair[i]*sizeof(**(ff->verList)));
-
-/*#ifdef _OPENMP
-  ff->verCumSum[0] = 0;
-  for(i=1;i<simulCond->natom-1;i++)
-    ff->verCumSum[i] = ff->verCumSum[i-1] + ff->verPair[i-1];
-#endif*/
 
 }
 
@@ -1728,6 +1715,9 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC 
 
   ff->verList=(int**)malloc(simulCond->natom*sizeof(*(ff->verList)));
   
+  #ifdef _OPENMP
+  #pragma omp parallel for default(none) shared(simulCond,ff,nalloc) private(i)
+  #endif
   for(i=0;i<simulCond->natom;i++)
   {
     ff->verList[i]=(int*)malloc(nalloc*sizeof(**(ff->verList)));
@@ -1774,6 +1764,9 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC 
   
   int* link=(int*)malloc(simulCond->natom*sizeof(*link));
   
+  #ifdef _OPENMP
+  #pragma omp parallel for default(none) shared(simulCond,ff,nalloc,link) private(i)
+  #endif
   for(i=0;i<simulCond->natom;i++)
   {
     link[i]=-1;
@@ -1788,6 +1781,9 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC 
   
   image_update(atom,simulCond,box); //if new job.
   
+  #ifdef _OPENMP
+  #pragma omp parallel for default(none) shared(simulCond,atom,box,xu,yu,zu) private(i)
+  #endif
   for(i=0;i<simulCond->natom;i++)
   {
     xu[i]=(atom[i].x*box->u1+atom[i].y*box->u2+atom[i].z*box->u3)+0.5;
@@ -1795,6 +1791,9 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC 
     zu[i]=(atom[i].x*box->w1+atom[i].y*box->w2+atom[i].z*box->w3)+0.5;
   }
   
+  #ifdef _OPENMP
+  #pragma omp parallel for default(none) shared(simulCond,xu,yu,zu,nlcx,nlcy,nlcz,dnlcx,dnlcy,dnlcz,head,link) private(i,ix,iy,iz,icell,j)
+  #endif
   for(i=0;i<simulCond->natom;i++)
   {
     
@@ -1809,10 +1808,18 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC 
     
     icell=ix+nlcx*(iy+nlcy*iz);
     
-    j=head[icell];
-    head[icell]=i;
-    link[i]=j;
-  }
+    #ifdef _OPENMP
+    #pragma omp critical
+    {
+      #endif
+      j=head[icell];
+      head[icell]=i;
+      link[i]=j;
+      #ifdef _OPENMP
+    }
+    #endif
+    
+  }//end for
   
   ix=0;
   iy=0;
@@ -1952,6 +1959,9 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC 
     
   }//for ncells
   
+  #ifdef _OPENMP
+  #pragma omp parallel for default(none) shared(simulCond,ff) private(i)
+  #endif
   for(i=0;i<simulCond->natom;i++)
     ff->verList[i]=(int*)realloc(ff->verList[i],ff->verPair[i]*sizeof(**(ff->verList)));
   
@@ -2039,6 +2049,9 @@ void link_cell_verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *
   nalloc = MIN(nalloc,MAXLIST);
   /*incr=nalloc;*/
   
+  #ifdef _OPENMP
+  #pragma omp parallel for default(none) shared(simulCond,ff,nalloc) private(i)
+  #endif
   for(i=0;i<simulCond->natom;i++)
   {
     ff->verList[i]=(int*)realloc(ff->verList[i],nalloc*sizeof(**(ff->verList)));
@@ -2082,6 +2095,9 @@ void link_cell_verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *
   
   int* link=(int*)malloc(simulCond->natom*sizeof(*link));
   
+  #ifdef _OPENMP
+  #pragma omp parallel for default(none) shared(simulCond,ff,nalloc,link) private(i)
+  #endif
   for(i=0;i<simulCond->natom;i++)
   {
     link[i]=-1;
@@ -2094,6 +2110,10 @@ void link_cell_verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *
     head[i]=-1;
   }
   
+  
+  #ifdef _OPENMP
+  #pragma omp parallel for default(none) shared(simulCond,atom,box,xu,yu,zu) private(i)
+  #endif
   for(i=0;i<simulCond->natom;i++)
   {
     xu[i]=(atom[i].x*box->u1+atom[i].y*box->u2+atom[i].z*box->u3)+0.5;
@@ -2101,6 +2121,9 @@ void link_cell_verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *
     zu[i]=(atom[i].x*box->w1+atom[i].y*box->w2+atom[i].z*box->w3)+0.5;
   }
   
+  #ifdef _OPENMP
+  #pragma omp parallel for default(none) shared(simulCond,xu,yu,zu,nlcx,nlcy,nlcz,dnlcx,dnlcy,dnlcz,head,link) private(i,ix,iy,iz,icell,j)
+  #endif
   for(i=0;i<simulCond->natom;i++)
   {
     
@@ -2114,12 +2137,19 @@ void link_cell_verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *
     iz=MIN(iz,nlcz-1);
     
     icell=ix+nlcx*(iy+nlcy*iz);
-    
+
+    #ifdef _OPENMP
+    #pragma omp critical
+    {
+    #endif
     j=head[icell];
     head[icell]=i;
     link[i]=j;
-    
-  }
+    #ifdef _OPENMP
+    }
+    #endif
+
+  } //end for
   
   ix=0;
   iy=0;
@@ -2259,6 +2289,9 @@ void link_cell_verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *
     
   }//for ncells
   
+  #ifdef _OPENMP
+  #pragma omp parallel for default(none) shared(simulCond,ff) private(i)
+  #endif
   for(i=0;i<simulCond->natom;i++)
     ff->verList[i]=(int*)realloc(ff->verList[i],ff->verPair[i]*sizeof(**(ff->verList)));
   

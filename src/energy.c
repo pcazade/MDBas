@@ -199,8 +199,7 @@ void nonbond_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
 
   #pragma omp parallel default(none) shared(atom,ff,simulCond,box,coulomb,vdw) private(i,j,k,delec,dvdw,r,fx,fy,fz,fxi,fyi,fzi,delta) reduction(+:elec,evdw)
   {
-    #pragma omp for schedule(dynamic) nowait
-    
+  #pragma omp for schedule(dynamic) nowait
   #endif
     for(i=0;i<simulCond->natom;i++)
     {
@@ -261,10 +260,10 @@ void nonbond_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
       #endif
       atom[i].fz+=fzi;
       
-    }
+    } //end of parallel for
     
   #ifdef _OPENMP
-  }
+  } //end of parallel region
   #endif
   
   ener->elec+=elec;

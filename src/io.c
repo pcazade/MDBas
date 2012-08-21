@@ -43,8 +43,8 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff,PBC *box)
   simulCond->keyrand=0;
   simulCond->seed=12345;
   
-  simulCond->elecType=1;
-  simulCond->vdwType=1;
+  simulCond->elecType=FULL;
+  simulCond->vdwType=VFULL;
   simulCond->nb14=0;
   ff->scal14=1.0;
   simulCond->numDeriv=0;
@@ -177,15 +177,15 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff,PBC *box)
       nocase(buff3);
       
       if(!strcmp(buff3,"noelec"))
-	simulCond->elecType=0;
+	simulCond->elecType=NOELEC;
       else if(!strcmp(buff3,"full"))
-	simulCond->elecType=1;
+	simulCond->elecType=FULL;
       else if(!strcmp(buff3,"shift1"))
-	simulCond->elecType=2;
+	simulCond->elecType=SHIFT1;
       else if(!strcmp(buff3,"shift2"))
-	simulCond->elecType=3;
+	simulCond->elecType=SHIFT2;
       else if(!strcmp(buff3,"switch"))
-	simulCond->elecType=4;
+	simulCond->elecType=SWITCH;
       else
 	error(62);
     }
@@ -198,11 +198,11 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff,PBC *box)
       nocase(buff3);
       
       if(!strcmp(buff3,"novdw"))
-	simulCond->vdwType=0;
+	simulCond->vdwType=NOVDW;
       else if(!strcmp(buff3,"full"))
-	simulCond->vdwType=1;
+	simulCond->vdwType=VFULL;
       else if(!strcmp(buff3,"switch"))
-	simulCond->vdwType=2;
+	simulCond->vdwType=VSWITCH;
       else
 	error(62);
     }

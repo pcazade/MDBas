@@ -15,31 +15,36 @@ double distance(int i,int j, ATOM *atom,double *delta,SIMULPARAMS *simulCond,PBC
   delta[1]=atom[j].y-atom[i].y;
   delta[2]=atom[j].z-atom[i].z;
   
-  if(box->type==1)
+  switch(box->type)
   {
-    delta[0]-=box->a1*nint(delta[0]/box->a1);
-    delta[1]-=box->a1*nint(delta[1]/box->a1);
-    delta[2]-=box->a1*nint(delta[2]/box->a1);
-  }
-  else if(box->type==2)
-  {
-    delta[0]-=box->a1*nint(delta[0]/box->a1);
-    delta[1]-=box->b2*nint(delta[1]/box->b2);
-    delta[2]-=box->c3*nint(delta[2]/box->c3);
-  }
-  else if(box->type==3)
-  {
-    xt=delta[0]*box->u1+delta[1]*box->u2+delta[2]*box->u3;
-    yt=delta[0]*box->v1+delta[1]*box->v2+delta[2]*box->v3;
-    zt=delta[0]*box->w1+delta[1]*box->w2+delta[2]*box->w3;
+    case CUBIC:
+      delta[0]-=box->a1*nint(delta[0]*box->u1);
+      delta[1]-=box->a1*nint(delta[1]*box->u1);
+      delta[2]-=box->a1*nint(delta[2]*box->u1);
+    break;
     
-    xt-=nint(xt);
-    yt-=nint(yt);
-    zt-=nint(zt);
+    case ORBIC:
+      delta[0]-=box->a1*nint(delta[0]*box->u1);
+      delta[1]-=box->b2*nint(delta[1]*box->v2);
+      delta[2]-=box->c3*nint(delta[2]*box->w3);
+    break;
     
-    delta[0]=xt*box->a1+yt*box->b1+zt*box->c1;
-    delta[1]=xt*box->a2+yt*box->b2+zt*box->c2;
-    delta[2]=xt*box->a3+yt*box->b3+zt*box->c3;
+    case TCLIN:
+      xt=delta[0]*box->u1+delta[1]*box->u2+delta[2]*box->u3;
+      yt=delta[0]*box->v1+delta[1]*box->v2+delta[2]*box->v3;
+      zt=delta[0]*box->w1+delta[1]*box->w2+delta[2]*box->w3;
+      
+      xt-=nint(xt);
+      yt-=nint(yt);
+      zt-=nint(zt);
+      
+      delta[0]=xt*box->a1+yt*box->b1+zt*box->c1;
+      delta[1]=xt*box->a2+yt*box->b2+zt*box->c2;
+      delta[2]=xt*box->a3+yt*box->b3+zt*box->c3;
+    break;
+    
+    default:
+    break;
   }
   
   r=sqrt(X2(delta[0])+X2(delta[1])+X2(delta[2]));
@@ -56,31 +61,36 @@ double distance2(int i,int j, ATOM *atom,DELTA *d,SIMULPARAMS *simulCond,PBC *bo
   d->y=atom[j].y-atom[i].y;
   d->z=atom[j].z-atom[i].z;
   
-  if(box->type==1)
+  switch(box->type)
   {
-    d->x-=box->a1*nint(d->x/box->a1);
-    d->y-=box->a1*nint(d->y/box->a1);
-    d->z-=box->a1*nint(d->z/box->a1);
-  }
-  else if(box->type==2)
-  {
-    d->x-=box->a1*nint(d->x/box->a1);
-    d->y-=box->b2*nint(d->y/box->b2);
-    d->z-=box->c3*nint(d->z/box->c3);
-  }
-  else if(box->type==3)
-  {
-    xt=d->x*box->u1+d->y*box->u2+d->z*box->u3;
-    yt=d->x*box->v1+d->y*box->v2+d->z*box->v3;
-    zt=d->x*box->w1+d->y*box->w2+d->z*box->w3;
-    
-    xt-=nint(xt);
-    yt-=nint(yt);
-    zt-=nint(zt);
-    
-    d->x=xt*box->a1+yt*box->b1+zt*box->c1;
-    d->y=xt*box->a2+yt*box->b2+zt*box->c2;
-    d->z=xt*box->a3+yt*box->b3+zt*box->c3;
+    case CUBIC:
+      d->x-=box->a1*nint(d->x*box->u1);
+      d->y-=box->a1*nint(d->y*box->u1);
+      d->z-=box->a1*nint(d->z*box->u1);
+      break;
+      
+    case ORBIC:
+      d->x-=box->a1*nint(d->x*box->u1);
+      d->y-=box->b2*nint(d->y*box->v2);
+      d->z-=box->c3*nint(d->z*box->w3);
+    break;
+      
+    case TCLIN:
+      xt=d->x*box->u1+d->y*box->u2+d->z*box->u3;
+      yt=d->x*box->v1+d->y*box->v2+d->z*box->v3;
+      zt=d->x*box->w1+d->y*box->w2+d->z*box->w3;
+      
+      xt-=nint(xt);
+      yt-=nint(yt);
+      zt-=nint(zt);
+      
+      d->x=xt*box->a1+yt*box->b1+zt*box->c1;
+      d->y=xt*box->a2+yt*box->b2+zt*box->c2;
+      d->z=xt*box->a3+yt*box->b3+zt*box->c3;
+    break;
+      
+    default:
+      break;
   }
   
   r2=( X2(d->x)+X2(d->y)+X2(d->z) );
@@ -269,46 +279,54 @@ void image_update(ATOM *atom,SIMULPARAMS *simulCond,PBC *box)
   int i;
   double xt,yt,zt;
   
-  if(box->type==1)
+  switch(box->type)
   {
-    
-    for(i=0;i<simulCond->natom;i++)
-    {
-      atom[i].x=atom[i].x-box->a1*nint(atom[i].x/box->a1);
-      atom[i].y=atom[i].y-box->a1*nint(atom[i].y/box->a1);
-      atom[i].z=atom[i].z-box->a1*nint(atom[i].z/box->a1);
-    }
-    
-  }
-  else if(box->type==2)
-  {
-    
-    for(i=0;i<simulCond->natom;i++)
-    {
-      atom[i].x=atom[i].x-box->a1*nint(atom[i].x/box->a1);
-      atom[i].y=atom[i].y-box->b2*nint(atom[i].y/box->b2);
-      atom[i].z=atom[i].z-box->c3*nint(atom[i].z/box->c3);
-    }
-    
-  }
-  else if(box->type==3)
-  {
-    
-    for(i=0;i<simulCond->natom;i++)
-    {
-      xt=atom[i].x*box->u1+atom[i].y*box->u2+atom[i].z*box->u3;
-      yt=atom[i].x*box->v1+atom[i].y*box->v2+atom[i].z*box->v3;
-      zt=atom[i].x*box->w1+atom[i].y*box->w2+atom[i].z*box->w3;
-    
-      xt-=nint(xt);
-      yt-=nint(yt);
-      zt-=nint(zt);
-    
-      atom[i].x=xt*box->a1+yt*box->b1+zt*box->c1;
-      atom[i].y=xt*box->a2+yt*box->b2+zt*box->c2;
-      atom[i].z=xt*box->a3+yt*box->b3+zt*box->c3;
-    }
-    
+    case CUBIC:
+      #ifdef _OPENMP
+      #pragma omp parallel for default(none) shared(simulCond,atom,box) private(i)
+      #endif
+      for(i=0;i<simulCond->natom;i++)
+      {
+	atom[i].x=atom[i].x-box->a1*nint(atom[i].x*box->u1);
+	atom[i].y=atom[i].y-box->a1*nint(atom[i].y*box->u1);
+	atom[i].z=atom[i].z-box->a1*nint(atom[i].z*box->u1);
+      }
+    break;
+      
+    case ORBIC:
+      #ifdef _OPENMP
+      #pragma omp parallel for default(none) shared(simulCond,atom,box) private(i)
+      #endif
+      for(i=0;i<simulCond->natom;i++)
+      {
+	atom[i].x=atom[i].x-box->a1*nint(atom[i].x*box->u1);
+	atom[i].y=atom[i].y-box->b2*nint(atom[i].y*box->v2);
+	atom[i].z=atom[i].z-box->c3*nint(atom[i].z*box->w3);
+      }
+    break;
+      
+    case TCLIN:
+      #ifdef _OPENMP
+      #pragma omp parallel for default(none) shared(simulCond,atom,box) private(i,xt,yt,zt)
+      #endif
+      for(i=0;i<simulCond->natom;i++)
+      {
+	xt=atom[i].x*box->u1+atom[i].y*box->u2+atom[i].z*box->u3;
+	yt=atom[i].x*box->v1+atom[i].y*box->v2+atom[i].z*box->v3;
+	zt=atom[i].x*box->w1+atom[i].y*box->w2+atom[i].z*box->w3;
+	
+	xt-=nint(xt);
+	yt-=nint(yt);
+	zt-=nint(zt);
+	
+	atom[i].x=xt*box->a1+yt*box->b1+zt*box->c1;
+	atom[i].y=xt*box->a2+yt*box->b2+zt*box->c2;
+	atom[i].z=xt*box->a3+yt*box->b3+zt*box->c3;
+      }
+    break;
+      
+    default:
+    break;
   }
   
 }
@@ -319,57 +337,66 @@ void image_array(int size_array,DELTA *d,SIMULPARAMS *simulCond,PBC *box)
   int i;
   double xt,yt,zt;
   
-  if(box->type==1)
+  switch(box->type)
   {
-    
-    for(i=0;i<size_array;i++)
-    {
-      d[i].x-=box->a1*nint(d[i].x/box->a1);
-      d[i].y-=box->a1*nint(d[i].y/box->a1);
-      d[i].z-=box->a1*nint(d[i].z/box->a1);
-    }
-    
-  }
-  else if(box->type==2)
-  {
-    
-    for(i=0;i<size_array;i++)
-    {
-      d[i].x-=box->a1*nint(d[i].x/box->a1);
-      d[i].y-=box->b2*nint(d[i].y/box->b2);
-      d[i].z-=box->c3*nint(d[i].z/box->c3);
-    }
-    
-  }
-  else if(box->type==3)
-  {
-    
-    for(i=0;i<size_array;i++)
-    {
-      xt=d[i].x*box->u1+d[i].y*box->u2+d[i].z*box->u3;
-      yt=d[i].x*box->v1+d[i].y*box->v2+d[i].z*box->v3;
-      zt=d[i].x*box->w1+d[i].y*box->w2+d[i].z*box->w3;
-    
-      xt-=nint(xt);
-      yt-=nint(yt);
-      zt-=nint(zt);
-    
-      d[i].x=xt*box->a1+yt*box->b1+zt*box->c1;
-      d[i].y=xt*box->a2+yt*box->b2+zt*box->c2;
-      d[i].z=xt*box->a3+yt*box->b3+zt*box->c3;
-    }
-    
+    case CUBIC:
+      #ifdef _OPENMP
+      #pragma omp parallel for default(none) shared(size_array,box,d) private(i)
+      #endif
+      for(i=0;i<size_array;i++)
+      {
+	d[i].x-=box->a1*nint(d[i].x*box->u1);
+	d[i].y-=box->a1*nint(d[i].y*box->u1);
+	d[i].z-=box->a1*nint(d[i].z*box->u1);
+      }
+    break;
+      
+    case ORBIC:
+      #ifdef _OPENMP
+      #pragma omp parallel for default(none) shared(size_array,box,d) private(i)
+      #endif
+      for(i=0;i<size_array;i++)
+      {
+	d[i].x-=box->a1*nint(d[i].x*box->u1);
+	d[i].y-=box->b2*nint(d[i].y*box->v2);
+	d[i].z-=box->c3*nint(d[i].z*box->w3);
+      }
+    break;
+      
+    case TCLIN:
+      #ifdef _OPENMP
+      #pragma omp parallel for default(none) shared(size_array,box,d) private(i,xt,yt,zt)
+      #endif
+      for(i=0;i<size_array;i++)
+      {
+	xt=d[i].x*box->u1+d[i].y*box->u2+d[i].z*box->u3;
+	yt=d[i].x*box->v1+d[i].y*box->v2+d[i].z*box->v3;
+	zt=d[i].x*box->w1+d[i].y*box->w2+d[i].z*box->w3;
+	
+	xt-=nint(xt);
+	yt-=nint(yt);
+	zt-=nint(zt);
+	
+	d[i].x=xt*box->a1+yt*box->b1+zt*box->c1;
+	d[i].y=xt*box->a2+yt*box->b2+zt*box->c2;
+	d[i].z=xt*box->a3+yt*box->b3+zt*box->c3;
+      }
+    break;
+      
+    default:
+    break;
   }
   
 }
 
 void init_box(PBC *box)
 {
-  
+  // get norm
   box->a=sqrt(X2(box->a1)+X2(box->a2)+X2(box->a3));
   box->b=sqrt(X2(box->b1)+X2(box->b2)+X2(box->b3));
   box->c=sqrt(X2(box->c1)+X2(box->c2)+X2(box->c3));
   
+  // computes Wigner-Seitz cell
   box->u1=box->b2*box->c3-box->c2*box->b3;
   box->u2=box->c1*box->b3-box->b1*box->c3;
   box->u3=box->b1*box->c2-box->c1*box->b2;
@@ -382,10 +409,14 @@ void init_box(PBC *box)
   box->w2=box->b1*box->a3-box->a1*box->b3;
   box->w3=box->a1*box->b2-box->b1*box->a2;
   
+  // determinant
   box->det=box->a1*box->u1+box->a2*box->u2+box->a3*box->u3;
-  
+  // volume
   box->vol=fabs(box->det);
   
+  /* obtain parameters of a virutal orthorombic cell containing
+   * the triclinic cell
+   */
   box->pa=box->vol/sqrt(X2(box->u1)+X2(box->u2)+X2(box->u3));
   box->pb=box->vol/sqrt(X2(box->v1)+X2(box->v2)+X2(box->v3));
   box->pc=box->vol/sqrt(X2(box->w1)+X2(box->w2)+X2(box->w3));
@@ -394,6 +425,7 @@ void init_box(PBC *box)
   box->v=1.0/box->pb;
   box->w=1.0/box->pc;
   
+  // normalise Wigner-Seitz vectors
   if(fabs(box->det)>0.)
   {
     box->u1/=box->det;
@@ -410,6 +442,7 @@ void init_box(PBC *box)
   }
   else
   {
+    // avoid div by 0
     box->u1=0.0;
     box->v1=0.0;
     box->w1=0.0;
@@ -458,7 +491,7 @@ void get_degfree(ATOM *atom,SIMULPARAMS *simulCond,PBC *box)
   simulCond->degfree=3*simulCond->natom-3;
   
 //   -3 degrees of freedpm for the box rotation when no PBC.
-  if(box->type==0)
+  if(box->type==NOBOX)
     simulCond->degfree-=3;
   
   if(simulCond->nconst>0)
