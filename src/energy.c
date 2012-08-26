@@ -191,9 +191,9 @@ void nonbond_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
 {
   
   int i,j,k;
-  double elec=0.,evdw=0.,delec=0.,dvdw=0.;
+  double elec=0.,evdw=0.,delec=0.,dvdw=0.,virelec=0.,virvdw=0.;
   double r,fx,fy,fz,fxi,fyi,fzi;
-  double delta[3];
+  double delta[3],stress[6]={0.};
   
   #ifdef _OPENMP
 
@@ -218,6 +218,9 @@ void nonbond_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
 	  elec+=(*coulomb)(atom,ff,/*ener,*/simulCond,box,i,j,r,&delec);
 	  evdw+=(*vdw)(atom,ff,/*ener,*/simulCond,box,i,j,r,&dvdw);
 	  
+	  virelec+=delec*r;
+	  virvdw+=dvdw*r;
+	  
           fx=(delec+dvdw)*delta[0]/r;
 	  fy=(delec+dvdw)*delta[1]/r;
 	  fz=(delec+dvdw)*delta[2]/r;
@@ -225,6 +228,13 @@ void nonbond_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
 	  fxi+=fx;
 	  fyi+=fy;
 	  fzi+=fz;
+	  
+	  stress[0]-=fx*delta[0];
+	  stress[1]-=fy*delta[0];
+	  stress[2]-=fz*delta[0];
+	  stress[3]-=fy*delta[1];
+	  stress[4]-=fz*delta[1];
+	  stress[5]-=fz*delta[2];
 	  
 	  #ifdef _OPENMP
 	  #pragma omp atomic
@@ -269,15 +279,25 @@ void nonbond_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
   ener->elec+=elec;
   ener->vdw+=evdw;
   
+  ener->virelec+=virelec;
+  ener->virvdw+=virvdw;
+  
+  box->stress1+=stress[0];
+  box->stress2+=stress[1];
+  box->stress3+=stress[2];
+  box->stress4+=stress[3];
+  box->stress5+=stress[4];
+  box->stress6+=stress[5];
+  
 }
 
 void nonbond14_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
   
   int i,j,k;
-  double elec=0.,evdw=0.,delec=0.,dvdw=0.;
+  double elec=0.,evdw=0.,delec=0.,dvdw=0.,virelec=0.,virvdw=0.;
   double r,fx,fy,fz;
-  double delta[3];
+  double delta[3],stress[6]={0.};
   
   for(k=0;k<ff->npr14;k++)
   {
@@ -291,10 +311,20 @@ void nonbond14_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulC
       
     elec+=(*coulomb14)(atom,ff,/*ener,*/simulCond,box,i,j,r,&delec);
     evdw+=(*vdw14)(atom,ff,/*ener,*/simulCond,box,i,j,r,&dvdw);
+    
+    virelec+=delec*r;
+    virvdw+=dvdw*r;
       
     fx=(delec+dvdw)*delta[0]/r;
     fy=(delec+dvdw)*delta[1]/r;
     fz=(delec+dvdw)*delta[2]/r;
+    
+    stress[0]-=fx*delta[0];
+    stress[1]-=fy*delta[0];
+    stress[2]-=fz*delta[0];
+    stress[3]-=fy*delta[1];
+    stress[4]-=fz*delta[1];
+    stress[5]-=fz*delta[2];
   
     atom[i].fx+=fx;
     atom[i].fy+=fy;
@@ -308,5 +338,15 @@ void nonbond14_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulC
   
   ener->elec+=elec;
   ener->vdw+=evdw;
+  
+  ener->virelec+=virelec;
+  ener->virvdw+=virvdw;
+  
+  box->stress1+=stress[0];
+  box->stress2+=stress[1];
+  box->stress3+=stress[2];
+  box->stress4+=stress[3];
+  box->stress5+=stress[4];
+  box->stress6+=stress[5];
 
 }
