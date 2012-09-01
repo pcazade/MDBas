@@ -2301,23 +2301,40 @@ void link_cell_verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *
 
 }
 
-// void fast_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *box)
-// {
+void fast_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *box)
+{
   /************************************************************
    * This routine is derived from the algorithm described
    * by Tim. N. Heinz and Philippe H. Hunenberger
    * J. Comput. Chem., Vol. 25, No. 12, 1474--1486 (2004)
    * DOI: 10.1002/jcc.20071
    * **********************************************************/
-/*  
-  int i,j,k,dm,stripes,m,atpercell;
+  
+  int i,j,k,kk,m,dm,s,m1,m2,stripes,atpercell;
   int ilx,ily,ilz,nlcx,nlcy,nlcx;
   int dmx,dmy,dmz,dnx,dny,dnz;
   int t1ny,t2ny,t1nz,t2nz;
+  int exclude,nalloc;
   
-  double r2,rlcx,rlcy,rlcx,rlcx2,rlcy2,rlcx2,cutnb,cutnb2;
+  double r,r2,rlcx,rlcy,rlcx,rlcx2,rlcy2,rlcx2,cutnb,cutnb2;
   
   int *ptrmask=NULL,*ptrcell=NULL,*cell=NULL,*tempcell,*xu=NULL,*yu=NULL,*zu=NULL;
+  
+  nalloc = (int) ( 1.5*simulCond->natom*4./3.*PI*X3(cutnb)/box->vol );
+  nalloc = MIN(nalloc,MAXLIST);
+  
+  ff->verPair=(int*)malloc(simulCond->natom*sizeof(*(ff->verPair)));
+
+  ff->verList=(int**)malloc(simulCond->natom*sizeof(*(ff->verList)));
+  
+  #ifdef _OPENMP
+  #pragma omp parallel for default(none) shared(simulCond,ff,nalloc) private(i)
+  #endif
+  for(i=0;i<simulCond->natom;i++)
+  {
+    ff->verList[i]=(int*)malloc(nalloc*sizeof(**(ff->verList)));
+    ff->verPair[i]=0;
+  }
   
   xu=(double*)malloc(simulCond->natom*sizeof(*xu));
   yu=(double*)malloc(simulCond->natom*sizeof(*yu));
@@ -2358,7 +2375,7 @@ void link_cell_verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *
   for(i=0;i<ff->ncells+1;i++)
     ptrcell[i]=i*atpercell;
   
-  ptrcell[ff->ncells]=simulCond->natom+1;
+  ptrcell[ff->ncells]=simulCond->natom;
   
   k=0;
   for(dm=1;dm<ff->ncells-1;dm++)
@@ -2436,12 +2453,86 @@ void link_cell_verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *
     
   }
   
+  k=ptrcell[0];
+  ptrcell[0]=0;
+  for(m=1;m<ff->ncells;m++)
+  {
+    j=ptrcell[m];
+    ptrcell[m]=k;
+    for(i=m*atpercell;i<j;i++)
+    {
+      cell[k]=cell[i];
+      k++;
+    }
+  }
+  
+  cell=(int*)realloc(cell,ff->natom*sizeof(*cell));
+  
   for(m=0;m<ff->ncells;m++)
   {
-    
+    for(i=ptrcell[m];i<ptrcell[m+1];i++)
+    {
+      for(j=i+1;i<ptrcell[m+1];i++)
+      {
+// 	r=distance(i,j,atom,delta,simulCond,box);
+// 	if(r<=cutnb) if rcell<=cutnb as it should be, this test is not necessary.
+// 	{
+	  exclude=0;
+	  for (kk=0;kk<simulCond->excludeNum[i];kk++)
+	  {
+	    if(simulCond->excludeAtom[i][kk]==j)
+	    {
+	      exclude=1;
+	      break;
+	    }
+	  }
+	  
+	  if(!exclude)
+	  {
+	    if(ff->verPair[i]>=nalloc)
+	      error(120);
+	    
+	    ff->verList[i][ff->verPair[i]]=j;
+	    ff->verPair[i]++;
+	  }
+// 	}
+      }
+      
+      for(s=0;s<stripes)
+      {
+	m1=m+ptrmask[2*s]
+	if(m1<ff->ncells)
+	{
+	  m2=MIN(m+ptrmask[2*s+1],ff->ncells-1)
+	  for(j=ptrcell[m1];j<ptrcell[m2+1];j++)
+	  {
+	    r=distance(i,j,atom,delta,simulCond,box);
+	    if(r<=cutnb)
+	    {
+	      exclude=0;
+	      for (kk=0;kk<simulCond->excludeNum[i];kk++)
+	      {
+		if(simulCond->excludeAtom[i][kk]==j)
+		{
+		  exclude=1;
+		  break;
+		}
+	      }
+	      
+	      if(!exclude)
+	      {
+		if(ff->verPair[i]>=nalloc)
+		  error(120);
+		
+		ff->verList[i][ff->verPair[i]]=j;
+		ff->verPair[i]++;
+	      }
+	    }
+	  }
+	}
+      }
+    }
   }
   
   
-  
-  
-}*/
+}
