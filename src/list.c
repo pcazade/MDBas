@@ -2327,9 +2327,6 @@ void fast_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *box)
 
   ff->verList=(int**)malloc(simulCond->natom*sizeof(*(ff->verList)));
   
-  #ifdef _OPENMP
-  #pragma omp parallel for default(none) shared(simulCond,ff,nalloc) private(i)
-  #endif
   for(i=0;i<simulCond->natom;i++)
   {
     ff->verList[i]=(int*)malloc(nalloc*sizeof(**(ff->verList)));

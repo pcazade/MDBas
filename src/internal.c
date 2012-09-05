@@ -35,23 +35,23 @@ void bond_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,P
     atom[j].fy+=-fy;
     atom[j].fz+=-fz;
     
-    stress[0]-=fx*delta[0];
+    /*stress[0]-=fx*delta[0];
     stress[1]-=fy*delta[0];
     stress[2]-=fz*delta[0];
     stress[3]-=fy*delta[1];
     stress[4]-=fz*delta[1];
-    stress[5]-=fz*delta[2];
+    stress[5]-=fz*delta[2];*/
     
   }
   
   ener->virbond+=virbond;
   
-  box->stress1+=stress[0];
+  /*box->stress1+=stress[0];
   box->stress2+=stress[1];
   box->stress3+=stress[2];
   box->stress4+=stress[3];
   box->stress5+=stress[4];
-  box->stress6+=stress[5];
+  box->stress6+=stress[5];*/
   
 }
 
@@ -85,23 +85,23 @@ void ub_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC
     atom[j].fy+=-fy;
     atom[j].fz+=-fz;
     
-    stress[0]-=fx*delta[0];
+    /*stress[0]-=fx*delta[0];
     stress[1]-=fy*delta[0];
     stress[2]-=fz*delta[0];
     stress[3]-=fy*delta[1];
     stress[4]-=fz*delta[1];
-    stress[5]-=fz*delta[2];
+    stress[5]-=fz*delta[2];*/
     
   }
   
   ener->virub+=virub;
   
-  box->stress1+=stress[0];
+  /*box->stress1+=stress[0];
   box->stress2+=stress[1];
   box->stress3+=stress[2];
   box->stress4+=stress[3];
   box->stress5+=stress[4];
-  box->stress6+=stress[5];
+  box->stress6+=stress[5];*/
 }
 
 void angle_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
@@ -148,21 +148,21 @@ void angle_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,
     atom[k].fy+=fyc;
     atom[k].fz+=fzc;
     
-    stress[0]=rab*fxa*dab[0]+rbc*fxc*dbc[0];
+    /*stress[0]=rab*fxa*dab[0]+rbc*fxc*dbc[0];
     stress[1]=rab*fya*dab[0]+rbc*fyc*dbc[0];
     stress[2]=rab*fza*dab[0]+rbc*fzc*dbc[0];
     stress[3]=rab*fya*dab[1]+rbc*fyc*dbc[1];
     stress[4]=rab*fza*dab[1]+rbc*fzc*dbc[1];
-    stress[5]=rab*fza*dab[2]+rbc*fzc*dbc[2];
+    stress[5]=rab*fza*dab[2]+rbc*fzc*dbc[2];*/
     
   }
   
-  box->stress1+=stress[0];
+  /*box->stress1+=stress[0];
   box->stress2+=stress[1];
   box->stress3+=stress[2];
   box->stress4+=stress[3];
   box->stress5+=stress[4];
-  box->stress6+=stress[5];
+  box->stress6+=stress[5];*/
   
 }
 
@@ -302,21 +302,21 @@ void dihedral_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCo
     atom[l].fy+=fdy;
     atom[l].fz+=fdz;
     
-    stress[0]+=dab[0]*fax+dbc[0]*(fbx-fcx)-dcd[0]*fdx;
+    /*stress[0]+=dab[0]*fax+dbc[0]*(fbx-fcx)-dcd[0]*fdx;
     stress[1]+=dab[1]*fax+dbc[1]*(fbx-fcx)-dcd[1]*fdx; 
     stress[2]+=dab[2]*fax+dbc[2]*(fbx-fcx)-dcd[2]*fdx; 
     stress[3]+=dab[1]*fay+dbc[1]*(fby-fcy)-dcd[1]*fdy; 
     stress[4]+=dab[1]*faz+dbc[1]*(fbz-fcz)-dcd[1]*fdz; 
-    stress[5]+=dab[2]*faz+dbc[2]*(fbz-fcz)-dcd[2]*fdz; 
+    stress[5]+=dab[2]*faz+dbc[2]*(fbz-fcz)-dcd[2]*fdz; */
       
   }
   
-  box->stress1+=stress[0];
+  /*box->stress1+=stress[0];
   box->stress2+=stress[1];
   box->stress3+=stress[2];
   box->stress4+=stress[3];
   box->stress5+=stress[4];
-  box->stress6+=stress[5];
+  box->stress6+=stress[5];*/
   
 }
 
@@ -446,20 +446,20 @@ void improper_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCo
     atom[l].fy+=fdy;
     atom[l].fz+=fdz;
     
-    stress[0]+=dab[0]*fax+dbc[0]*(fbx-fcx)-dcd[0]*fdx;
+    /*stress[0]+=dab[0]*fax+dbc[0]*(fbx-fcx)-dcd[0]*fdx;
     stress[1]+=dab[1]*fax+dbc[1]*(fbx-fcx)-dcd[1]*fdx; 
     stress[2]+=dab[2]*fax+dbc[2]*(fbx-fcx)-dcd[2]*fdx; 
     stress[3]+=dab[1]*fay+dbc[1]*(fby-fcy)-dcd[1]*fdy; 
     stress[4]+=dab[1]*faz+dbc[1]*(fbz-fcz)-dcd[1]*fdz; 
-    stress[5]+=dab[2]*faz+dbc[2]*(fbz-fcz)-dcd[2]*fdz;
+    stress[5]+=dab[2]*faz+dbc[2]*(fbz-fcz)-dcd[2]*fdz;*/
         
   }
   
-  box->stress1+=stress[0];
+  /*box->stress1+=stress[0];
   box->stress2+=stress[1];
   box->stress3+=stress[2];
   box->stress4+=stress[3];
   box->stress5+=stress[4];
-  box->stress6+=stress[5];
+  box->stress6+=stress[5];*/
   
 }

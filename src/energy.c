@@ -197,7 +197,7 @@ void nonbond_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
   
   #ifdef _OPENMP
 
-  #pragma omp parallel default(none) shared(atom,ff,simulCond,box,coulomb,vdw) private(i,j,k,delec,dvdw,r,fx,fy,fz,fxi,fyi,fzi,delta) reduction(+:elec,evdw)
+  #pragma omp parallel default(none) shared(atom,ff,simulCond,box,coulomb,vdw) private(i,j,k,delec,dvdw,r,fx,fy,fz,fxi,fyi,fzi,delta) reduction(+:elec,evdw,virelec,virvdw)
   {
   #pragma omp for schedule(dynamic) nowait
   #endif
@@ -229,12 +229,12 @@ void nonbond_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
 	  fyi+=fy;
 	  fzi+=fz;
 	  
-	  stress[0]-=fx*delta[0];
+	  /*stress[0]-=fx*delta[0];
 	  stress[1]-=fy*delta[0];
 	  stress[2]-=fz*delta[0];
 	  stress[3]-=fy*delta[1];
 	  stress[4]-=fz*delta[1];
-	  stress[5]-=fz*delta[2];
+	  stress[5]-=fz*delta[2];*/
 	  
 	  #ifdef _OPENMP
 	  #pragma omp atomic
@@ -282,12 +282,12 @@ void nonbond_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
   ener->virelec+=virelec;
   ener->virvdw+=virvdw;
   
-  box->stress1+=stress[0];
+  /*box->stress1+=stress[0];
   box->stress2+=stress[1];
   box->stress3+=stress[2];
   box->stress4+=stress[3];
   box->stress5+=stress[4];
-  box->stress6+=stress[5];
+  box->stress6+=stress[5];*/
   
 }
 
@@ -319,12 +319,12 @@ void nonbond14_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulC
     fy=(delec+dvdw)*delta[1]/r;
     fz=(delec+dvdw)*delta[2]/r;
     
-    stress[0]-=fx*delta[0];
+    /*stress[0]-=fx*delta[0];
     stress[1]-=fy*delta[0];
     stress[2]-=fz*delta[0];
     stress[3]-=fy*delta[1];
     stress[4]-=fz*delta[1];
-    stress[5]-=fz*delta[2];
+    stress[5]-=fz*delta[2];*/
   
     atom[i].fx+=fx;
     atom[i].fy+=fy;
@@ -342,11 +342,11 @@ void nonbond14_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulC
   ener->virelec+=virelec;
   ener->virvdw+=virvdw;
   
-  box->stress1+=stress[0];
+  /*box->stress1+=stress[0];
   box->stress2+=stress[1];
   box->stress3+=stress[2];
   box->stress4+=stress[3];
   box->stress5+=stress[4];
-  box->stress6+=stress[5];
+  box->stress6+=stress[5];*/
 
 }
