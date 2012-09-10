@@ -9,6 +9,7 @@ void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd,
   int i,ia,ib,icycle,converged;
   double *xt,*yt,*zt,*rt2,ts2,maxdist,dist;
   double lambda,lambdai,lambdaj,t2rmi,t2rmj,nia,nib;
+  double virshake=0.,stress[6]={0.};
   DELTA *dt;
   
   xt=(double*)malloc(simulCond->natom*sizeof(*xt));
@@ -64,6 +65,15 @@ void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd,
 	lambda=-(constList[i].rc2-rt2[i])/(2.*(t2rmi+t2rmj)*
 	  ((dd[i].x*dt[i].x)+(dd[i].y*dt[i].y)+(dd[i].z*dt[i].z)));
 	
+	virshake+=lambda*(X2(dd[i].x)+X2(dd[i].y)+X2(dd[i].z));
+	
+	stress[0]-=lambda*X2(dd[i].x);
+	stress[1]-=lambda*dd[i].x*dd[i].y;
+	stress[2]-=lambda*dd[i].x*dd[i].z;
+	stress[3]-=lambda*X2(dd[i].y);
+	stress[4]-=lambda*dd[i].y*dd[i].z;
+	stress[5]-=lambda*X2(dd[i].z);
+	
 	lambdai=lambda*t2rmi;
 	xt[ia]+=dd[i].x*lambdai;
 	yt[ia]+=dd[i].y*lambdai;
@@ -102,6 +112,18 @@ void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd,
   
   if(!converged)
     error(311);
+  
+  ener->virshake+=virshake;
+  
+  box->stress1+=stress[0];
+  box->stress2+=stress[1];
+  box->stress3+=stress[2];
+  box->stress4+=stress[1];
+  box->stress5+=stress[3];
+  box->stress6+=stress[4];
+  box->stress7+=stress[2];
+  box->stress8+=stress[4];
+  box->stress9+=stress[5];
   
   free(xt);
   free(yt);

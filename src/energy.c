@@ -345,8 +345,17 @@ void nonbond14_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulC
   /*box->stress1+=stress[0];
   box->stress2+=stress[1];
   box->stress3+=stress[2];
+<<<<<<< .mine
+  box->stress4+=stress[1];
+  box->stress5+=stress[3];
+  box->stress6+=stress[4];
+  box->stress7+=stress[2];
+  box->stress8+=stress[4];
+  box->stress9+=stress[5];
+=======
   box->stress4+=stress[3];
   box->stress5+=stress[4];
   box->stress6+=stress[5];*/
+>>>>>>> .r59
 
 }
