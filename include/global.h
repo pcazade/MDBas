@@ -114,6 +114,7 @@ typedef struct
   double elec,vdw;
   double bond,ang,ub,dihe,impr;
   double conint,consv;
+  double virelec,virvdw;
 }ENERGY;
 
 typedef struct

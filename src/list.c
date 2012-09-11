@@ -2311,14 +2311,22 @@ void fast_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *box)
    * **********************************************************/
   
   int i,j,k,kk,m,dm,s,m1,m2,stripes,atpercell;
-  int ilx,ily,ilz,nlcx,nlcy,nlcx;
+  int ilx,ily,ilz,nlcx,nlcy,nlcz;
   int dmx,dmy,dmz,dnx,dny,dnz;
   int t1ny,t2ny,t1nz,t2nz;
   int exclude,nalloc;
   
-  double r,r2,rlcx,rlcy,rlcx,rlcx2,rlcy2,rlcx2,cutnb,cutnb2;
+  double r,r2,rlcx,rlcy,rlcz,rlcx2,rlcy2,rlcz2,cutnb,cutnb2;
+  double dnlcx,dnlcy,dnlcz;
   
-  int *ptrmask=NULL,*ptrcell=NULL,*cell=NULL,*tempcell,*xu=NULL,*yu=NULL,*zu=NULL;
+  int ix,iy,iz;
+  
+  double delta[3];
+  
+  int *ptrmask=NULL,*ptrcell=NULL,*cell=NULL,*tempcell=NULL;
+  double *xu=NULL,*yu=NULL,*zu=NULL;
+  
+  cutnb=simulCond->cutoff+simulCond->delr;
   
   nalloc = (int) ( 1.5*simulCond->natom*4./3.*PI*X3(cutnb)/box->vol );
   nalloc = MIN(nalloc,MAXLIST);
@@ -2382,27 +2390,27 @@ void fast_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *box)
     dmy=(int)( ( dm % ( nlcx * nlcy ) ) / nlcx ) ;
     dmx= dm % nlcx ;
     
-    dnx=abs(dmx-nclx*nint((double)dmx/(double)nclx));
+    dnx=abs(dmx-nlcx*nint((double)dmx/(double)nlcx));
     
-    if( ( dmx==0 ) || ( ( dmy==ncly-1 ) && ( dmz==nclz-1 ) ) )
-      dny=dmy-ncly*nint((double)dmy/(double)ncly);
+    if( ( dmx==0 ) || ( ( dmy==nlcy-1 ) && ( dmz==nlcz-1 ) ) )
+      dny=dmy-nlcy*nint((double)dmy/(double)nlcy);
     else
     {
-      t1ny=abs( dmy-ncly*nint((double)dmy/(double)ncly)) );
-      t2ny=abs( (dmy+1)-ncly*nint((double)(dmy+1)/(double)ncly) );
+      t1ny=abs( dmy-nlcy*nint((double)dmy/(double)nlcy)) ;
+      t2ny=abs( (dmy+1)-nlcy*nint((double)(dmy+1)/(double)nlcy) );
       dny=MIN(t1ny,t2ny);
     }
     
-    if( ( dmz==nclz-1 ) || ( ( dmx==0 ) && ( dmy==0 ) ) )
-      dnz=dmz-nclz*nint((double)dmz/(double)nclz);
+    if( ( dmz==nlcz-1 ) || ( ( dmx==0 ) && ( dmy==0 ) ) )
+      dnz=dmz-nlcz*nint((double)dmz/(double)nlcz);
     else
     {
-      t1nz=abs( dmz-nclz*nint((double)dmz/(double)nclz) );
-      t2nz=abs( (dmz+1)-nclz*nint((double)(dmz+1)/(double)nclz) );
+      t1nz=abs( dmz-nlcz*nint((double)dmz/(double)nlcz) );
+      t2nz=abs( (dmz+1)-nlcz*nint((double)(dmz+1)/(double)nlcz) );
       dnz=MIN(t1nz,t2nz);
     }
     
-    r=X2( MAX(dnx,1)-1 )*rclx2+X2( MAX(dny,1)-1 )*rcly2+X2( MAX(dnz,1)-1 )*rclz2;
+    r=X2( MAX(dnx,1)-1 )*rlcx2+X2( MAX(dny,1)-1 )*rlcy2+X2( MAX(dnz,1)-1 )*rlcz2;
     
     if(r<=cutnb2)
     {
@@ -2463,7 +2471,7 @@ void fast_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *box)
     }
   }
   
-  cell=(int*)realloc(cell,ff->natom*sizeof(*cell));
+  cell=(int*)realloc(cell,simulCond->natom*sizeof(*cell));
   
   for(m=0;m<ff->ncells;m++)
   {
@@ -2495,12 +2503,12 @@ void fast_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *box)
 // 	}
       }
       
-      for(s=0;s<stripes)
+      for(s=0;s<stripes;s+=2)
       {
-	m1=m+ptrmask[2*s]
+	m1=m+ptrmask[2*s];
 	if(m1<ff->ncells)
 	{
-	  m2=MIN(m+ptrmask[2*s+1],ff->ncells-1)
+	  m2=MIN(m+ptrmask[2*s+1],ff->ncells-1);
 	  for(j=ptrcell[m1];j<ptrcell[m2+1];j++)
 	  {
 	    r=distance(i,j,atom,delta,simulCond,box);
