@@ -1,14 +1,15 @@
-/***************************************************************
- * cmenerve is designed to compute the main energy terms for MM
- * simulations. The goal is to provide a toolkit of routines that
- * can be easily modified and combined.
- * 
- * P.-A. Cazade 02 May 2012
- * ************************************************************/
+/**
+ * \file mdbas.c
+ * \brief Main entry file for the program MDBas.
+ * \author Pierre-Andre Cazade and Florent Hedin
+ * \version alpha-branch
+ * \date 2012
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+
 #include "global.h"
 #include "energy.h"
 #include "io.h"

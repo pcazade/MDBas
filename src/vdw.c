@@ -74,15 +74,16 @@ double vdw_switch(ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
 		int i, int j, double r, double *dvdw)
 {
   
-/*****************************************************************************
- * Switched van der Waals potential :
+/**
+ * \brief Switched van der Waals potential
  * vdwSwitch=elecPot(r)*switchFunc(r)
  * vdwPot=4*eps*((sig/r)**12-(sig/r)**6)
  * switchFunc=(rc**2+2r**2-3ro**2)*(rc**2-r**2)**2/(rc**2-ro**2)**3
  * dvdwSwitch=delecPot(r)*switchFunc(r)+elecPot(r)*dswitchFunc(r)
  * dvdwPot(r)=-elecPot(r)/r
  * dswitchFunc(r)=-12*r*(rc**2-r**2)*(ro**2-r**2)/(rc**2-ro**2)**3
- ****************************************************************************/
+ *
+ */
   
   double vdw=0.,pvdw,dpvdw,switchFunc,dswitchFunc;
   

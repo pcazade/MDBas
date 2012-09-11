@@ -1,5 +1,14 @@
+/**
+ * \file energy.c
+ * \brief Contains highest level functions for evaluating energy and forces of a system.
+ * \author Pierre-Andre Cazade and Florent Hedin
+ * \version alpha-branch
+ * \date 2012
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
+
 #include "global.h"
 #include "energy.h"
 #include "elec.h"
@@ -8,6 +17,11 @@
 #include "io.h"
 #include "utils.h"
 
+/**
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ * 
+ * \brief Set the pointers to function used for non-bonded energy evaluation.
+ */
 void init_energy_ptrs(SIMULPARAMS *simulCond)
 {
   
@@ -67,7 +81,16 @@ void init_energy_ptrs(SIMULPARAMS *simulCond)
 
 }
 
-void energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
+/**
+ * \param atom Array of structure ATOM (coordinates, forces, etc...).
+ * \param ff Pointer to structure FORCEFIELD containing forcefield parameters.
+ * \param ener Pointer to structure ENERGY containing values of the different energies.
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ * 
+ * \brief Main energy function, collecting total energy by calling the required subfunctions.
+ */
+void energy(ATOM atom[], FORCEFIELD *ff, ENERGY *ener, SIMULPARAMS *simulCond, PBC *box)
 {
   
   int i;
@@ -87,70 +110,7 @@ void energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *b
     atom[i].fz=0.;
   }
   
-  /* Performing electrostatic interactions */
-  
-  /*if(simulCond->elecType==NOELEC)
-  {
-    printf("No electrostatics requested\n");
-  }
-  else if (simulCond->elecType==FULL)
-  {
-    coulomb_full(atom,ff,ener,simulCond,box);
-    if(simulCond->nb14)
-      coulomb14_full(atom,ff,ener,simulCond,box);
-  }
-  else if(simulCond->elecType==SHIFT1)
-  {
-    coulomb_shift1(atom,ff,ener,simulCond,box);
-    
-    if(simulCond->nb14)
-      coulomb14_shift1(atom,ff,ener,simulCond,box);
-  }
-  else if(simulCond->elecType==SHIFT2)
-  {
-    coulomb_shift2(atom,ff,ener,simulCond,box);
-    
-    if(simulCond->nb14)
-      coulomb14_shift2(atom,ff,ener,simulCond,box);
-  }
-  else if (simulCond->elecType==SWITCH)
-  {
-    coulomb_switch(atom,ff,ener,simulCond,box);
-    
-    if(simulCond->nb14)
-      coulomb14_switch(atom,ff,ener,simulCond,box);
-  }
-  else
-  {
-    error(201);
-  }*/
-  
-/* Performing van der Waals interactions */
-
-  /*if(simulCond->vdwType==NOVDW)
-  {
-    printf("No non-bonded requested.\n");
-  }
-  else if (simulCond->vdwType==VFULL)
-  {
-    vdw_full(atom,ff,ener,simulCond,box);
-    if(simulCond->nb14)
-      vdw14_full(atom,ff,ener,simulCond,box);
-  }
-  else if(simulCond->vdwType==VSWITCH)
-  {
-    vdw_switch(atom,ff,ener,simulCond,box);
-    
-    if(simulCond->nb14)
-      vdw14_switch(atom,ff,ener,simulCond,box);
-  }
-  else
-  {
-    error(202);
-  }*/
-  
   /* Performing non-bonding terms */
-  
   nonbond_energy(atom,ff,ener,simulCond,box);
   if(simulCond->nb14)
     nonbond14_energy(atom,ff,ener,simulCond,box);
@@ -187,7 +147,16 @@ void energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *b
 
 }
 
-void nonbond_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
+/**
+ * \param atom Array of structure ATOM (coordinates, forces, etc...).
+ * \param ff Pointer to structure FORCEFIELD containing forcefield parameters.
+ * \param ener Pointer to structure ENERGY containing values of the different energies.
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ * 
+ * \brief Energy function collecting all terms of non-bonded energies.
+ */
+void nonbond_energy(ATOM atom[] ,FORCEFIELD *ff, ENERGY *ener, SIMULPARAMS *simulCond, PBC *box)
 {
   
   int i,j,k;
@@ -294,7 +263,16 @@ void nonbond_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCon
   
 }
 
-void nonbond14_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
+/**
+ * \param atom Array of structure ATOM (coordinates, forces, etc...).
+ * \param ff Pointer to structure FORCEFIELD containing forcefield parameters.
+ * \param ener Pointer to structure ENERGY containing values of the different energies.
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ * 
+ * \brief Energy function collecting all terms of 1-4 non-bonded energies.
+ */
+void nonbond14_energy(ATOM atom[] ,FORCEFIELD *ff, ENERGY *ener, SIMULPARAMS *simulCond, PBC *box)
 {
   
   int i,j,k;

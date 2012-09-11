@@ -29,9 +29,6 @@
 #define COSDIH  1
 #define HARMDIH 2
 
-/**
- * it can replace some of the previous defines
- **/
 enum ELEC_TYPE{
   NOELEC = 0,
   FULL   = 1,
