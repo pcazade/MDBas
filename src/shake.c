@@ -112,7 +112,7 @@ void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd,
   
   if(!converged)
     error(311);
-  
+  /*
   ener->virshake+=virshake;
   
   box->stress1+=stress[0];
@@ -124,6 +124,7 @@ void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd,
   box->stress7+=stress[2];
   box->stress8+=stress[4];
   box->stress9+=stress[5];
+  */
   
   free(xt);
   free(yt);

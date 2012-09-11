@@ -2503,7 +2503,7 @@ void fast_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *box)
 // 	}
       }
       
-      for(s=0;s<stripes;s+=2)
+      for(s=0;s<stripes;s++)
       {
 	m1=m+ptrmask[2*s];
 	if(m1<ff->ncells)
