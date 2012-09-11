@@ -472,7 +472,30 @@ double kinetic(ATOM atom[],SIMULPARAMS *simulCond)
   return ( ekin*0.5 );
 }
 
+<<<<<<< .mine
+double stress_kinetic(ATOM *atom,SIMULPARAMS *simulCond,double *stress)
+{
+  int i;
+  
+  for(i=0;i<6;i++)
+    stress[i]=0.;
+  
+  for(i=0;i<simulCond->natom;i++)
+  {
+    stress[0]+=atom[i].m*(X2(atom[i].vx);
+    stress[1]+=atom[i].m*atom[i].vx*atom[i].vy;
+    stress[2]+=atom[i].m*atom[i].vx*atom[i].vz;
+    stress[3]+=atom[i].m*(X2(atom[i].vy);
+    stress[4]+=atom[i].m*atom[i].vy*atom[i].vz;
+    stress[5]+=atom[i].m*(X2(atom[i].vz);
+  }
+  
+}
+
+void get_kinfromtemp(ATOM *atom,SIMULPARAMS *simulCond,PBC *box)
+=======
 void get_kinfromtemp(ATOM atom[],SIMULPARAMS *simulCond,PBC *box)
+>>>>>>> .r66
 {
   double degf;
   

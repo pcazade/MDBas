@@ -29,6 +29,7 @@ void lf_nve(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constL
 {
   int i,ia,ib;
   double *xo=NULL,*yo=NULL,*zo=NULL,*vxu=NULL,*vyu=NULL,*vzu=NULL;
+  double virshake=0.,stress[6]={0.},stresk[6]={0.};
   DELTA *dd=NULL;
   
   vxu=(double*)malloc(simulCond->natom*sizeof(*vxu));
@@ -99,7 +100,7 @@ void lf_nve(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constL
   {
 // Apply constraint with Shake algorithm.
 
-    lf_shake(atom,simulCond,constList,dd,box);
+    lf_shake(atom,simulCond,constList,dd,box,&virshake,stress);
     
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(simulCond,vxu,vyu,vzu,xo,yo,zo,atom) private(i)
@@ -138,6 +139,20 @@ void lf_nve(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constL
 // calculate kinetic energy
   
   ener->kin=kinetic(atom,simulCond);
+  
+  ener->virshake+=virshake;
+  
+  stress_kinetic(atom,simulCond,stresk);
+  
+  box->stress1+=stress[0]+stresk[0];
+  box->stress2+=stress[1]+stresk[1];
+  box->stress3+=stress[2]+stresk[2];
+  box->stress4+=stress[1]+stresk[1];
+  box->stress5+=stress[3]+stresk[3];
+  box->stress6+=stress[4]+stresk[4];
+  box->stress7+=stress[2]+stresk[2];
+  box->stress8+=stress[4]+stresk[4];
+  box->stress9+=stress[5]+stresk[5];
   
 // periodic boundary condition
   
@@ -178,6 +193,7 @@ void lf_nvt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
   double *vxo=NULL,*vyo=NULL,*vzo=NULL;
   double *xt=NULL,*yt=NULL,*zt=NULL;
   double *vxu=NULL,*vyu=NULL,*vzu=NULL;
+  double virshake=0.,virshakt=0.,stress[6]={0.},strest[6]={0.},stresk[6]={0.};
   DELTA *dd=NULL;
   
   vxu=(double*)malloc(simulCond->natom*sizeof(*vxu));
@@ -294,7 +310,11 @@ void lf_nvt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
     {
 // Apply constraint with Shake algorithm.
       
-      lf_shake(atom,simulCond,constList,dd,box);
+      lf_shake(atom,simulCond,constList,dd,box,&virshakt,strest);
+      
+      virshake+=virshakt;
+      for(i=0;i<6;i++)
+	stress[i]+=strest[i];
       
       #ifdef _OPENMP
       #pragma omp parallel for default(none) shared(simulCond,atom,xt,yt,zt,vxu,vyu,vzu,ts2) private(i)
@@ -335,6 +355,20 @@ void lf_nvt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
     ener->kin=kinetic(atom,simulCond);
     
   }
+  
+  ener->virshake+=virshake;
+  
+  stress_kinetic(atom,simulCond,stresk);
+  
+  box->stress1+=stress[0]+stresk[0];
+  box->stress2+=stress[1]+stresk[1];
+  box->stress3+=stress[2]+stresk[2];
+  box->stress4+=stress[1]+stresk[1];
+  box->stress5+=stress[3]+stresk[3];
+  box->stress6+=stress[4]+stresk[4];
+  box->stress7+=stress[2]+stresk[2];
+  box->stress8+=stress[4]+stresk[4];
+  box->stress9+=stress[5]+stresk[5];
   
 // periodic boundary condition
   
@@ -387,6 +421,7 @@ void lf_nvt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
   double *vxo=NULL,*vyo=NULL,*vzo=NULL;
   double *xt=NULL,*yt=NULL,*zt=NULL;
   double *vxu=NULL,*vyu=NULL,*vzu=NULL;
+  double virshake=0.,virshakt=0.,stress[6]={0.},strest[6]={0.},stresk[6]={0.};
   DELTA *dd=NULL;
   
   vxu=(double*)malloc(simulCond->natom*sizeof(*vxu));
@@ -510,7 +545,11 @@ void lf_nvt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
     {
 // Apply constraint with Shake algorithm.
       
-      lf_shake(atom,simulCond,constList,dd,box);
+      lf_shake(atom,simulCond,constList,dd,box,&virshakt,strest);
+      
+      virshake+=virshakt;
+      for(i=0;i<6;i++)
+	stress[i]+=strest[i];
       
       #ifdef _OPENMP
       #pragma omp parallel for default(none) shared(simulCond,xt,yt,zt,vxu,vyu,vzu,atom,ts2) private(i)
@@ -556,6 +595,20 @@ void lf_nvt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
     lambda=0.5*(simulCond->lambdat+lambdc);
     
   }
+  
+  ener->virshake+=virshake;
+  
+  stress_kinetic(atom,simulCond,stresk);
+  
+  box->stress1+=stress[0]+stresk[0];
+  box->stress2+=stress[1]+stresk[1];
+  box->stress3+=stress[2]+stresk[2];
+  box->stress4+=stress[1]+stresk[1];
+  box->stress5+=stress[3]+stresk[3];
+  box->stress6+=stress[4]+stresk[4];
+  box->stress7+=stress[2]+stresk[2];
+  box->stress8+=stress[4]+stresk[4];
+  box->stress9+=stress[5]+stresk[5];
   
   simulCond->lambdat=lambdc;
   
@@ -684,7 +737,7 @@ void vv_nve(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constL
       
 // Apply constraint with Shake algorithm.
 
-      vv_shake_r(atom,simulCond,constList,dd,box);
+      vv_shake_r(atom,simulCond,constList,dd,box,&virshake,stress);
       
     }
     
@@ -703,6 +756,20 @@ void vv_nve(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constL
     }
   
     ener->kin=kinetic(atom,simulCond);
+    
+    ener->virshake+=virshake;
+  
+    stress_kinetic(atom,simulCond,stresk);
+    
+    box->stress1+=stress[0]+stresk[0];
+    box->stress2+=stress[1]+stresk[1];
+    box->stress3+=stress[2]+stresk[2];
+    box->stress4+=stress[1]+stresk[1];
+    box->stress5+=stress[3]+stresk[3];
+    box->stress6+=stress[4]+stresk[4];
+    box->stress7+=stress[2]+stresk[2];
+    box->stress8+=stress[4]+stresk[4];
+    box->stress9+=stress[5]+stresk[5];
   }
   
   if(stage==2)
