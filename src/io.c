@@ -1536,7 +1536,7 @@ void read_PAR(INPUTS *inp)
     fclose(parFile);
 }
 
-void read_CONF(ATOM *atom,SIMULPARAMS *simulCond)
+void read_CONF(ATOM atom[],SIMULPARAMS *simulCond)
 {
   
   char buff1[1024]="", *buff2=NULL;
@@ -1579,7 +1579,7 @@ void read_CONF(ATOM *atom,SIMULPARAMS *simulCond)
     fclose(confFile);
 }
 
-void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAINT *constList)
+void setup(INPUTS *inp,ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAINT *constList)
 {
   int i,j,k,ia,ib,ic,id,i0,i1,i2,i3,itype;
   
@@ -2161,7 +2161,7 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAI
   
 }
 
-void write_FORF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
+void write_FORF(INPUTS *inp,ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond)
 {
   FILE *forfFile;
   int i,j,k,l,ia,ib,ic,id,nd;

@@ -4,7 +4,7 @@
 #include "global.h"
 #include "utils.h"
 
-void bond_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
+void bond_energy(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
   int i,j,ll;
   double r,fx,fy,fz,dbond,virbond=0.;
@@ -58,7 +58,7 @@ void bond_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,P
   
 }
 
-void ub_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
+void ub_energy(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
   int i,j,ll;
   double r,fx,fy,fz,dub,virub=0.;
@@ -111,7 +111,7 @@ void ub_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC
   
 }
 
-void angle_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
+void angle_energy(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
   int i,j,k,ll;
   double dangle,rab,rbc,cost,sint,theta;
@@ -176,7 +176,7 @@ void angle_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,
   
 }
 
-void dihedral_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
+void dihedral_energy(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
   int i,j,k,l,ll,nd,ind;
   double pi,twopi;
@@ -333,7 +333,7 @@ void dihedral_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCo
   
 }
 
-void improper_energy(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
+void improper_energy(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
   int i,j,k,l,ll;
   double pi,twopi;

@@ -7,7 +7,7 @@
 #include "io.h"
 #include "list.h"
 
-void makelist(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,CONSTRAINT *constList,PBC *box)
+void makelist(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *constList,PBC *box)
 {
   int nlcx,nlcy,nlcz;
   double cutnb;
@@ -67,7 +67,7 @@ void makelist(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,CONSTRAINT *const
   }
 }
 
-void exclude_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,CONSTRAINT *constList)
+void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *constList)
 {
   int i,j,k,l,ii,jj,kk,ia,ib,ic,id,exclude;
   int **tempAtom=NULL,**tempVer14=NULL,**tempConnect=NULL,*tempConnectNum=NULL;
@@ -853,7 +853,7 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,CONSTRAINT *c
 
 }
 
-void verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *box)
+void verlet_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,PBC *box)
 {
   int i,j,k,exclude,nalloc;/*,incr;*/
   double r,cutnb,delta[3];
@@ -907,7 +907,7 @@ void verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *box)
 
 }
 
-void verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *box)
+void verlet_list_update(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,PBC *box)
 {
   int i,j,k,exclude,nalloc;/*,incr;*/
   double r,cutnb,delta[3];
@@ -965,7 +965,7 @@ void verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *bo
 
 }
 
-void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,CONSTRAINT *constList)
+void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *constList)
 {
   int i,j,k,l,kk,ii,jj,ia,ib,ic,id,exclude;
   int **tempAtom=NULL,**tempVer14=NULL,**tempConnect=NULL,*tempConnectNum=NULL;
@@ -1633,7 +1633,7 @@ void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,CON
 
 }
 
-void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *box)
+void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,PBC *box)
 {
   
   int transx[508]={0,1,0,0,-1,1,0,-1,1,0,-1,1,-1,1,2,0,0,-2,2,-1,1,0,-2,2,0,
@@ -1971,7 +1971,7 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC 
 
 }
 
-void link_cell_verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *box)
+void link_cell_verlet_list_update(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,PBC *box)
 {
   
   int transx[508]={0,1,0,0,-1,1,0,-1,1,0,-1,1,-1,1,2,0,0,-2,2,-1,1,0,-2,2,0,
@@ -2301,7 +2301,7 @@ void link_cell_verlet_list_update(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *
 
 }
 
-void fast_verlet_list(SIMULPARAMS *simulCond,ATOM *atom,FORCEFIELD *ff,PBC *box)
+void fast_verlet_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,PBC *box)
 {
   /************************************************************
    * This routine is derived from the algorithm described

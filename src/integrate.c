@@ -6,7 +6,7 @@
 #include "shake.h"
 #include "integrate.h"
 
-void lf_integrate(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
+void lf_integrate(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
 {
   switch (simulCond->ens)
   {
@@ -25,7 +25,7 @@ void lf_integrate(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *c
   }
 }
 
-void lf_nve(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
+void lf_nve(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
 {
   int i,ia,ib;
   double *xo=NULL,*yo=NULL,*zo=NULL,*vxu=NULL,*vyu=NULL,*vzu=NULL;
@@ -170,7 +170,7 @@ void lf_nve(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constLi
       
 }
 
-void lf_nvt_b(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
+void lf_nvt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
 {
   int i,k,ia,ib,bercycle;
   double lambda,ts2;
@@ -379,7 +379,7 @@ void lf_nvt_b(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *const
       
 }
 
-void lf_nvt_h(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
+void lf_nvt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
 {
   int i,k,ia,ib,nosecycle;
   double lambda,lambdb,lambdc,ts2,qmass;
@@ -605,7 +605,7 @@ void lf_nvt_h(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *const
       
 }
 
-void vv_integrate(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box,int stage)
+void vv_integrate(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box,int stage)
 {
   switch (simulCond->ens)
   {
@@ -624,7 +624,7 @@ void vv_integrate(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *c
   }
 }
 
-void vv_nve(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box,int stage)
+void vv_nve(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box,int stage)
 {
   int i,ia,ib;
   DELTA *dd=NULL;
@@ -720,7 +720,7 @@ void vv_nve(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constLi
    
 }
 
-void vv_nvt_b(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box,int stage)
+void vv_nvt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box,int stage)
 {
   int i,ia,ib;
   double lambda;
@@ -832,7 +832,7 @@ void vv_nvt_b(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *const
    
 }
 
-void vv_nvt_h(ATOM *atom, ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box,int stage)
+void vv_nvt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box,int stage)
 {
   int i,ia,ib;
   double lambda,qmass;

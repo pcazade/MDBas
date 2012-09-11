@@ -1,14 +1,14 @@
 #include "global.h"
 #include "utils.h"
 
-double vdw_none(ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
+double vdw_none(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
 		int i, int j, double r, double *dvdw)
 {
   *dvdw=0.;
   return 0.;
 }
 
-void vdw_full(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
+void vdw_full(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
     
   int i,j,k,exclude;;
@@ -70,7 +70,7 @@ void vdw_full(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC 
   ener->vdw+=vdw;
 }
 
-double vdw_switch(ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
+double vdw_switch(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
 		int i, int j, double r, double *dvdw)
 {
   
@@ -125,14 +125,14 @@ double vdw_switch(ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
   return vdw;
 }
 
-double vdw14_none(ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
+double vdw14_none(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
 		  int i, int j, double r, double *dvdw)
 {
   *dvdw=0;
   return 0.;
 }
 
-double vdw14_full(ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
+double vdw14_full(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
 		int i, int j, double r, double *dvdw)
 {
   
@@ -147,7 +147,7 @@ double vdw14_full(ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
   return vdw;
 }
 
-double vdw14_switch(ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
+double vdw14_switch(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
 		  int i, int j, double r, double *dvdw)
 {
   

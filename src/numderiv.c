@@ -2,7 +2,7 @@
 #include "global.h"
 #include "energy.h"
 
-void numforce(ATOM *atom,DELTA *nForce,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box,int npoints,double h)
+void numforce(ATOM atom[],DELTA *nForce,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box,int npoints,double h)
 {
   int i;
   double coord;

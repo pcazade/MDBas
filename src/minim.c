@@ -5,12 +5,12 @@
 #include "global.h"
 #include "energy.h"
 
-void minimise(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
+void minimise(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
 {
   
 }
 
-void steepestDescent(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
+void steepestDescent(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
   double step = 1.0e-7 ;
   double prec = 1.0e-3 ;
@@ -50,7 +50,7 @@ void steepestDescent(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCo
   
 }
 
-void conjugateGradients(ATOM *atom,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
+void conjugateGradients(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
 {
   
 }

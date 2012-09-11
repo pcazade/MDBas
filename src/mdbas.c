@@ -36,7 +36,7 @@ int main(int argc, char* argv[])
 
   FILE *fener=NULL,*traj=NULL,*frc=NULL,*numfrc=NULL;
   INPUTS inp;
-  ATOM *atom=NULL;
+  ATOM atom[]=NULL;
   FORCEFIELD ff;
   ENERGY ener;
   SIMULPARAMS simulCond;

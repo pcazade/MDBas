@@ -7,7 +7,7 @@
 #include "rand.h"
 #include "io.h"
 
-double distance(int i,int j, ATOM *atom,double *delta,SIMULPARAMS *simulCond,PBC *box)
+double distance(int i,int j, ATOM atom[],double *delta,SIMULPARAMS *simulCond,PBC *box)
 {
   double r,xt,yt,zt;
   
@@ -53,7 +53,7 @@ double distance(int i,int j, ATOM *atom,double *delta,SIMULPARAMS *simulCond,PBC
   
 }
 
-double distance2(int i,int j, ATOM *atom,DELTA *d,SIMULPARAMS *simulCond,PBC *box)
+double distance2(int i,int j, ATOM atom[],DELTA *d,SIMULPARAMS *simulCond,PBC *box)
 {
   double r2,xt,yt,zt;
   
@@ -99,7 +99,7 @@ double distance2(int i,int j, ATOM *atom,DELTA *d,SIMULPARAMS *simulCond,PBC *bo
   
 }
 
-void init_vel(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
+void init_vel(ATOM atom[],SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
 {
   int i,natoms;
   double cmvx=0.,cmvy=0.,cmvz=0.,cmm=0.,initKin=0.;
@@ -173,7 +173,7 @@ void init_vel(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
   
 }
 
-void init_constvel(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
+void init_constvel(ATOM atom[],SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
 {
   int i,ia,ib,icycle,converged;
   double *vxu=NULL,*vyu=NULL,*vzu=NULL;
@@ -273,7 +273,7 @@ void init_constvel(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *
   free(dt);
 }
 
-void image_update(ATOM *atom,SIMULPARAMS *simulCond,PBC *box)
+void image_update(ATOM atom[],SIMULPARAMS *simulCond,PBC *box)
 {
 
   int i;
@@ -458,7 +458,7 @@ void init_box(PBC *box)
   
 }
 
-double kinetic(ATOM *atom,SIMULPARAMS *simulCond)
+double kinetic(ATOM atom[],SIMULPARAMS *simulCond)
 {
   int i;
   double ekin;
@@ -472,7 +472,7 @@ double kinetic(ATOM *atom,SIMULPARAMS *simulCond)
   return ( ekin*0.5 );
 }
 
-void get_kinfromtemp(ATOM *atom,SIMULPARAMS *simulCond,PBC *box)
+void get_kinfromtemp(ATOM atom[],SIMULPARAMS *simulCond,PBC *box)
 {
   double degf;
   
@@ -484,7 +484,7 @@ void get_kinfromtemp(ATOM *atom,SIMULPARAMS *simulCond,PBC *box)
   simulCond->kintemp0=0.5*simulCond->temp*degf*rboltzui;
 }
 
-void get_degfree(ATOM *atom,SIMULPARAMS *simulCond,PBC *box)
+void get_degfree(ATOM atom[],SIMULPARAMS *simulCond,PBC *box)
 {
   
 //   Atoms degrees of freedom - 3 degrees of freedom of the CoM.

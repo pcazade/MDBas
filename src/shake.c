@@ -4,7 +4,7 @@
 #include "utils.h"
 #include "io.h"
 
-void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd,PBC *box)
+void lf_shake(ATOM atom[],SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd,PBC *box)
 {
   int i,ia,ib,icycle,converged;
   double *xt,*yt,*zt,*rt2,ts2,maxdist,dist;
@@ -134,7 +134,7 @@ void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd,
   
 }
 
-void vv_shake_r(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd,PBC *box)
+void vv_shake_r(ATOM atom[],SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd,PBC *box)
 {
   int i,ia,ib,icycle,converged;
   double *xt,*yt,*zt,*rt2,maxdist,dist;
@@ -247,7 +247,7 @@ void vv_shake_r(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *d
   
 }
 
-void vv_shake_v(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd)
+void vv_shake_v(ATOM atom[],SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd)
 {
   int i,ia,ib,icycle,converged;
   double *xt,*yt,*zt,maxdist,tolvel;
