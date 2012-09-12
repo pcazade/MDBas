@@ -134,6 +134,16 @@ double distance2(int i,int j, ATOM atom[],DELTA *d,SIMULPARAMS *simulCond,PBC *b
   
 }
 
+/**
+ * \param atom Array of structure ATOM (coordinates, forces, etc...).
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ * \param constList Pointer to structure CONSTRAINT containing parameters of constraints.
+ * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ *
+ * \brief Initialise velocity of atoms according to a random normal distribution.
+ *
+ * \remarks If constraints are used, init_constvel is internally called.
+ */
 void init_vel(ATOM atom[],SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
 {
   int i,natoms;
@@ -208,6 +218,16 @@ void init_vel(ATOM atom[],SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
   
 }
 
+/**
+ * \param atom Array of structure ATOM (coordinates, forces, etc...).
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ * \param constList Pointer to structure CONSTRAINT containing parameters of constraints.
+ * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ *
+ * \brief Initialise velocity of atoms according to a random normal distribution.
+ *
+ * \remarks Called by init_vel if constraints are used.
+ */
 void init_constvel(ATOM atom[],SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
 {
   int i,ia,ib,icycle,converged;

@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configurationDescriptor version="69">
+  <logicalFolder name="root" displayName="root" projectFiles="true">
+    <df name="branch" root=".">
+      <df name="doc">
+        <df name="html">
+          <df name="search" kind="SOURCE_LOGICAL_FOLDER">
+            <in>close.png</in>
+            <in>mag_sel.png</in>
+            <in>nomatches.html</in>
+            <in>search.css</in>
+            <in>search.js</in>
+            <in>search_l.png</in>
+            <in>search_m.png</in>
+            <in>search_r.png</in>
+          </df>
+          <in>bc_s.png</in>
+          <in>closed.png</in>
+          <in>doxygen.css</in>
+          <in>doxygen.png</in>
+          <in>index.html</in>
+          <in>installdox</in>
+          <in>jquery.js</in>
+          <in>nav_f.png</in>
+          <in>nav_h.png</in>
+          <in>open.png</in>
+          <in>tab_a.png</in>
+          <in>tab_b.png</in>
+          <in>tab_h.png</in>
+          <in>tab_s.png</in>
+          <in>tabs.css</in>
+        </df>
+        <df name="latex">
+          <in>Makefile</in>
+          <in>doxygen.sty</in>
+          <in>refman.tex</in>
+        </df>
+      </df>
+      <df name="dSFMT" kind="SOURCE_LOGICAL_FOLDER">
+        <df name="html" kind="SOURCE_LOGICAL_FOLDER">
+        </df>
+        <in>dSFMT-common.h</in>
+        <in>dSFMT-params.h</in>
+        <in>dSFMT-params11213.h</in>
+        <in>dSFMT-params1279.h</in>
+        <in>dSFMT-params132049.h</in>
+        <in>dSFMT-params19937.h</in>
+        <in>dSFMT-params216091.h</in>
+        <in>dSFMT-params2203.h</in>
+        <in>dSFMT-params4253.h</in>
+        <in>dSFMT-params44497.h</in>
+        <in>dSFMT-params521.h</in>
+        <in>dSFMT-params86243.h</in>
+        <in>dSFMT.c</in>
+        <in>dSFMT.h</in>
+      </df>
+      <df name="include" kind="SOURCE_LOGICAL_FOLDER">
+        <in>elec.h</in>
+        <in>energy.h</in>
+        <in>global.h</in>
+        <in>integrate.h</in>
+        <in>internal.h</in>
+        <in>io.h</in>
+        <in>list.h</in>
+        <in>memory.h</in>
+        <in>minim.h</in>
+        <in>numderiv.h</in>
+        <in>rand.h</in>
+        <in>shake.h</in>
+        <in>utils.h</in>
+        <in>vdw.h</in>
+      </df>
+      <df name="obj" kind="SOURCE_LOGICAL_FOLDER">
+        <df name="dSFMT" kind="SOURCE_LOGICAL_FOLDER">
+        </df>
+      </df>
+      <df name="src" kind="SOURCE_LOGICAL_FOLDER">
+        <in>elec.c</in>
+        <in>energy.c</in>
+        <in>integrate.c</in>
+        <in>internal.c</in>
+        <in>io.c</in>
+        <in>list.c</in>
+        <in>mdbas.c</in>
+        <in>memory.c</in>
+        <in>minim.c</in>
+        <in>numderiv.c</in>
+        <in>rand.c</in>
+        <in>shake.c</in>
+        <in>utils.c</in>
+        <in>vdw.c</in>
+      </df>
+    </df>
+    <logicalFolder name="ExternalFiles"
+                   displayName="Important Files"
+                   projectFiles="false"
+                   kind="IMPORTANT_FILES_FOLDER">
+      <itemPath>Makefile</itemPath>
+      <itemPath>Makefile-branch.mk</itemPath>
+    </logicalFolder>
+  </logicalFolder>
+  <sourceRootList>
+    <Elem>.</Elem>
+  </sourceRootList>
+  <projectmakefile>Makefile-branch.mk</projectmakefile>
+  <confs>
+    <conf name="Default" type="0">
+      <toolsSet>
+        <developmentServer>localhost</developmentServer>
+        <compilerSet>GNU|GNU</compilerSet>
+        <platform>2</platform>
+      </toolsSet>
+      <makefileType>
+        <makeTool>
+          <buildCommandWorkingDir>.</buildCommandWorkingDir>
+          <buildCommand>$(MAKE) -f Makefile</buildCommand>
+          <cleanCommand>$(MAKE) -f Makefile clean</cleanCommand>
+          <executablePath></executablePath>
+          <cTool>
+            <incDir>
+              <pElem>dSFMT</pElem>
+              <pElem>.</pElem>
+              <pElem>include</pElem>
+            </incDir>
+            <preprocessorList>
+              <Elem>HAVE_SSE2</Elem>
+              <Elem>DSFMT_MEXP=19937</Elem>
+            </preprocessorList>
+          </cTool>
+        </makeTool>
+      </makefileType>
+      <item path="dSFMT/dSFMT-common.h" ex="true" tool="3">
+      </item>
+      <item path="dSFMT/dSFMT-params.h" ex="true" tool="3">
+      </item>
+      <item path="dSFMT/dSFMT-params11213.h" ex="true" tool="3">
+      </item>
+      <item path="dSFMT/dSFMT-params1279.h" ex="true" tool="3">
+      </item>
+      <item path="dSFMT/dSFMT-params132049.h" ex="true" tool="3">
+      </item>
+      <item path="dSFMT/dSFMT-params19937.h" ex="true" tool="3">
+      </item>
+      <item path="dSFMT/dSFMT-params216091.h" ex="true" tool="3">
+      </item>
+      <item path="dSFMT/dSFMT-params2203.h" ex="true" tool="3">
+      </item>
+      <item path="dSFMT/dSFMT-params4253.h" ex="true" tool="3">
+      </item>
+      <item path="dSFMT/dSFMT-params44497.h" ex="true" tool="3">
+      </item>
+      <item path="dSFMT/dSFMT-params521.h" ex="true" tool="3">
+      </item>
+      <item path="dSFMT/dSFMT-params86243.h" ex="true" tool="3">
+      </item>
+      <item path="dSFMT/dSFMT.c" ex="true" tool="0">
+      </item>
+    </conf>
+  </confs>
+</configurationDescriptor>
