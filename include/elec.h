@@ -1,3 +1,11 @@
+/**
+ * \file elec.h
+ * \brief Prototypes for file elec.c
+ * \author Pierre-Andre Cazade and Florent Hedin
+ * \version alpha-branch
+ * \date 2012
+ */
+
 #ifndef ELECH_INCLUDED
 #define ELECH_INCLUDED
 

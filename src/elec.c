@@ -105,21 +105,28 @@ void coulomb_full(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond
  * \brief Evaluates the electrostatic energy and force for a pair when using the SHIFT_1 cutoff.
  *
  * \return On return the electrostatic energy.
+ *
+ *
+ * Shifted electrostatic potential with the shift functional form 1:
+ *
+ * \f$ elecShift=elecPot(r)*shiftFunc(r) \f$
+ *
+ * \f$ elecPot=cte*qi*qj/r \f$
+ * 
+ * Where cte is chgcharmm or chgnamd
+ *
+ * \f$ shiftFunc=1-2r/rc+r^2/rc^2 \f$
+ *
+ * \f$ delecShift=delecPot(r)*shiftFunc(r)+elecPot(r)*dshiftFunc(r) \f$
+ *
+ * \f$ delecPot(r)=-elecPot(r)/r \f$
+ * 
+ * \f$ dshiftFunc(r)=-2/rc+2r/rc^2 \f$
+ *
  */
 double coulomb_shift1(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
 		    int i, int j, double r, double *delec)
-{
-  
- /*****************************************************************************
- * Shifted electrostatic potential with the shift fuctional form 1:
- * elecShift=elecPot(r)*shiftFunc(r)
- * elecPot=cte*qi*qj/r
- * shiftFunc=1-2r/rc+r**2/rc**2
- * delecShift=delecPot(r)*shiftFunc(r)+elecPot(r)*dshiftFunc(r)
- * delecPot(r)=-elecPot(r)/r
- * dshiftFunc(r)=-2/rc+2r/rc**2
- ****************************************************************************/
-  
+{ 
   double elec=0.,pelec,shiftFunc,dshiftFunc;
 
   shiftFunc=1.-2.*r/simulCond->cutoff+X2(r/simulCond->cutoff);
@@ -130,7 +137,6 @@ double coulomb_shift1(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box
   *delec=pelec*(dshiftFunc-shiftFunc/r);
   
   return elec;
-  
 }
 
 /**
@@ -146,21 +152,27 @@ double coulomb_shift1(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box
  * \brief Evaluates the electrostatic energy and force for a pair when using the SHIFT_2 cutoff.
  *
  * \return On return the electrostatic energy.
+ *
+ * Shifted electrostatic potential with the shift functional form 2 :
+ *
+ * \f$ elecShift=elecPot(r)*shiftFunc(r) \f$
+ *
+ * \f$ elecPot=cte*qi*qj/r \f$
+ *
+ * Where cte is chgcharmm or chgnam
+ *
+ * \f$ shiftFunc=1-2r^2/rc^2+r^4/rc^4 \f$
+ *
+ * \f$ delecShift=delecPot(r)*shiftFunc(r)+elecPot(r)*dshiftFunc(r) \f$
+ *
+ * \f$ delecPot(r)=-elecPot(r)/r \f$
+ *
+ * \f$ dshiftFunc(r)=-4r/rc^2+4r^3/rc^4 \f$
+ *
  */
 double coulomb_shift2(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
 		    int i, int j, double r, double *delec)
 {
-  
-/*****************************************************************************
- * Shifted electrostatic potential with the shift fuctional form 2 :
- * elecShift=elecPot(r)*shiftFunc(r)
- * elecPot=cte*qi*qj/r
- * shiftFunc=1-2r**2/rc**2+r**4/rc**4
- * delecShift=delecPot(r)*shiftFunc(r)+elecPot(r)*dshiftFunc(r)
- * delecPot(r)=-elecPot(r)/r
- * dshiftFunc(r)=-4r/rc**2+4r**3/rc**4
- ****************************************************************************/
-  
   double elec=0.,pelec,shiftFunc,dshiftFunc;
   
   shiftFunc=1.-2.*X2(r/simulCond->cutoff)+X4(r/simulCond->cutoff);
@@ -171,7 +183,6 @@ double coulomb_shift2(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box
   *delec=pelec*(dshiftFunc-shiftFunc/r);
   
   return elec;
-  
 } //END of function
 
 /**
@@ -187,21 +198,27 @@ double coulomb_shift2(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box
  * \brief Evaluates the electrostatic energy and force for a pair when using the SWITCH cutoff.
  *
  * \return On return the electrostatic energy.
+ *
+ * Switched electrostatic potential :
+ *
+ * \f$ elecSwitch=elecPot(r)*switchFunc(r) \f$
+ *
+ * \f$ elecPot=cte*qi*qj/r \f$
+ *
+ * Where cte is chgcharmm or chgnam
+ *
+ * \f$ switchFunc=(rc^2+2r^2-3ro^2)*(rc^2-r^2)^2/(rc^2-ro^2)^3 \f$
+ *
+ * \f$ delecSwitch=delecPot(r)*switchFunc(r)+elecPot(r)*dswitchFunc(r) \f$
+ *
+ * \f$ delecPot(r)=-elecPot(r)/r \f$
+ *
+ * \f$ dswitchFunc(r)=-12*r*(rc^2-r^2)*(ro^2-r^2)/(rc^2-ro^2)^3 \f$
+ *
  */
 double coulomb_switch(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
 		    int i, int j, double r, double *delec)
 {
-  
-/*****************************************************************************
- * Switched electrostatic potential :
- * elecSwitch=elecPot(r)*switchFunc(r)
- * elecPot=cte*qi*qj/r
- * switchFunc=(rc**2+2r**2-3ro**2)*(rc**2-r**2)**2/(rc**2-ro**2)**3
- * delecSwitch=delecPot(r)*switchFunc(r)+elecPot(r)*dswitchFunc(r)
- * delecPot(r)=-elecPot(r)/r
- * dswitchFunc(r)=-12*r*(rc**2-r**2)*(ro**2-r**2)/(rc**2-ro**2)**3
- ****************************************************************************/
-  
   double elec=0.,pelec,switchFunc,dswitchFunc;
   
   if(r<=simulCond->cuton)
@@ -285,21 +302,25 @@ double coulomb14_full(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box
  * \brief Evaluates the 1-4 electrostatic energy and force for a pair when using the SHIFT_1 cutoff.
  *
  * \return On return the electrostatic energy.
+ *
+ * Shifted 1-4 electrostatic potential with the shift functional form 1:
+ *
+ * \f$ elecShift=elecPot(r)*shiftFunc(r) \f$
+ *
+ * \f$ elecPot=cte*qi*qj/r \f$
+ *
+ * \f$ shiftFunc=1-2r/rc+r^2/rc^2 \f$
+ *
+ * \f$ delecShift=delecPot(r)*shiftFunc(r)+elecPot(r)*dshiftFunc(r) \f$
+ *
+ * \f$ delecPot(r)=-elecPot(r)/r \f$
+ *
+ * \f$ dshiftFunc(r)=-2/rc+2r/rc^2 \f$
+ * 
  */
 double coulomb14_shift1(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
 		      int i, int j, double r, double *delec)
 {
-  
- /*****************************************************************************
- * Shifted electrostatic potential with the shift fuctional form 1:
- * elecShift=elecPot(r)*shiftFunc(r)
- * elecPot=cte*qi*qj/r
- * shiftFunc=1-2r/rc+r**2/rc**2
- * delecShift=delecPot(r)*shiftFunc(r)+elecPot(r)*dshiftFunc(r)
- * delecPot(r)=-elecPot(r)/r
- * dshiftFunc(r)=-2/rc+2r/rc**2
- ****************************************************************************/
-  
   double elec=0.,pelec,shiftFunc,dshiftFunc;
     
   if(r<=simulCond->cutoff)
@@ -330,21 +351,25 @@ double coulomb14_shift1(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *b
  * \brief Evaluates the 1-4 electrostatic energy and force for a pair when using the SHIFT_2 cutoff.
  *
  * \return On return the electrostatic energy.
+ *
+ * Shifted 1-4 electrostatic potential with the shift functional form 2 :
+ *
+ * \f$ elecShift=elecPot(r)*shiftFunc(r) \f$
+ *
+ * \f$ elecPot=cte*qi*qj/r \f$
+ *
+ * \f$ shiftFunc=1-2r^2/rc^2+r^4/rc^4 \f$
+ *
+ * \f$ delecShift=delecPot(r)*shiftFunc(r)+elecPot(r)*dshiftFunc(r) \f$
+ *
+ * \f$ delecPot(r)=-elecPot(r)/r \f$
+ *
+ * \f$ dshiftFunc(r)=-4r/rc^2+4r^3/rc^4 \f$
+ *
  */
 double coulomb14_shift2(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
 		      int i, int j, double r, double *delec)
 {
-  
-/*****************************************************************************
- * Shifted electrostatic potential with the shift fuctional form 2 :
- * elecShift=elecPot(r)*shiftFunc(r)
- * elecPot=cte*qi*qj/r
- * shiftFunc=1-2r**2/rc**2+r**4/rc**4
- * delecShift=delecPot(r)*shiftFunc(r)+elecPot(r)*dshiftFunc(r)
- * delecPot(r)=-elecPot(r)/r
- * dshiftFunc(r)=-4r/rc**2+4r**3/rc**4
- ****************************************************************************/
-  
   double elec=0.,pelec,shiftFunc,dshiftFunc;
     
   if(r<=simulCond->cutoff)
@@ -375,21 +400,25 @@ double coulomb14_shift2(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *b
  * \brief Evaluates the 1-4 electrostatic energy and force for a pair when using the SWITCH cutoff.
  *
  * \return On return the electrostatic energy.
+ *
+ * Switched 1-4 electrostatic potential :
+ *
+ * \f$ elecSwitch=elecPot(r)*switchFunc(r) \f$
+ *
+ * \f$ elecPot=cte*qi*qj/r \f$
+ *
+ * \f$ switchFunc=(rc^2+2r^2-3ro^2)*(rc^2-r^2)^2/(rc^2-ro^2)^3 \f$
+ *
+ * \f$ delecSwitch=delecPot(r)*switchFunc(r)+elecPot(r)*dswitchFunc(r) \f$
+ *
+ * \f$ delecPot(r)=-elecPot(r)/r \f$
+ *
+ * \f$ dswitchFunc(r)=-12*r*(rc^2-r^2)*(ro^2-r^2)/(rc^2-ro^2)^3 \f$
+ * 
  */
 double coulomb14_switch(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
 		      int i, int j, double r, double *delec)
 {
-  
-/*****************************************************************************
- * Switched electrostatic potential :
- * elecSwitch=elecPot(r)*switchFunc(r)
- * elecPot=cte*qi*qj/r
- * switchFunc=(rc**2+2r**2-3ro**2)*(rc**2-r**2)**2/(rc**2-ro**2)**3
- * delecSwitch=delecPot(r)*switchFunc(r)+elecPot(r)*dswitchFunc(r)
- * delecPot(r)=-elecPot(r)/r
- * dswitchFunc(r)=-12*r*(rc**2-r**2)*(ro**2-r**2)/(rc**2-ro**2)**3
- ****************************************************************************/
-  
   double elec=0.,pelec,switchFunc,dswitchFunc;
     
   if(r<=simulCond->cuton)

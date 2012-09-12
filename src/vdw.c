@@ -1,4 +1,4 @@
-#include "global.h"
+z#include "global.h"
 #include "utils.h"
 
 double vdw_none(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,

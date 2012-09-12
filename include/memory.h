@@ -1,3 +1,11 @@
+/**
+ * \file memory.h
+ * \brief Prototypes for file memory.c
+ * \author Pierre-Andre Cazade and Florent Hedin
+ * \version alpha-branch
+ * \date 2012
+ */
+
 #ifndef MEMORY_H_INCLUDED
 #define MEMORY_H_INCLUDED
 

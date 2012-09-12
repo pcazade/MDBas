@@ -1,3 +1,11 @@
+/**
+ * \file energy.h
+ * \brief Prototypes for file energy.c
+ * \author Pierre-Andre Cazade and Florent Hedin
+ * \version alpha-branch
+ * \date 2012
+ */
+
 #ifndef ENERGYH_INCLUDED
 #define ENERGYH_INCLUDED
 

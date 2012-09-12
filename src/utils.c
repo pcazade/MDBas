@@ -1,6 +1,6 @@
 /**
  * \file utils.c
- * \brief This file contains various functions called very often.
+ * \brief This file contains various utilitary functions.
  * \author Pierre-Andre Cazade and Florent Hedin
  * \version alpha-branch
  * \date 2012
@@ -141,7 +141,6 @@ double distance2(int i,int j, ATOM atom[],DELTA *d,SIMULPARAMS *simulCond,PBC *b
  * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
  *
  * \brief Initialise velocity of atoms according to a random normal distribution.
- *
  * \remarks If constraints are used, init_constvel is internally called.
  */
 void init_vel(ATOM atom[],SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
@@ -225,7 +224,6 @@ void init_vel(ATOM atom[],SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
  * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
  *
  * \brief Initialise velocity of atoms according to a random normal distribution.
- *
  * \remarks Called by init_vel if constraints are used.
  */
 void init_constvel(ATOM atom[],SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
@@ -328,6 +326,13 @@ void init_constvel(ATOM atom[],SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC 
   free(dt);
 }
 
+/**
+ * \param atom Array of structure ATOM (coordinates, forces, etc...).
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ *
+ * \brief Applies Periodic Boundaries Conditions to atom[], according to the PBC type.
+ */
 void image_update(ATOM atom[],SIMULPARAMS *simulCond,PBC *box)
 {
 
@@ -386,7 +391,15 @@ void image_update(ATOM atom[],SIMULPARAMS *simulCond,PBC *box)
   
 }
 
-void image_array(int size_array,DELTA *d,SIMULPARAMS *simulCond,PBC *box)
+/**
+ * \param size_array Size of the array d[].
+ * \param d Array of structure DELTA.
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ *
+ * \brief Applies Periodic Boundaries Conditions to d[], according to the PBC type.
+ */
+void image_array(int size_array,DELTA d[],SIMULPARAMS *simulCond,PBC *box)
 {
 
   int i;
@@ -444,6 +457,11 @@ void image_array(int size_array,DELTA *d,SIMULPARAMS *simulCond,PBC *box)
   
 }
 
+/**
+ * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ *
+ * \brief Computes norms, Wigner-Seitz cell, determinant, volume for a given box.
+ */
 void init_box(PBC *box)
 {
   // get norm
@@ -513,6 +531,14 @@ void init_box(PBC *box)
   
 }
 
+/**
+ * \param atom Array of structure ATOM (coordinates, forces, etc...).
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ *
+ * \brief Estimates the kinetic energy of a system.
+ *
+ * \return On return, the kinetic energy : \f$ 1/2*m*v^2 \f$
+ */
 double kinetic(ATOM atom[],SIMULPARAMS *simulCond)
 {
   int i;
@@ -527,8 +553,14 @@ double kinetic(ATOM atom[],SIMULPARAMS *simulCond)
   return ( ekin*0.5 );
 }
 
-
-double stress_kinetic(ATOM atom[],SIMULPARAMS *simulCond,double *stress)
+/**
+ * \param atom Array of structure ATOM (coordinates, forces, etc...).
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ * \param stress Array representing (parts of) a Stress Tensor.
+ *
+ * \brief Adds to the stress tensor the kinetic energy.
+ */
+void stress_kinetic(ATOM atom[],SIMULPARAMS *simulCond,double stress[6])
 {
   int i;
   
@@ -547,7 +579,13 @@ double stress_kinetic(ATOM atom[],SIMULPARAMS *simulCond,double *stress)
   
 }
 
-
+/**
+ * \param atom Array of structure ATOM (coordinates, forces, etc...).
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ *
+ * \brief Get initial kinetic energy from the temperature.
+ */
 void get_kinfromtemp(ATOM atom[],SIMULPARAMS *simulCond,PBC *box)
 {
   double degf;
@@ -560,6 +598,12 @@ void get_kinfromtemp(ATOM atom[],SIMULPARAMS *simulCond,PBC *box)
   simulCond->kintemp0=0.5*simulCond->temp*degf*rboltzui;
 }
 
+/**
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ *
+ * \brief Obtains the number of degrees of freedom of the system.
+ */
 void get_degfree(SIMULPARAMS *simulCond,PBC *box)
 {
   
@@ -575,6 +619,11 @@ void get_degfree(SIMULPARAMS *simulCond,PBC *box)
     
 }
 
+/**
+ * \param str A character string of any length.
+ *
+ * \brief Sets to lower case all the characters of the string str.
+ */
 void nocase(char *str)
 {
   int i,n;
@@ -585,6 +634,13 @@ void nocase(char *str)
   }
 }
 
+/**
+ * \param x Any double precision number.
+ *
+ * \brief Rounds its argument to the nearest whole number.
+ *
+ * \return x with the fractional portion of its magnitude eliminated by rounding to the nearest whole number and with its sign preserved, casted to int.
+ */
 int nint(double x)
 {
   return ( (x)>=0.?(int)((x)+0.5):(int)((x)-0.5) );

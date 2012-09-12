@@ -1,3 +1,11 @@
+/**
+ * \file utils.h
+ * \brief Prototypes for file utils.c
+ * \author Pierre-Andre Cazade and Florent Hedin
+ * \version alpha-branch
+ * \date 2012
+ */
+
 #ifndef UTILSH_INCLUDED
 #define UTILSH_INCLUDED
 
@@ -8,11 +16,11 @@ void init_vel(ATOM atom[],SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
 void init_constvel(ATOM atom[],SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box);
 
 void image_update(ATOM atom[],SIMULPARAMS *simulCond,PBC *box);
-void image_array(int size_array,DELTA *d,SIMULPARAMS *simulCond,PBC *box);
+void image_array(int size_array,DELTA d[],SIMULPARAMS *simulCond,PBC *box);
 void init_box(PBC *box);
 
 double kinetic(ATOM atom[],SIMULPARAMS *simulCond);
-double stress_kinetic(ATOM atom[],SIMULPARAMS *simulCond,double *stress);
+void stress_kinetic(ATOM atom[],SIMULPARAMS *simulCond,double stress[6]);
 void get_kinfromtemp(ATOM atom[],SIMULPARAMS *simulCond,PBC *box);
 void get_degfree(SIMULPARAMS *simulCond,PBC *box);
 
