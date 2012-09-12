@@ -1,6 +1,7 @@
 #include <stdio.h> /*debug*/
 #include <stdlib.h>
 #include <math.h>
+
 #include "global.h"
 #include "utils.h"
 #include "memory.h"

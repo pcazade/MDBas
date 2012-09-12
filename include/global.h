@@ -113,6 +113,7 @@ typedef struct
   double bond,ang,ub,dihe,impr;
   double conint,consv;
   double virelec,virvdw,virbond,virub;
+  double virshake;
 }ENERGY;
 
 typedef struct

@@ -1,4 +1,5 @@
 #include <math.h>
+
 #include "global.h"
 #include "dSFMT.h"
 

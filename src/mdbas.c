@@ -28,12 +28,14 @@
 #define _ENERFORMAT_ "%13d\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\n"
 #define _ENERLABELS_ "%13s\t%13s\t%13s\t%13s\t%13s\t%13s\t%13s\t%13s\t%13s\t%13s\t%13s\n"
 
+/**
+ * \param argc Number of arguments of the command line including the name of the program, so argc >= 1.
+ * \param argv Array of char strings containing parameters of the command line ; contains at least the name of the program at index 0.
+ *
+ * \return On return EXIT_SUCCESS if the program terminates properly.
+ */
 int main(int argc, char* argv[])
 {
-  
-//   void (*test)(int *par1,double *par2,...);
-//   test=&(elec);
-
   FILE *fener=NULL,*traj=NULL,*frc=NULL,*numfrc=NULL;
   INPUTS inp;
   ATOM *atom=NULL;
@@ -305,5 +307,5 @@ int main(int argc, char* argv[])
   fprintf(stdout,"Execution time in Seconds : %lf\n",(double)infos_usage.ru_utime.tv_sec+infos_usage.ru_utime.tv_usec/1000000.0);
 #endif /* unixes part */
   
-  return 0;
+  return EXIT_SUCCESS;
 }

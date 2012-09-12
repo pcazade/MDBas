@@ -11,6 +11,10 @@
 
 /**
  * \brief Empty function called when electrostatic energy and force are disabled.
+ * 
+ * \remarks delec is set to 0.0 .
+ *
+ * \return On return 0.0 as no energy evaluated.
  */
 double coulomb_none(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
 		    int i, int j, double r, double *delec)
@@ -25,6 +29,7 @@ double coulomb_none(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
  * \param ener Pointer to structure ENERGY containing values of the different energies.
  * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
  * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ *
  * \brief Function called for a full evaluation of the electrostatic energy and force.
  */
 void coulomb_full(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
@@ -98,6 +103,8 @@ void coulomb_full(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond
  * \param delec Pointer to derivative of energy used for force evaluation.
  * 
  * \brief Evaluates the electrostatic energy and force for a pair when using the SHIFT_1 cutoff.
+ *
+ * \return On return the electrostatic energy.
  */
 double coulomb_shift1(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
 		    int i, int j, double r, double *delec)
@@ -137,6 +144,8 @@ double coulomb_shift1(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box
  * \param delec Pointer to derivative of energy used for force evaluation.
  * 
  * \brief Evaluates the electrostatic energy and force for a pair when using the SHIFT_2 cutoff.
+ *
+ * \return On return the electrostatic energy.
  */
 double coulomb_shift2(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
 		    int i, int j, double r, double *delec)
@@ -176,6 +185,8 @@ double coulomb_shift2(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box
  * \param delec Pointer to derivative of energy used for force evaluation.
  * 
  * \brief Evaluates the electrostatic energy and force for a pair when using the SWITCH cutoff.
+ *
+ * \return On return the electrostatic energy.
  */
 double coulomb_switch(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
 		    int i, int j, double r, double *delec)
@@ -223,6 +234,10 @@ double coulomb_switch(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box
 
 /**
  * \brief Empty function called when 1-4 electrostatic energy and force are disabled.
+ *
+ * \remarks delec is set to 0.0 .
+ *
+ * \return On return 0.0 as no energy evaluated.
  */
 double coulomb14_none(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
 		      int i, int j, double r, double *delec)
@@ -234,10 +249,16 @@ double coulomb14_none(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box
 /**
  * \param atom Array of structure ATOM (coordinates, forces, etc...).
  * \param ff Pointer to structure FORCEFIELD containing forcefield parameters.
- * \param ener Pointer to structure ENERGY containing values of the different energies.
  * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
  * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ * \param i Index of first atom.
+ * \param j Index of second atom.
+ * \param r Distance between the two atoms.
+ * \param delec Pointer to derivative of energy used for force evaluation.
+ *
  * \brief Function called for a full evaluation of the 1-4 electrostatic energy and force.
+ *
+ * \return On return the electrostatic energy.
  */
 double coulomb14_full(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
 		    int i, int j, double r, double *delec)
@@ -262,6 +283,8 @@ double coulomb14_full(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box
  * \param delec Pointer to derivative of energy used for force evaluation.
  * 
  * \brief Evaluates the 1-4 electrostatic energy and force for a pair when using the SHIFT_1 cutoff.
+ *
+ * \return On return the electrostatic energy.
  */
 double coulomb14_shift1(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
 		      int i, int j, double r, double *delec)
@@ -305,6 +328,8 @@ double coulomb14_shift1(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *b
  * \param delec Pointer to derivative of energy used for force evaluation.
  * 
  * \brief Evaluates the 1-4 electrostatic energy and force for a pair when using the SHIFT_2 cutoff.
+ *
+ * \return On return the electrostatic energy.
  */
 double coulomb14_shift2(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
 		      int i, int j, double r, double *delec)
@@ -348,6 +373,8 @@ double coulomb14_shift2(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *b
  * \param delec Pointer to derivative of energy used for force evaluation.
  * 
  * \brief Evaluates the 1-4 electrostatic energy and force for a pair when using the SWITCH cutoff.
+ *
+ * \return On return the electrostatic energy.
  */
 double coulomb14_switch(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
 		      int i, int j, double r, double *delec)

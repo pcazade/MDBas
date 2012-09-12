@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+
 #include "global.h"
 #include "utils.h"
 #include "shake.h"
@@ -680,6 +681,10 @@ void vv_integrate(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *
 void vv_nve(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box,int stage)
 {
   int i,ia,ib;
+  
+  double virshake;
+  double stress[9]={0.0} , stresk[9]={0.0} ;
+
   DELTA *dd=NULL;
   
   if(simulCond->nconst>0)

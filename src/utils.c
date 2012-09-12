@@ -1,13 +1,35 @@
+/**
+ * \file utils.c
+ * \brief This file contains various functions called very often.
+ * \author Pierre-Andre Cazade and Florent Hedin
+ * \version alpha-branch
+ * \date 2012
+ */
+
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
 #include <ctype.h>
+
 #include "global.h"
 #include "utils.h"
 #include "rand.h"
 #include "io.h"
 
-double distance(int i,int j, ATOM atom[],double *delta,SIMULPARAMS *simulCond,PBC *box)
+/**
+ * \param i Index of first atom.
+ * \param j Index of second atom.
+ * \param atom Array of structure ATOM (coordinates, forces, etc...).
+ * \param delta Vector of length 3, representing the vector ij.
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ *
+ * \brief Evaluates the distance between two atoms i and j.
+ * \remarks Periodic Boundaries Conditions are internally applied.
+ *
+ * \return The distance in Angstroems between two atoms.
+ */
+double distance(int i,int j, ATOM atom[],double delta[3],SIMULPARAMS *simulCond,PBC *box)
 {
   double r,xt,yt,zt;
   
@@ -53,6 +75,19 @@ double distance(int i,int j, ATOM atom[],double *delta,SIMULPARAMS *simulCond,PB
   
 }
 
+/**
+ * \param i Index of first atom.
+ * \param j Index of second atom.
+ * \param atom Array of structure ATOM (coordinates, forces, etc...).
+ * \param d Pointer to structure DELTA representing the vector ij.
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ *
+ * \brief Evaluates the square of the distance between two atoms i and j.
+ * \remarks Periodic Boundaries Conditions are internally applied.
+ *
+ * \return The squared distance in Angstroems^2 between two atoms.
+ */
 double distance2(int i,int j, ATOM atom[],DELTA *d,SIMULPARAMS *simulCond,PBC *box)
 {
   double r2,xt,yt,zt;
@@ -472,8 +507,8 @@ double kinetic(ATOM atom[],SIMULPARAMS *simulCond)
   return ( ekin*0.5 );
 }
 
-<<<<<<< .mine
-double stress_kinetic(ATOM *atom,SIMULPARAMS *simulCond,double *stress)
+
+double stress_kinetic(ATOM atom[],SIMULPARAMS *simulCond,double *stress)
 {
   int i;
   
@@ -482,24 +517,22 @@ double stress_kinetic(ATOM *atom,SIMULPARAMS *simulCond,double *stress)
   
   for(i=0;i<simulCond->natom;i++)
   {
-    stress[0]+=atom[i].m*(X2(atom[i].vx);
-    stress[1]+=atom[i].m*atom[i].vx*atom[i].vy;
-    stress[2]+=atom[i].m*atom[i].vx*atom[i].vz;
-    stress[3]+=atom[i].m*(X2(atom[i].vy);
-    stress[4]+=atom[i].m*atom[i].vy*atom[i].vz;
-    stress[5]+=atom[i].m*(X2(atom[i].vz);
+    stress[0] += atom[i].m*X2(atom[i].vx);
+    stress[1] += atom[i].m*atom[i].vx*atom[i].vy;
+    stress[2] += atom[i].m*atom[i].vx*atom[i].vz;
+    stress[3] += atom[i].m*X2(atom[i].vy);
+    stress[4] += atom[i].m*atom[i].vy*atom[i].vz;
+    stress[5] += atom[i].m*X2(atom[i].vz);
   }
   
 }
 
-void get_kinfromtemp(ATOM *atom,SIMULPARAMS *simulCond,PBC *box)
-=======
+
 void get_kinfromtemp(ATOM atom[],SIMULPARAMS *simulCond,PBC *box)
->>>>>>> .r66
 {
   double degf;
   
-  get_degfree(atom,simulCond,box);
+  get_degfree(simulCond,box);
   
   //   Energy in internal units 10 J/mol. rboltzui=R/10.
   
@@ -507,7 +540,7 @@ void get_kinfromtemp(ATOM atom[],SIMULPARAMS *simulCond,PBC *box)
   simulCond->kintemp0=0.5*simulCond->temp*degf*rboltzui;
 }
 
-void get_degfree(ATOM atom[],SIMULPARAMS *simulCond,PBC *box)
+void get_degfree(SIMULPARAMS *simulCond,PBC *box)
 {
   
 //   Atoms degrees of freedom - 3 degrees of freedom of the CoM.
