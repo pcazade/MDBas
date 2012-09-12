@@ -1,11 +1,3 @@
-/**
- * \file elec.c
- * \brief Contains functions for evaluating electrostatic energies and forces.
- * \author Pierre-Andre Cazade and Florent Hedin
- * \version alpha-branch
- * \date 2012
- */
-
 #include "global.h"
 #include "utils.h"
 

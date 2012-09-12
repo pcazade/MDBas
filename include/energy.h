@@ -1,6 +1,6 @@
 /**
  * \file energy.h
- * \brief Prototypes for file energy.c
+ * \brief Contains highest level functions for evaluating energy and forces of a system.
  * \author Pierre-Andre Cazade and Florent Hedin
  * \version alpha-branch
  * \date 2012

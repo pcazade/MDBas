@@ -1,4 +1,4 @@
-z#include "global.h"
+#include "global.h"
 #include "utils.h"
 
 double vdw_none(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
@@ -75,7 +75,7 @@ double vdw_switch(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
 {
   
 /**
- * \brief Switched van der Waals potential
+ * Switched van der Waals potential
  * vdwSwitch=elecPot(r)*switchFunc(r)
  * vdwPot=4*eps*((sig/r)**12-(sig/r)**6)
  * switchFunc=(rc**2+2r**2-3ro**2)*(rc**2-r**2)**2/(rc**2-ro**2)**3

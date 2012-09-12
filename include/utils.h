@@ -1,6 +1,6 @@
 /**
  * \file utils.h
- * \brief Prototypes for file utils.c
+ * \brief Various and general utilitary functions.
  * \author Pierre-Andre Cazade and Florent Hedin
  * \version alpha-branch
  * \date 2012

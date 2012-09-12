@@ -1,11 +1,3 @@
-/**
- * \file utils.c
- * \brief This file contains various utilitary functions.
- * \author Pierre-Andre Cazade and Florent Hedin
- * \version alpha-branch
- * \date 2012
- */
-
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
