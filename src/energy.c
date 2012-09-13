@@ -95,6 +95,21 @@ void energy(ATOM atom[], FORCEFIELD *ff, ENERGY *ener, SIMULPARAMS *simulCond, P
   ener->dihe=0.;
   ener->impr=0.;
   
+  ener->virelec=0.;
+  ener->virvdw=0.;
+  ener->virbond=0.;
+  ener->virub=0.;
+  
+  box->stress1=0.;
+  box->stress2=0.;
+  box->stress3=0.;
+  box->stress4=0.;
+  box->stress5=0.;
+  box->stress6=0.;
+  box->stress7=0.;
+  box->stress8=0.;
+  box->stress9=0.;
+  
   for(i=0;i<simulCond->natom;i++)
   {
     atom[i].fx=0.;

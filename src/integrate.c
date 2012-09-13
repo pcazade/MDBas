@@ -141,7 +141,7 @@ void lf_nve(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constL
   
   ener->kin=kinetic(atom,simulCond);
   
-  ener->virshake+=virshake;
+  ener->virshake=virshake;
   
   stress_kinetic(atom,simulCond,stresk);
   
@@ -357,7 +357,7 @@ void lf_nvt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
     
   }
   
-  ener->virshake+=virshake;
+  ener->virshake=virshake;
   
   stress_kinetic(atom,simulCond,stresk);
   
@@ -597,7 +597,7 @@ void lf_nvt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
     
   }
   
-  ener->virshake+=virshake;
+  ener->virshake=virshake;
   
   stress_kinetic(atom,simulCond,stresk);
   
@@ -681,10 +681,7 @@ void vv_integrate(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *
 void vv_nve(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box,int stage)
 {
   int i,ia,ib;
-  
-  double virshake;
-  double stress[9]={0.0} , stresk[9]={0.0} ;
-
+  double virshake,stress[6]={0.},stresk[6]={0.};
   DELTA *dd=NULL;
   
   if(simulCond->nconst>0)
@@ -743,6 +740,7 @@ void vv_nve(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constL
 // Apply constraint with Shake algorithm.
 
       vv_shake_r(atom,simulCond,constList,dd,box,&virshake,stress);
+      ener->virshake=virshake;
       
     }
     
@@ -761,8 +759,6 @@ void vv_nve(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constL
     }
   
     ener->kin=kinetic(atom,simulCond);
-    
-    ener->virshake+=virshake;
   
     stress_kinetic(atom,simulCond,stresk);
     
@@ -775,6 +771,7 @@ void vv_nve(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constL
     box->stress7+=stress[2]+stresk[2];
     box->stress8+=stress[4]+stresk[4];
     box->stress9+=stress[5]+stresk[5];
+    
   }
   
   if(stage==2)
@@ -796,6 +793,7 @@ void vv_nvt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
 {
   int i,ia,ib;
   double lambda;
+  double virshake,stress[6]={0.},stresk[6]={0.};
   DELTA *dd=NULL;
   
   if(simulCond->nconst>0)
@@ -853,7 +851,8 @@ void vv_nvt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
       
 // Apply constraint with Shake algorithm.
 
-      vv_shake_r(atom,simulCond,constList,dd,box);
+      vv_shake_r(atom,simulCond,constList,dd,box,&virshake,stress);
+      ener->virshake=virshake;
       
     }
     
@@ -886,6 +885,18 @@ void vv_nvt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
     }
     
     ener->kin*=X2(lambda);
+  
+    stress_kinetic(atom,simulCond,stresk);
+    
+    box->stress1+=stress[0]+stresk[0];
+    box->stress2+=stress[1]+stresk[1];
+    box->stress3+=stress[2]+stresk[2];
+    box->stress4+=stress[1]+stresk[1];
+    box->stress5+=stress[3]+stresk[3];
+    box->stress6+=stress[4]+stresk[4];
+    box->stress7+=stress[2]+stresk[2];
+    box->stress8+=stress[4]+stresk[4];
+    box->stress9+=stress[5]+stresk[5];
     
   }
   
@@ -908,6 +919,7 @@ void vv_nvt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
 {
   int i,ia,ib;
   double lambda,qmass;
+  double virshake,stress[6]={0.},stresk[6]={0.};
   DELTA *dd=NULL;
   
   if(simulCond->nconst>0)
@@ -984,7 +996,8 @@ void vv_nvt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
       
 // Apply constraint with Shake algorithm.
 
-      vv_shake_r(atom,simulCond,constList,dd,box);
+      vv_shake_r(atom,simulCond,constList,dd,box,&virshake,stress);
+      ener->virshake=virshake;
       
     }
     
@@ -1037,6 +1050,18 @@ void vv_nvt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
     simulCond->lambdat+=0.5*simulCond->timeStep*(ener->kin-simulCond->kintemp0)/qmass;
     
     ener->consv=ener->conint+0.5*qmass*X2(simulCond->lambdat);
+    
+    stress_kinetic(atom,simulCond,stresk);
+    
+    box->stress1+=stress[0]+stresk[0];
+    box->stress2+=stress[1]+stresk[1];
+    box->stress3+=stress[2]+stresk[2];
+    box->stress4+=stress[1]+stresk[1];
+    box->stress5+=stress[3]+stresk[3];
+    box->stress6+=stress[4]+stresk[4];
+    box->stress7+=stress[2]+stresk[2];
+    box->stress8+=stress[4]+stresk[4];
+    box->stress9+=stress[5]+stresk[5];
     
   }
   

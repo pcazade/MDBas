@@ -266,6 +266,8 @@ int main(int argc, char* argv[])
       
       ener.tot=ener.kin+ener.pot;
       
+      ener.virtot=ener.virbond+ener.virub+ener.virelec+ener.virvdw+ener.virshake;
+      
 //     Write thermodynamics properties into ener file.
       
       if( (simulCond.keyener) && (simulCond.step%simulCond.printo==0) )
