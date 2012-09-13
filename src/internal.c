@@ -1,3 +1,11 @@
+/**
+ * \file internal.c
+ * \brief Contains functions evaluating the internal energy.
+ * \author Pierre-Andre Cazade and Florent Hedin
+ * \version alpha-branch
+ * \date 2012
+ */
+
 #include <stdio.h>
 #include <float.h>
 #include <math.h>

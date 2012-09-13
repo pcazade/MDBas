@@ -1,11 +1,3 @@
-/**
- * \file internal.h
- * \brief Prototypes for file internal.c
- * \author Pierre-Andre Cazade and Florent Hedin
- * \version alpha-branch
- * \date 2012
- */
-
 #ifndef INTERNALH_INCLUDED
 #define INTERNALH_INCLUDED
 

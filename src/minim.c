@@ -1,3 +1,11 @@
+/**
+ * \file minim.c
+ * \brief Contains functions performing energy minimisation.
+ * \author Pierre-Andre Cazade and Florent Hedin
+ * \version alpha-branch
+ * \date 2012
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>

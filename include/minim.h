@@ -1,11 +1,3 @@
-/**
- * \file minim.h
- * \brief Prototypes for file minim.c
- * \author Pierre-Andre Cazade and Florent Hedin
- * \version alpha-branch
- * \date 2012
- */
-
 #ifndef MINIMH_INCLUDED
 #define MINIMH_INCLUDED
 

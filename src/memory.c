@@ -1,3 +1,11 @@
+/**
+ * \file memory.c
+ * \brief Contains functions for allocating and freeing multi dimension arrays of any kind/struct.
+ * \author Pierre-Andre Cazade and Florent Hedin
+ * \version alpha-branch
+ * \date 2012
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stddef.h>

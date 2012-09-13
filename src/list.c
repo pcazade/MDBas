@@ -1,3 +1,11 @@
+/**
+ * \file list.c
+ * \brief Contains functions for building and updating the nonbonded interactions list.
+ * \author Pierre-Andre Cazade and Florent Hedin
+ * \version alpha-branch
+ * \date 2012
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>

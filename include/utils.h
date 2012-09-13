@@ -1,11 +1,3 @@
-/**
- * \file utils.h
- * \brief Various and general utilitary functions.
- * \author Pierre-Andre Cazade and Florent Hedin
- * \version alpha-branch
- * \date 2012
- */
-
 #ifndef UTILSH_INCLUDED
 #define UTILSH_INCLUDED
 

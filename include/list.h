@@ -1,11 +1,3 @@
-/**
- * \file list.h
- * \brief Prototypes for file list.c
- * \author Pierre-Andre Cazade and Florent Hedin
- * \version alpha-branch
- * \date 2012
- */
-
 #ifndef LISTH_INCLUDED
 #define LISTH_INCLUDED
 

@@ -1,11 +1,3 @@
-/**
- * \file integrate.h
- * \brief Prototypes for file integrate.c
- * \author Pierre-Andre Cazade and Florent Hedin
- * \version alpha-branch
- * \date 2012
- */
-
 #ifndef INTEGRATEH_INCLUDED
 #define INTEGRATEH_INCLUDED
 

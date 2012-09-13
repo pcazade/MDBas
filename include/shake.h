@@ -1,11 +1,3 @@
-/**
- * \file shake.h
- * \brief Prototypes for file shake.c
- * \author Pierre-Andre Cazade and Florent Hedin
- * \version alpha-branch
- * \date 2012
- */
-
 #ifndef SHAKEH_INCLUDED
 #define SHAKEH_INCLUDED
 

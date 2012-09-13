@@ -1,3 +1,11 @@
+/**
+ * \file shake.c
+ * \brief Contains functions for applying the SHAKE constraints.
+ * \author Pierre-Andre Cazade and Florent Hedin
+ * \version alpha-branch
+ * \date 2012
+ */
+
 #include <stdlib.h>
 #include <math.h>
 

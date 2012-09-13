@@ -1,11 +1,3 @@
-/**
- * \file io.h
- * \brief Prototypes for file io.c
- * \author Pierre-Andre Cazade and Florent Hedin
- * \version alpha-branch
- * \date 2012
- */
-
 #ifndef IOH_INCLUDED
 #define IOH_INCLUDED
 

@@ -1,3 +1,11 @@
+/**
+ * \file io.c
+ * \brief Contains functions in charge of I/O and parsing. 
+ * \author Pierre-Andre Cazade and Florent Hedin
+ * \version alpha-branch
+ * \date 2012
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>

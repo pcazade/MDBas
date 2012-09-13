@@ -1,6 +1,30 @@
+/**
+ * \file vdw.c
+ * \brief Contains functions for evaluating Van der Waals energies and forces.
+ * \author Pierre-Andre Cazade and Florent Hedin
+ * \version alpha-branch
+ * \date 2012
+ */
+
 #include "global.h"
 #include "utils.h"
 
+/**
+ * \param atom Array of structure ATOM (coordinates, forces, etc...).
+ * \param ff Pointer to structure FORCEFIELD containing forcefield parameters.
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ * \param i Index of first atom.
+ * \param j Index of second atom.
+ * \param r Distance between the two atoms.
+ * \param dvdw Pointer to derivative of energy used for force evaluation.
+ * 
+ * \brief Empty function called when Van der Waals energy and force are disabled.
+ * 
+ * \remarks dvdw is set to 0.0 .
+ *
+ * \return On return 0.0 as no energy evaluated.
+ */
 double vdw_none(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
 		int i, int j, double r, double *dvdw)
 {
@@ -8,6 +32,15 @@ double vdw_none(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
   return 0.;
 }
 
+/**
+ * \param atom Array of structure ATOM (coordinates, forces, etc...).
+ * \param ff Pointer to structure FORCEFIELD containing forcefield parameters.
+ * \param ener Pointer to structure ENERGY containing values of the different energies.
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ *
+ * \brief Function called for a full evaluation of the Van der Waals energy and force.
+ */
 void vdw_full(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
     
@@ -70,21 +103,38 @@ void vdw_full(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC
   ener->vdw+=vdw;
 }
 
+/**
+ * \param atom Array of structure ATOM (coordinates, forces, etc...).
+ * \param ff Pointer to structure FORCEFIELD containing forcefield parameters.
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ * \param i Index of first atom.
+ * \param j Index of second atom.
+ * \param r Distance between the two atoms.
+ * \param dvdw Pointer to derivative of energy used for force evaluation.
+ * 
+ * \brief Evaluates the Van der Waals energy and force for a pair when using the SWITCH cutoff.
+ *
+ * \return On return the Van der Waals energy.
+ *
+ * Switched Van der Waals potential :
+ * 
+ * \f$ vdwSwitch=elecPot(r)*switchFunc(r) \f$ 
+ * 
+ * \f$ vdwPot=4*eps*((sig/r)^12-(sig/r)^6) \f$ 
+ * 
+ * \f$ switchFunc=(rc^2+2r^2-3ro^2)*(rc^2-r^2)^2/(rc^2-ro^2)^3 \f$ 
+ * 
+ * \f$ dvdwSwitch=delecPot(r)*switchFunc(r)+elecPot(r)*dswitchFunc(r) \f$ 
+ * 
+ * \f$ dvdwPot(r)=-elecPot(r)/r \f$ 
+ * 
+ * \f$ dswitchFunc(r)=-12*r*(rc^2-r^2)*(ro^2-r^2)/(rc^2-ro^2)^3 \f$ 
+ *
+ */
 double vdw_switch(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
 		int i, int j, double r, double *dvdw)
 {
-  
-/**
- * Switched van der Waals potential
- * vdwSwitch=elecPot(r)*switchFunc(r)
- * vdwPot=4*eps*((sig/r)**12-(sig/r)**6)
- * switchFunc=(rc**2+2r**2-3ro**2)*(rc**2-r**2)**2/(rc**2-ro**2)**3
- * dvdwSwitch=delecPot(r)*switchFunc(r)+elecPot(r)*dswitchFunc(r)
- * dvdwPot(r)=-elecPot(r)/r
- * dswitchFunc(r)=-12*r*(rc**2-r**2)*(ro**2-r**2)/(rc**2-ro**2)**3
- *
- */
-  
   double vdw=0.,pvdw,dpvdw,switchFunc,dswitchFunc;
   
   if(r<=simulCond->cuton)
@@ -125,13 +175,42 @@ double vdw_switch(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
   return vdw;
 }
 
+/**
+ * \param atom Array of structure ATOM (coordinates, forces, etc...).
+ * \param ff Pointer to structure FORCEFIELD containing forcefield parameters.
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ * \param i Index of first atom.
+ * \param j Index of second atom.
+ * \param r Distance between the two atoms.
+ * \param dvdw Pointer to derivative of energy used for force evaluation.
+ * 
+ * \brief Empty function called when 1-4 Van der Waals energy and force are disabled.
+ * 
+ * \remarks dvdw is set to 0.0 .
+ *
+ * \return On return 0.0 as no energy evaluated.
+ */
 double vdw14_none(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
 		  int i, int j, double r, double *dvdw)
 {
   *dvdw=0;
   return 0.;
 }
-
+/** 
+ * \param atom Array of structure ATOM (coordinates, forces, etc...).
+ * \param ff Pointer to structure FORCEFIELD containing forcefield parameters.
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ * \param i Index of first atom.
+ * \param j Index of second atom.
+ * \param r Distance between the two atoms.
+ * \param dvdw Pointer to derivative of energy used for force evaluation.
+ *
+ * \brief Function called for a full evaluation of the 1-4 Van der Waals energy and force.
+ *
+ * \return On return the electrostatic energy.
+ */
 double vdw14_full(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
 		int i, int j, double r, double *dvdw)
 {
@@ -147,20 +226,38 @@ double vdw14_full(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
   return vdw;
 }
 
+/**
+ * \param atom Array of structure ATOM (coordinates, forces, etc...).
+ * \param ff Pointer to structure FORCEFIELD containing forcefield parameters.
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ * \param i Index of first atom.
+ * \param j Index of second atom.
+ * \param r Distance between the two atoms.
+ * \param dvdw Pointer to derivative of energy used for force evaluation.
+ * 
+ * \brief Evaluates the 1-4 Van der Waals energy and force for a pair when using the SWITCH cutoff.
+ *
+ * \return On return the Van der Waals energy.
+ *
+ * Switched 1-4 Van der Waals potential :
+ * 
+ * \f$ vdwSwitch=elecPot(r)*switchFunc(r) \f$
+ * 
+ * \f$ vdwPot=4*eps*((sig/r)^12-(sig/r)^6) \f$
+ * 
+ * \f$ switchFunc=(rc^2+2r^2-3ro^2)*(rc^2-r^2)^2/(rc^2-ro^2)^3 \f$
+ * 
+ * \f$ dvdwSwitch=delecPot(r)*switchFunc(r)+elecPot(r)*dswitchFunc(r) \f$
+ * 
+ * \f$ dvdwPot(r)=-elecPot(r)/r \f$
+ *
+ * \f$ dswitchFunc(r)=-12*r*(rc^2-r^2)*(ro^2-r**2)/(rc^2-ro^2)^3 \f$
+ *
+ */
 double vdw14_switch(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
 		  int i, int j, double r, double *dvdw)
 {
-  
-/*****************************************************************************
- * Switched van der Waals potential :
- * vdwSwitch=elecPot(r)*switchFunc(r)
- * vdwPot=4*eps*((sig/r)**12-(sig/r)**6)
- * switchFunc=(rc**2+2r**2-3ro**2)*(rc**2-r**2)**2/(rc**2-ro**2)**3
- * dvdwSwitch=delecPot(r)*switchFunc(r)+elecPot(r)*dswitchFunc(r)
- * dvdwPot(r)=-elecPot(r)/r
- * dswitchFunc(r)=-12*r*(rc**2-r**2)*(ro**2-r**2)/(rc**2-ro**2)**3
- ****************************************************************************/
-  
   double vdw=0.,pvdw,dpvdw,switchFunc,dswitchFunc;
   
   if(r<=simulCond->cuton)

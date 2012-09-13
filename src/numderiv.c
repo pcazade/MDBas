@@ -1,3 +1,11 @@
+/**
+ * \file numderiv.c
+ * \brief Contains functions for estimating derivatives numerically (test purposes only).
+ * \author Pierre-Andre Cazade and Florent Hedin
+ * \version alpha-branch
+ * \date 2012
+ */
+
 #include <stdlib.h>
 
 #include "global.h"
