@@ -15,6 +15,7 @@
 #define kcaltoiu (418.4)                /*!< Conversion factor : internal units (10 Joules) to kcal (kilo-calory). */
 #define clight  (299792458.)            /*!< The speed of light (c) in \f$ m.s^{-1} \f$. */
 #define NA	(6.02214129e+23)        /*!< The Avogadro constant in \f$ mol^{-1} \f$. */
+#define bartoiu	(6.02214129e+3)         /*!< For converting pressure from bar \f$ 10^5.J.m^{-3} \f$ to internal units \f$ 10 J.mol^{-1}.A^{-3} \f$. */
 #define kboltz  (1.3806488e-23)         /*!< The Boltzmann Constant in \f$ J.K^{-1} \f$. */
 #define rboltz  (8.3144621)             /*!< The Gas constant in \f$ J.K^{-1}.mol^{-1} \f$ : it is kboltz divided by NA. */
 #define rboltzui  (0.83144621)          /*!< The Gas constant in internal units,  \f$ 10 J.K^{-1}.mol^{-1} \f$. */
@@ -23,6 +24,7 @@
 #define chgnamd   (332.0636)            /*!< For converting electrostatic energy from internal units to \f$ kcal.mol^{-1} \f$ for NAMD. */
 #define sq6rt2  (1.12246204830937)      /*!< This constant is \f$ \sqrt[6]{2} \f$. */
 #define PI      (3.14159265358979)      /*!< This is \f$ \pi \f$. */
+#define watercomp (0.007372)		/*!< This the compressibility of water in internal units. */
 
 #define MAXLIST 2048                    /*!< Maximal number of pairs per atom for neighbours list. */
 
@@ -154,6 +156,7 @@ typedef struct
   double chargeConst,cutoff,cuton,delr,tolshake;
   double lambdat,lambdap,kintemp0,taut;
   double tolminim,maxminsiz,temp,timeStep;
+  double press,tempStep,pressStep;
   enum ELEC_TYPE elecType;
   enum VDW_TYPE  vdwType;
 }SIMULPARAMS;

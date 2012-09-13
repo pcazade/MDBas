@@ -25,8 +25,8 @@
 #include <sys/resource.h>
 #endif /* for some unixes */
 
-#define _ENERFORMAT_ "%13d\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\n"
-#define _ENERLABELS_ "%13s\t%13s\t%13s\t%13s\t%13s\t%13s\t%13s\t%13s\t%13s\t%13s\t%13s\n"
+#define _ENERFORMAT_ "%13d\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\n"
+#define _ENERLABELS_ "%13s\t%13s\t%13s\t%13s\t%13s\t%13s\t%13s\t%13s\t%13s\t%13s\t%13s\t%13s\t%13s\n"
 
 /**
  * \param argc Number of arguments of the command line including the name of the program, so argc >= 1.
@@ -46,9 +46,10 @@ int main(int argc, char* argv[])
   DELTA *nForce=NULL;
   PBC box;
   
-  char enerLabel[11][7]={ {"Step"}  , {"Etot"}  , {"Ekin"}  , {"Epot"} ,
-			  {"Ecoul"} , {"Evdw"}  , {"Ebond"} , {"Eangle"} ,
-			  {"Eub"}   , {"Edihe"} , {"Eimpr"} };
+  char enerLabel[13][7]={ {"Step"}  , {"Temp"} , {"Press"} , {"Etot"}  ,
+			  {"Ekin"}  , {"Epot"} , {"Ecoul"} , {"Evdw"}  ,
+			  {"Ebond"} , {"Eangle"} , {"Eub"}   , {"Edihe"} ,
+			  {"Eimpr"} };
   int i;
   
   init_rand(time(NULL));
@@ -115,13 +116,26 @@ int main(int argc, char* argv[])
   simulCond.lambdap=0.;
   ener.conint=0.;
   
+  ener.virshake=0.;
+  
+  box.stress1=0.;
+  box.stress2=0.;
+  box.stress3=0.;
+  box.stress4=0.;
+  box.stress5=0.;
+  box.stress6=0.;
+  box.stress7=0.;
+  box.stress8=0.;
+  box.stress9=0.;
+  
   if(simulCond.keyener)
   {
     fener=fopen("ener.dat","w");
     
     fprintf(fener,_ENERLABELS_,enerLabel[0],enerLabel[1],enerLabel[2],enerLabel[3],
 			       enerLabel[4],enerLabel[5],enerLabel[6],enerLabel[7],
-			       enerLabel[8],enerLabel[9],enerLabel[10]);
+			       enerLabel[8],enerLabel[9],enerLabel[10],enerLabel[11],
+			       enerLabel[12]);
   }
   
   if(simulCond.keytraj)
@@ -146,14 +160,32 @@ int main(int argc, char* argv[])
     
     ener.tot=ener.kin+ener.pot;
     
-    if(simulCond.keyener)
+    ener.virtot=ener.virbond+ener.virub+ener.virelec+ener.virvdw+ener.virshake;
+    
+    if( (simulCond.keyener) && (simulCond.step%simulCond.printo==0) )
+    {
+      simulCond.tempStep=2.*ener.kin/((double)simulCond.degfree*rboltzui);
+      if(box.type>0)
+	simulCond.pressStep=(2.*ener.kin-ener.virtot)/(3.*box.vol*bartoiu);
+      else
+	simulCond.pressStep=0.;
+      
+      fprintf(fener,_ENERFORMAT_,
+	simulCond.step,simulCond.tempStep,simulCond.pressStep,
+	ener.tot/kcaltoiu,ener.kin/kcaltoiu,ener.pot/kcaltoiu,
+	ener.elec/kcaltoiu,ener.vdw/kcaltoiu,ener.bond/kcaltoiu,
+	ener.ang/kcaltoiu,ener.ub/kcaltoiu,ener.dihe/kcaltoiu,
+	ener.impr/kcaltoiu);
+    }
+    
+    /*if(simulCond.keyener)
     { 
       fprintf(fener,_ENERFORMAT_,
 	simulCond.step,ener.tot/kcaltoiu,ener.kin/kcaltoiu,ener.pot/kcaltoiu,
 	ener.elec/kcaltoiu,ener.vdw/kcaltoiu,ener.bond/kcaltoiu,
 	ener.ang/kcaltoiu,ener.ub/kcaltoiu,ener.dihe/kcaltoiu,
 	ener.impr/kcaltoiu);
-    }
+    }*/
     
 //     if(simulCond.keytraj)
 //     {
@@ -271,11 +303,20 @@ int main(int argc, char* argv[])
 //     Write thermodynamics properties into ener file.
       
       if( (simulCond.keyener) && (simulCond.step%simulCond.printo==0) )
+      {
+	simulCond.tempStep=2.*ener.kin/((double)simulCond.degfree*rboltzui);
+	if(box.type>0)
+	  simulCond.pressStep=(2.*ener.kin-ener.virtot)/(3.*box.vol*bartoiu);
+	else
+	  simulCond.pressStep=0.;
+	
 	fprintf(fener,_ENERFORMAT_,
-	  simulCond.step,ener.tot/kcaltoiu,ener.kin/kcaltoiu,ener.pot/kcaltoiu,
+	  simulCond.step,simulCond.tempStep,simulCond.pressStep,
+	  ener.tot/kcaltoiu,ener.kin/kcaltoiu,ener.pot/kcaltoiu,
 	  ener.elec/kcaltoiu,ener.vdw/kcaltoiu,ener.bond/kcaltoiu,
 	  ener.ang/kcaltoiu,ener.ub/kcaltoiu,ener.dihe/kcaltoiu,
 	  ener.impr/kcaltoiu);
+      }
 	
 //     Write coordinates into traj file.
       
