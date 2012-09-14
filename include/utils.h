@@ -10,6 +10,7 @@ void init_constvel(ATOM atom[],SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC 
 void image_update(ATOM atom[],SIMULPARAMS *simulCond,PBC *box);
 void image_array(int size_array,DELTA d[],SIMULPARAMS *simulCond,PBC *box);
 void init_box(PBC *box);
+void scale_box(PBC *box,double scale,double cell0[9]);
 
 double kinetic(ATOM atom[],SIMULPARAMS *simulCond);
 void stress_kinetic(ATOM atom[],SIMULPARAMS *simulCond,double stress[6]);

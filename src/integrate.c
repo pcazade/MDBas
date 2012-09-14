@@ -25,6 +25,9 @@ void lf_integrate(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *
     case 1:
       lf_nvt_b(atom,ener,simulCond,constList,box);
       break;
+    case 2:
+      lf_npt_b(atom,ener,simulCond,constList,box);
+      break;
     case 3:
       lf_nvt_h(atom,ener,simulCond,constList,box);
       break;
@@ -430,7 +433,7 @@ void lf_npt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
   double *vxo=NULL,*vyo=NULL,*vzo=NULL;
   double *xt=NULL,*yt=NULL,*zt=NULL;
   double *vxu=NULL,*vyu=NULL,*vzu=NULL;
-  double vol0,box0[9];
+  double volume,cell0[9];
   double virshake=0.,virshakt=0.,stress[6]={0.},strest[6]={0.},stresk[6]={0.};
   DELTA *dd=NULL;
   
@@ -464,18 +467,19 @@ void lf_npt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
     
   }
   
-  if(simulCond->timeStep==0)
-    volm0=box->vol;
+  //Store initial box parameters
   
-  box0[0]=box->a1;
-  box0[1]=box->a2;
-  box0[2]=box->a3;
-  box0[3]=box->b1;
-  box0[4]=box->b2;
-  box0[5]=box->b3;
-  box0[6]=box->c1;
-  box0[7]=box->c2;
-  box0[8]=box->c3;
+  cell0[0]=box->a1;
+  cell0[1]=box->a2;
+  cell0[2]=box->a3;
+  cell0[3]=box->b1;
+  cell0[4]=box->b2;
+  cell0[5]=box->b3;
+  cell0[6]=box->c1;
+  cell0[7]=box->c2;
+  cell0[8]=box->c3;
+  
+  volume=box->vol;
   
   if(simulCond->nconst>0)
   {
@@ -516,12 +520,12 @@ void lf_npt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
   
   ener->kin=kinetic(atom,simulCond);
   
-  pp=(2.*ener.kin-ener.virtot)/(3.*box.vol);
+  pp=(2.*ener->kin-ener->virpot-virshake)/(3.*volume);
   gamma=1.+watercomp*simulCond->timeStep*(pp-simulCond->press)/simulCond->taup;
-  cbrga=pow(cbrga,(1./3.));
+  cbrga=cbrt(gamma);
   
-  
-  
+  lambda=sqrt(1.0+simulCond->timeStep/simulCond->taut*(simulCond->kintemp0/ener->kin-1.0));
+    
   if(simulCond->nconst>0)
     bercycle=4;
   else
@@ -529,8 +533,6 @@ void lf_npt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
   
   for(k=0;k<bercycle;k++)
   {
-   
-    lambda=sqrt(1.0+simulCond->timeStep/simulCond->taut*(simulCond->kintemp0/ener->kin-1.0));
     
 // move atoms by leapfrog algorithm
     
@@ -566,15 +568,7 @@ void lf_npt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
     if( (simulCond->nconst>0) && (k==0) )
     {
       
-      box->a1=cbrga*box[0];
-      box->a2=cbrga*box[1];
-      box->a3=cbrga*box[2];
-      box->b1=cbrga*box[3];
-      box->b2=cbrga*box[4];
-      box->b3=cbrga*box[5];
-      box->c1=cbrga*box[6];
-      box->c2=cbrga*box[7];
-      box->c3=cbrga*box[8];
+      scale_box(box,cbrga,cell0);
       
 // Apply constraint with Shake algorithm.
       
@@ -622,6 +616,12 @@ void lf_npt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
     
     ener->kin=kinetic(atom,simulCond);
     
+    pp=(2.*ener->kin-ener->virpot-virshake)/(3.*volume);
+    gamma=1.+watercomp*simulCond->timeStep*(pp-simulCond->press)/simulCond->taup;
+    cbrga=cbrt(gamma);
+    
+    lambda=sqrt(1.0+simulCond->timeStep/simulCond->taut*(simulCond->kintemp0/ener->kin-1.0));
+    
   }
   
   ener->virshake=virshake;
@@ -637,6 +637,8 @@ void lf_npt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
   box->stress7+=stress[2]+stresk[2];
   box->stress8+=stress[4]+stresk[4];
   box->stress9+=stress[5]+stresk[5];
+  
+  scale_box(box,cbrga,cell0);
   
 // periodic boundary condition
   
@@ -680,7 +682,6 @@ void lf_npt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
   }
       
 }
-
 
 void lf_nvt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
 {

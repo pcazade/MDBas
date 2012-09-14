@@ -107,6 +107,7 @@ void energy(ATOM atom[], FORCEFIELD *ff, ENERGY *ener, SIMULPARAMS *simulCond, P
   ener->virvdw=0.;
   ener->virbond=0.;
   ener->virub=0.;
+  ener->virpot=0.;
   
   box->stress1=0.;
   box->stress2=0.;
@@ -159,6 +160,8 @@ void energy(ATOM atom[], FORCEFIELD *ff, ENERGY *ener, SIMULPARAMS *simulCond, P
     
   ener->pot=ener->elec+ener->vdw+ener->bond+
     ener->ang+ener->ub+ener->dihe+ener->impr;
+    
+  ener.virpot=ener.virbond+ener.virub+ener.virelec+ener.virvdw;
 
 }
 

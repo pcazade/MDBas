@@ -104,7 +104,7 @@ typedef struct
   enum BOX_TYPE type; /*<  */
   double a,a1,a2,a3,b,b1,b2,b3,c,c1,c2,c3;
   double u,u1,u2,u3,v,v1,v2,v3,w,w1,w2,w3;
-  double pa,pb,pc,det,vol;
+  double pa,pb,pc,det,vol,vol0;
   double stress1,stress2,stress3,stress4,stress5,stress6,stress7,stress8,stress9;
 }PBC;
 
@@ -156,7 +156,7 @@ typedef struct
   double chargeConst,cutoff,cuton,delr,tolshake;
   double lambdat,lambdap,kintemp0,taut;
   double tolminim,maxminsiz,temp,timeStep;
-  double press,tempStep,pressStep;
+  double press,tempStep,pressStep,taup;
   enum ELEC_TYPE elecType;
   enum VDW_TYPE  vdwType;
 }SIMULPARAMS;
@@ -172,7 +172,7 @@ typedef struct
   double bond,ang,ub,dihe,impr;
   double conint,consv;
   double virelec,virvdw,virbond,virub;
-  double virshake,virtot;
+  double virshake,virpot,virtot;
 }ENERGY;
 
 /*!

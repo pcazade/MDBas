@@ -48,6 +48,7 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff,PBC *box)
   simulCond->delr=2.0;
 
   simulCond->temp=300.0;
+  simulCond->press=1.0;
   
   simulCond->keyrand=0;
   simulCond->seed=12345;
@@ -64,6 +65,7 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff,PBC *box)
   simulCond->integrator=1;
   simulCond->ens=0;
   simulCond->taut=0.1;
+  simulCond->taup=0.5;
   simulCond->tolshake=1.e-8;
   simulCond->maxcycle=150;
   simulCond->keyconsth=0;
@@ -292,6 +294,15 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff,PBC *box)
 	
 	simulCond->taut=atof(buff3);
       }
+      
+      if(simulCond->ens==2||simulCond->ens==4)
+      {
+	buff3=strtok(NULL," \n\t");
+	if(buff3==NULL)
+	error(63);
+	
+	simulCond->taup=atof(buff3);
+      }
     }
     else if(!strcmp(buff2,"temperature"))
     {
@@ -300,6 +311,14 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff,PBC *box)
 	error(63);
       
       simulCond->temp=atof(buff3);
+    }
+    else if(!strcmp(buff2,"pressure"))
+    {
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	error(63);
+      
+      simulCond->press=atof(buff3)*bartoiu;
     }
     else if(!strcmp(buff2,"consth"))
     {
