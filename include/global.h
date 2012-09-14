@@ -28,11 +28,11 @@
 
 #define MAXLIST 2048                    /*!< Maximal number of pairs per atom for neighbours list. */
 
-#define X2(x) ((x)*(x))                 /*!< Macro for squaring any value. */
-#define X3(x) (X2(x)*(x))
-#define X4(x) (X2(x)*X2(x))
-#define X6(x) (X3(x)*X3(x))
-#define X12(x) (X6(x)*X6(x))
+#define X2(x) ((x)*(x))                 /*!< Raise any value at power 2. */
+#define X3(x) (X2(x)*(x))               /*!< Raise any value at power 3. */
+#define X4(x) (X2(x)*X2(x))             /*!< Raise any value at power 4. */
+#define X6(x) (X3(x)*X3(x))             /*!< Raise any value at power 6. */
+#define X12(x) (X6(x)*X6(x))            /*!< Raise any value at power 12. */
 
 #define MAX(x,y) ((x)>=(y)?(x):(y))     /*!< Macro providing the maximum of (x,y). */
 #define MIN(x,y) ((x)<=(y)?(x):(y))     /*!< Macro providing the minimum of (x,y). */

@@ -4,7 +4,7 @@
 
 #use : make DEBUG=ON for a debug build
 DEBUG=OFF
-COMP=gcc
+COMP=icc
 OMP=OFF
 
 ifeq ($(COMP),icc)

@@ -430,7 +430,7 @@ void lf_npt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
   double *vxo=NULL,*vyo=NULL,*vzo=NULL;
   double *xt=NULL,*yt=NULL,*zt=NULL;
   double *vxu=NULL,*vyu=NULL,*vzu=NULL;
-  double vol0;box0[9];
+  double vol0,box0[9];
   double virshake=0.,virshakt=0.,stress[6]={0.},strest[6]={0.},stresk[6]={0.};
   DELTA *dd=NULL;
   

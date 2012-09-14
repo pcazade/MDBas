@@ -76,7 +76,7 @@
   </sourceRootList>
   <projectmakefile>Makefile-branch.mk</projectmakefile>
   <confs>
-    <conf name="Default" type="0">
+    <conf name="gcc_64" type="0">
       <toolsSet>
         <remote-sources-mode>LOCAL_SOURCES</remote-sources-mode>
         <compilerSet>GNU|GNU</compilerSet>
@@ -127,6 +127,172 @@
       <item path="dSFMT/dSFMT-params86243.h" ex="true" tool="3" flavor2="0">
       </item>
       <item path="dSFMT/dSFMT.c" ex="true" tool="0" flavor2="0">
+      </item>
+    </conf>
+    <conf name="icc_64" type="0">
+      <toolsSet>
+        <remote-sources-mode>LOCAL_SOURCES</remote-sources-mode>
+        <compilerSet>Intel|Intel</compilerSet>
+      </toolsSet>
+      <codeAssistance>
+      </codeAssistance>
+      <makefileType>
+        <makeTool>
+          <buildCommandWorkingDir>.</buildCommandWorkingDir>
+          <buildCommand>${MAKE}</buildCommand>
+          <cleanCommand>${MAKE} clean</cleanCommand>
+          <executablePath></executablePath>
+        </makeTool>
+      </makefileType>
+      <item path="dSFMT/dSFMT-common.h" ex="true" tool="3" flavor2="0">
+      </item>
+      <item path="dSFMT/dSFMT-params.h" ex="true" tool="3" flavor2="0">
+      </item>
+      <item path="dSFMT/dSFMT-params11213.h" ex="true" tool="3" flavor2="0">
+      </item>
+      <item path="dSFMT/dSFMT-params1279.h" ex="true" tool="3" flavor2="0">
+      </item>
+      <item path="dSFMT/dSFMT-params132049.h" ex="true" tool="3" flavor2="0">
+      </item>
+      <item path="dSFMT/dSFMT-params19937.h" ex="true" tool="3" flavor2="0">
+      </item>
+      <item path="dSFMT/dSFMT-params216091.h" ex="true" tool="3" flavor2="0">
+      </item>
+      <item path="dSFMT/dSFMT-params2203.h" ex="true" tool="3" flavor2="0">
+      </item>
+      <item path="dSFMT/dSFMT-params4253.h" ex="true" tool="3" flavor2="0">
+      </item>
+      <item path="dSFMT/dSFMT-params44497.h" ex="true" tool="3" flavor2="0">
+      </item>
+      <item path="dSFMT/dSFMT-params521.h" ex="true" tool="3" flavor2="0">
+      </item>
+      <item path="dSFMT/dSFMT-params86243.h" ex="true" tool="3" flavor2="0">
+      </item>
+      <item path="dSFMT/dSFMT.c" ex="false" tool="0" flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <folder path="branch/dSFMT">
+        <cTool>
+          <incDir>
+            <pElem>dSFMT</pElem>
+            <pElem>.</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>DSFMT_MEXP=19937</Elem>
+            <Elem>HAVE_SSE2</Elem>
+          </preprocessorList>
+        </cTool>
+      </folder>
+      <item path="src/elec.c" ex="false" tool="0" flavor2="2">
+        <cTool>
+          <incDir>
+            <pElem>dSFMT</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>DSFMT_MEXP=19937</Elem>
+            <Elem>HAVE_SSE2</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/energy.c" ex="false" tool="0" flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="src/integrate.c" ex="false" tool="0" flavor2="2">
+        <cTool>
+          <incDir>
+            <pElem>dSFMT</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>DSFMT_MEXP=19937</Elem>
+            <Elem>HAVE_SSE2</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/internal.c" ex="false" tool="0" flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="src/io.c" ex="false" tool="0" flavor2="2">
+        <cTool>
+          <incDir>
+            <pElem>dSFMT</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>DSFMT_MEXP=19937</Elem>
+            <Elem>HAVE_SSE2</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/list.c" ex="false" tool="0" flavor2="2">
+        <cTool>
+          <incDir>
+            <pElem>dSFMT</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>DSFMT_MEXP=19937</Elem>
+            <Elem>HAVE_SSE2</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/mdbas.c" ex="false" tool="0" flavor2="2">
+        <cTool>
+          <incDir>
+            <pElem>dSFMT</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>DSFMT_MEXP=19937</Elem>
+            <Elem>HAVE_SSE2</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/memory.c" ex="false" tool="0" flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="src/minim.c" ex="false" tool="0" flavor2="2">
+        <cTool>
+          <incDir>
+            <pElem>dSFMT</pElem>
+            <pElem>.</pElem>
+            <pElem>include</pElem>
+          </incDir>
+          <preprocessorList>
+            <Elem>DSFMT_MEXP=19937</Elem>
+            <Elem>HAVE_SSE2</Elem>
+          </preprocessorList>
+        </cTool>
+      </item>
+      <item path="src/numderiv.c" ex="false" tool="0" flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="src/rand.c" ex="false" tool="0" flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="src/shake.c" ex="false" tool="0" flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="src/utils.c" ex="false" tool="0" flavor2="2">
+        <cTool>
+        </cTool>
+      </item>
+      <item path="src/vdw.c" ex="false" tool="0" flavor2="2">
+        <cTool>
+        </cTool>
       </item>
     </conf>
   </confs>
