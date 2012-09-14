@@ -3,8 +3,8 @@
 #################################################################
 
 #use : make DEBUG=ON for a debug build
-DEBUG=OFF
-COMP=icc
+DEBUG=ON
+COMP=gcc
 OMP=OFF
 
 ifeq ($(COMP),icc)

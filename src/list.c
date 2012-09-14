@@ -922,7 +922,7 @@ void verlet_list_update(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,PBC *b
   double r,cutnb,delta[3];
   
   cutnb=simulCond->cutoff+simulCond->delr;
-  
+ 
   nalloc = (int) ( 1.5*simulCond->natom*4./3.*PI*X3(cutnb)/box->vol );
   nalloc = MIN(nalloc,MAXLIST);
   /*incr=nalloc;*/

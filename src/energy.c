@@ -161,7 +161,7 @@ void energy(ATOM atom[], FORCEFIELD *ff, ENERGY *ener, SIMULPARAMS *simulCond, P
   ener->pot=ener->elec+ener->vdw+ener->bond+
     ener->ang+ener->ub+ener->dihe+ener->impr;
     
-  ener.virpot=ener.virbond+ener.virub+ener.virelec+ener.virvdw;
+  ener->virpot=ener->virbond+ener->virub+ener->virelec+ener->virvdw;
 
 }
 

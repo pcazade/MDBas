@@ -288,6 +288,8 @@ int main(int argc, char* argv[])
       if(simulCond.integrator==0)
       {
 	lf_integrate(atom,&ener,&simulCond,constList,&box);
+	printf("box.vol is %lf\n",box.vol);
+	printf("box params : %lf\t%lf\t%lf\n",box.a,box.b,box.c);
 // 	printf("Leap frog done for step %d\n",simulCond.step);
       }
       else if(simulCond.integrator==1)
