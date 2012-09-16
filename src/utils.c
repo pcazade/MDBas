@@ -550,6 +550,95 @@ void scale_box(PBC *box,double scale,double cell0[9])
   box->c2=scale*cell0[7];
   box->c3=scale*cell0[8];
   
+  printf("%lf %lf %lf",box->a1,box->b2,box->c3);
+  
+  // get norm
+  box->a=sqrt(X2(box->a1)+X2(box->a2)+X2(box->a3));
+  box->b=sqrt(X2(box->b1)+X2(box->b2)+X2(box->b3));
+  box->c=sqrt(X2(box->c1)+X2(box->c2)+X2(box->c3));
+  
+  // computes Wigner-Seitz cell
+  box->u1=box->b2*box->c3-box->c2*box->b3;
+  box->u2=box->c1*box->b3-box->b1*box->c3;
+  box->u3=box->b1*box->c2-box->c1*box->b2;
+  
+  box->v1=box->c2*box->a3-box->a2*box->c3;
+  box->v2=box->a1*box->c3-box->c1*box->a3;
+  box->v3=box->c1*box->a2-box->a1*box->c2;
+  
+  box->w1=box->a2*box->b3-box->b2*box->a3;
+  box->w2=box->b1*box->a3-box->a1*box->b3;
+  box->w3=box->a1*box->b2-box->b1*box->a2;
+  
+  // determinant
+  box->det=box->a1*box->u1+box->a2*box->u2+box->a3*box->u3;
+  // volume
+  box->vol=fabs(box->det);
+  
+  /* obtain parameters of a virutal orthorombic cell containing
+   * the triclinic cell
+   */
+  box->pa=box->vol/sqrt(X2(box->u1)+X2(box->u2)+X2(box->u3));
+  box->pb=box->vol/sqrt(X2(box->v1)+X2(box->v2)+X2(box->v3));
+  box->pc=box->vol/sqrt(X2(box->w1)+X2(box->w2)+X2(box->w3));
+  
+  box->u=1.0/box->pa;
+  box->v=1.0/box->pb;
+  box->w=1.0/box->pc;
+  
+  // normalise Wigner-Seitz vectors
+  if(fabs(box->det)>0.)
+  {
+    box->u1/=box->det;
+    box->u2/=box->det;
+    box->u3/=box->det;
+    
+    box->v1/=box->det;
+    box->v2/=box->det;
+    box->v3/=box->det;
+    
+    box->w1/=box->det;
+    box->w2/=box->det;
+    box->w3/=box->det;
+  }
+  else
+  {
+    // avoid div by 0
+    box->u1=0.0;
+    box->v1=0.0;
+    box->w1=0.0;
+    
+    box->u2=0.0;
+    box->v2=0.0;
+    box->w2=0.0;
+    
+    box->u3=0.0;
+    box->v3=0.0;
+    box->w3=0.0;
+  }
+  
+}
+
+/**
+ * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ *
+ * \brief Computes norms, Wigner-Seitz cell, determinant, volume for a given box.
+ */
+void vv_scale_box(PBC *box,double scale)
+{
+  
+  box->a1*=scale;
+  box->a2*=scale;
+  box->a3*=scale;
+  box->b1*=scale;
+  box->b2*=scale;
+  box->b3*=scale;
+  box->c1*=scale;
+  box->c2*=scale;
+  box->c3*=scale;
+  
+  printf("%lf %lf %lf",box->a1,box->b2,box->c3);
+  
   // get norm
   box->a=sqrt(X2(box->a1)+X2(box->a2)+X2(box->a3));
   box->b=sqrt(X2(box->b1)+X2(box->b2)+X2(box->b3));

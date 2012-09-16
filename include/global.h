@@ -154,7 +154,7 @@ typedef struct
   int *bondType,*ubType,*angleType,*diheType,*imprType;
   int **iBond,**iUb,**iAngle,**iDihedral,**iImproper;
   double chargeConst,cutoff,cuton,delr,tolshake;
-  double lambdat,lambdap,kintemp0,taut;
+  double lambdat,gammap,kintemp0,taut;
   double tolminim,maxminsiz,temp,timeStep;
   double press,tempStep,pressStep,taup;
   enum ELEC_TYPE elecType;

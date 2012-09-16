@@ -113,7 +113,7 @@ int main(int argc, char* argv[])
   init_energy_ptrs(&simulCond);
   
   simulCond.lambdat=0.;
-  simulCond.lambdap=0.;
+  simulCond.gammap=0.;
   ener.conint=0.;
   
   ener.virshake=0.;
