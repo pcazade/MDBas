@@ -550,7 +550,7 @@ void scale_box(PBC *box,double scale,double cell0[9])
   box->c2=scale*cell0[7];
   box->c3=scale*cell0[8];
   
-  printf("%lf %lf %lf",box->a1,box->b2,box->c3);
+//   printf("%lf %lf %lf",box->a1,box->b2,box->c3);
   
   // get norm
   box->a=sqrt(X2(box->a1)+X2(box->a2)+X2(box->a3));
@@ -637,7 +637,7 @@ void vv_scale_box(PBC *box,double scale)
   box->c2*=scale;
   box->c3*=scale;
   
-  printf("%lf %lf %lf",box->a1,box->b2,box->c3);
+//   printf("%lf %lf %lf",box->a1,box->b2,box->c3);
   
   // get norm
   box->a=sqrt(X2(box->a1)+X2(box->a2)+X2(box->a3));

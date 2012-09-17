@@ -934,8 +934,8 @@ void lf_nvt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
 void lf_npt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
 {
   int i,k,ia,ib,nosecycle;
-  double lambda,lambdb,lambdc,ts2,qmass,pmass;
-  double gamma,gammb,gammc;
+  double lambda,lambdb,lambdc,ts2,qmass;
+  double gamma,gammb,gammc,pmass;
   double *xo=NULL,*yo=NULL,*zo=NULL;
   double *vxo=NULL,*vyo=NULL,*vzo=NULL;
   double *xt=NULL,*yt=NULL,*zt=NULL;
@@ -1050,12 +1050,12 @@ void lf_npt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
   
   ener->kin=kinetic(atom,simulCond);
   
-  gammb=(2.0*ener->kin-ener->virpot-virshake-3.0*simulCond->press*volume)/pmass-
+  gammb=(2.0*ener->kin - ener->virpot - virshake - 3.0*simulCond->press*volume)/pmass-
     simulCond->lambdat*simulCond->gammap;
   gammc=simulCond->gammap+simulCond->timeStep*gammb;
   gamma=0.5*(simulCond->gammap+gammc)
   
-  lambdb=(2.0*(ener->kin-simulCond->kintemp0)+pmass*X2(simulCond->gammap)-
+  lambdb=(2.0*(ener->kin - simulCond->kintemp0 ) + pmass*X2(simulCond->gammap)-
     rboltzui*simulCond->temp)/qmass;
   lambdc=simulCond->lambdat+simulCond->timeStep*lambdb;
   lambda=0.5*(simulCond->lambdat+lambdc);
@@ -1517,7 +1517,7 @@ void vv_nvt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
 
 void vv_npt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box,int stage)
 {
-  int i,ia,ib,bercycle;
+  int i,ia,ib,nosecycle;
   double lambda,gamma,cbrga,pp;
   double *xo=NULL,*yo=NULL,*zo=NULL;
   double *vxo=NULL,*vyo=NULL,*vzo=NULL;
@@ -1531,6 +1531,20 @@ void vv_npt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
   vxo=(double*)malloc(simulCond->natom*sizeof(*vxo));
   vyo=(double*)malloc(simulCond->natom*sizeof(*vyo));
   vzo=(double*)malloc(simulCond->natom*sizeof(*vzo));
+  
+  //Store initial box parameters
+  
+  cell0[0]=box->a1;
+  cell0[1]=box->a2;
+  cell0[2]=box->a3;
+  cell0[3]=box->b1;
+  cell0[4]=box->b2;
+  cell0[5]=box->b3;
+  cell0[6]=box->c1;
+  cell0[7]=box->c2;
+  cell0[8]=box->c3;
+  
+  volume=box->vol;
   
   if(simulCond->nconst>0)
   {
@@ -1592,15 +1606,15 @@ void vv_npt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
     }
     
     if( (stage==1) && (simulCond->nconst>0) )
-      bercycle=2;
+      nosecycle=2;
     else
-      bercycle=1;
+      nosecycle=1;
     
-    for(k=0;k<bercycle;k++)
+    for(k=0;k<nosecycle;k++)
     {
       cbrga=1.;
       
-      if(k==bercycle-1)
+      if(k==nosecycle-1)
       {
 	pp=(2.*ener->kin-ener->virpot-virshake)/(3.*volume);
 	gamma=1.+watercomp*simulCond->timeStep*(pp-simulCond->press)/simulCond->taup;
@@ -1633,7 +1647,7 @@ void vv_npt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
 	
       }
       
-      if(simulCond->nconst>0)
+      if(k<nosecycle-1)
       {
 	#ifdef _OPENMP
 	#pragma omp parallel for default(none) shared(simulCond,xo,yo,zo,vxo,vyo,vzo,atom) private(i)
@@ -1717,6 +1731,14 @@ void vv_npt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
     
     image_update(atom,simulCond,box);
   }
+  
+  free(xo);
+  free(yo);
+  free(zo);
+  
+  free(vxo);
+  free(vyo);
+  free(vzo)
   
   if(simulCond->nconst>0)
   {
@@ -1882,6 +1904,451 @@ void vv_nvt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
     
     image_update(atom,simulCond,box);
   }
+  
+  if(simulCond->nconst>0)
+  {
+    free(dd);
+  }
+   
+}
+
+void vv_npt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box,int stage)
+{
+  int i,ia,ib,nosecycle,hoovercycle=5;
+  double hts,chts,cqts;
+  double cons0,lambda,lambda0,qmass;
+  double gamma,gamma0,pmass,scale;
+  double *xo=NULL,*yo=NULL,*zo=NULL;
+  double *vxo=NULL,*vyo=NULL,*vzo=NULL;
+  double volume,volume0,cell0[9],masst=0.,com[3]={0.},vom[3]={0.};
+  double virshake,stress[6]={0.},stresk[6]={0.};
+  DELTA *dd=NULL;
+  
+  xo=(double*)malloc(simulCond->natom*sizeof(*xo));
+  yo=(double*)malloc(simulCond->natom*sizeof(*yo));
+  zo=(double*)malloc(simulCond->natom*sizeof(*zo));
+  
+  vxo=(double*)malloc(simulCond->natom*sizeof(*vxo));
+  vyo=(double*)malloc(simulCond->natom*sizeof(*vyo));
+  vzo=(double*)malloc(simulCond->natom*sizeof(*vzo));
+  
+  hts=0.5*simulCond->timeStep;
+  chts=hts/(double)hoovercycle;
+  cqts=0.25*simulCond->timeStep/(double)hoovercycle;
+  
+  //Store initial box parameters
+  
+  cell0[0]=box->a1;
+  cell0[1]=box->a2;
+  cell0[2]=box->a3;
+  cell0[3]=box->b1;
+  cell0[4]=box->b2;
+  cell0[5]=box->b3;
+  cell0[6]=box->c1;
+  cell0[7]=box->c2;
+  cell0[8]=box->c3;
+  
+  volume=box->vol;
+  volume0=box->vol;
+  
+  masst=0.;
+  for(i=0;i<simulCond->natom;i++)
+    masst+=atom[i].m;
+  
+  qmass=2.0*simulCond->kintemp0*X2(simulCond->taut);
+  pmass=2.0*simulCond->kintemp0*X2(simulCond->taup);
+  
+  if(simulCond->nconst>0)
+  {
+    dd=(DELTA*)malloc(simulCond->nconst*sizeof(*dd));
+    
+    #ifdef _OPENMP
+    #pragma omp parallel for default(none) shared(simulCond,constList,dd,atom) private(i,ia,ib)
+    #endif
+    for(i=0;i<simulCond->nconst;i++)
+    {
+      ia=constList[i].a;
+      ib=constList[i].b;
+      
+      dd[i].x=atom[ib].x-atom[ia].x;
+      dd[i].y=atom[ib].y-atom[ia].y;
+      dd[i].z=atom[ib].z-atom[ia].z;
+    }
+    
+    image_array(simulCond->nconst,dd,simulCond,box);
+    
+  }
+  
+  if(stage==1)
+  {
+    
+    if(simulCond->nconst>0)
+    {
+      
+      lambda0=simulCond->lambdat;
+      gamma0=simulCond->gammap;
+      cons0=ener->conint;
+      
+      #ifdef _OPENMP
+      #pragma omp parallel for default(none) shared(simulCond,xo,yo,zo,vxo,vyo,vzo,atom) private(i)
+      #endif
+      for(i=0;i<simulCond->natom;i++)
+      {
+	
+    // Store old coordinates and old velocities.
+
+	xo[i]=atom[i].x;
+	yo[i]=atom[i].y;
+	zo[i]=atom[i].z;
+	
+	vxo[i]=atom[i].vx;
+	vyo[i]=atom[i].vy;
+	vzo[i]=atom[i].vz;
+	
+      }
+      
+    }
+    
+    if( (stage==1) && (simulCond->nconst>0) )
+      nosecycle=2;
+    else
+      nosecycle=1;
+    
+    for(k=0;k<nosecycle;k++)
+    {
+      
+      for(kk=0;kk<hoovercycle;kk++)
+      {
+	
+      // apply nvt
+	ener->kin=kinetic(atom,simulCond);
+	
+	simulCond->lambdat+=0.5*cqst*(2.0*(ener->kin-simulCond->kintemp0)+
+	  pmass*X2(simulCond->gammap)-rboltzui*simulCond->temp)/qmass;
+	
+	lambda=exp(-cqst*simulCond->lambdat);
+	
+	#ifdef _OPENMP
+	#pragma omp parallel for default(none) shared(simulCond,atom,lambda) private(i)
+	#endif
+	for(i=0;i<simulCond->natom;i++)
+	{
+      // scale velocities
+	  
+	  atom[i].vx*=lambda;
+	  atom[i].vy*=lambda;
+	  atom[i].vz*=lambda;
+	  
+	}
+	
+	ener->kin*=X2(lambda);
+	
+	ener->conint+=cqst*simulCond->lambdat*(rboltzui*simulCond->temp+qmass/X2(simulCond->taut));
+	
+	simulCond->lambdat+=0.5*cqst*(2.0*(ener->kin-simulCond->kintemp0)+
+	  pmass*X2(simulCond->gammap)-rboltzui*simulCond->temp)/qmass;
+	  
+      // apply npt
+	  
+	simulCond->gammap+=0.5*chst*(((2.0*ener->kin-ener->virpot-virshake)-
+	  3.0*simulCond->press*volume)/pmass-simulCond->gammap*simulCond->lambdat);
+	
+	gamma=exp(-chst*simulCond->gammap);
+	
+	for(i=0;i<simulCond->natom;i++)
+	{
+      // scale velocities
+	  
+	  atom[i].vx*=gamma;
+	  atom[i].vy*=gamma;
+	  atom[i].vz*=gamma;
+	  
+	}
+	
+	ener->kin*=X2(gamma);
+	
+	volume*=exp(3.0*chst*simulCond->gammap);
+	
+	simulCond->gammap+=0.5*chst*(((2.0*ener->kin-ener->virpot-virshake)-
+	  3.0*simulCond->press*volume)/pmass-simulCond->gammap*simulCond->lambdat);
+	
+      // apply nvt
+	
+	ener->kin=kinetic(atom,simulCond);
+	
+	simulCond->lambdat+=0.5*cqst*(2.0*(ener->kin-simulCond->kintemp0)+
+	  pmass*X2(simulCond->gammap)-rboltzui*simulCond->temp)/qmass;
+	
+	lambda=exp(-cqst*simulCond->lambdat);
+	
+	#ifdef _OPENMP
+	#pragma omp parallel for default(none) shared(simulCond,atom,lambda) private(i)
+	#endif
+	for(i=0;i<simulCond->natom;i++)
+	{
+      // scale velocities
+	  
+	  atom[i].vx*=lambda;
+	  atom[i].vy*=lambda;
+	  atom[i].vz*=lambda;
+	  
+	}
+	
+	ener->kin*=X2(lambda);
+	
+	ener->conint+=cqst*simulCond->lambdat*(rboltzui*simulCond->temp+qmass/X2(simulCond->taut));
+	
+	simulCond->lambdat+=0.5*cqst*(2.0*(ener->kin-simulCond->kintemp0)+
+	  pmass*X2(simulCond->gammap)-rboltzui*simulCond->temp)/qmass;
+      }
+      
+      scale=cbrt(volume/volume0);
+      scale_box(box,scale,cell0);
+      
+      #ifdef _OPENMP
+      #pragma omp parallel for default(none) shared(simulCond,atom,lambda) private(i)
+      #endif
+      for(i=0;i<simulCond->natom;i++)
+      {
+    // update velocities
+	
+	atom[i].vx+=0.5*simulCond->timeStep*atom[i].fx/atom[i].m;
+	atom[i].vy+=0.5*simulCond->timeStep*atom[i].fy/atom[i].m;
+	atom[i].vz+=0.5*simulCond->timeStep*atom[i].fz/atom[i].m;
+      }
+      
+      com[0]=0.;
+      com[1]=0.;
+      com[2]=0.;
+      for(i=0;i<simulCond->natom;i++)
+      {
+	com[0]+=atom[i].m*atom[i].x;
+	com[1]+=atom[i].m*atom[i].y;
+	com[2]+=atom[i].m*atom[i].z;
+      }
+      com[0]/=masst;
+      com[1]/=masst;
+      com[2]/=masst;
+      
+      cbrga=exp(simulCond->timeStep*simulCond->gammap);
+      
+      #ifdef _OPENMP
+      #pragma omp parallel for default(none) shared(simulCond,atom) private(i)
+      #endif
+      for(i=0;i<simulCond->natom;i++)
+      {
+  // update positions
+	
+	atom[i].x=cbrga*(atom[i].x-com[0])+simulCond->timeStep*atom[i].vx+com[0];
+	atom[i].y=cbrga*(atom[i].y-com[1])+simulCond->timeStep*atom[i].vy+com[1];
+	atom[i].z=cbrga*(atom[i].z-com[2])+simulCond->timeStep*atom[i].vz+com[2];
+	
+      }
+    
+      if(simulCond->nconst>0)
+      {
+	
+  // Apply constraint with Shake algorithm.
+
+	vv_shake_r(atom,simulCond,constList,dd,box,&virshake,stress);
+	ener->virshake=virshake;
+	
+      }
+      
+      if(k<nosecycle-1)
+      {
+	volume=volume0;
+	simulCond->lambdat=lambda0;
+	simulCond->gammap=gamma0;
+	ener->conint=cons0;
+	
+	#ifdef _OPENMP
+	#pragma omp parallel for default(none) shared(simulCond,xo,yo,zo,vxo,vyo,vzo,atom) private(i)
+	#endif
+	for(i=0;i<simulCond->natom;i++)
+	{
+	  
+      // Store old coordinates and old velocities.
+
+	  xo[i]=atom[i].x;
+	  yo[i]=atom[i].y;
+	  zo[i]=atom[i].z;
+	  
+	  vxo[i]=atom[i].vx;
+	  vyo[i]=atom[i].vy;
+	  vzo[i]=atom[i].vz;
+	  
+	}
+	
+      }
+    }
+  }
+  else
+  {
+// calculate kinetic energy
+
+    #ifdef _OPENMP
+    #pragma omp parallel for default(none) shared(simulCond,atom) private(i)
+    #endif
+    for(i=0;i<simulCond->natom;i++)
+    {
+  // update velocities
+      
+      atom[i].vx+=0.5*simulCond->timeStep*atom[i].fx/atom[i].m;
+      atom[i].vy+=0.5*simulCond->timeStep*atom[i].fy/atom[i].m;
+      atom[i].vz+=0.5*simulCond->timeStep*atom[i].fz/atom[i].m;
+    }
+
+    if(simulCond->nconst>0)
+    {
+      
+// Apply constraint with Shake algorithm.
+
+      vv_shake_v(atom,simulCond,constList,dd);
+      
+    }
+    
+    for(kk=0;kk<hoovercycle;kk++)
+    {
+      
+    // apply nvt
+      ener->kin=kinetic(atom,simulCond);
+      
+      simulCond->lambdat+=0.5*cqst*(2.0*(ener->kin-simulCond->kintemp0)+
+	pmass*X2(simulCond->gammap)-rboltzui*simulCond->temp)/qmass;
+      
+      lambda=exp(-cqst*simulCond->lambdat);
+      
+      #ifdef _OPENMP
+      #pragma omp parallel for default(none) shared(simulCond,atom,lambda) private(i)
+      #endif
+      for(i=0;i<simulCond->natom;i++)
+      {
+    // scale velocities
+	
+	atom[i].vx*=lambda;
+	atom[i].vy*=lambda;
+	atom[i].vz*=lambda;
+	
+      }
+      
+      ener->kin*=X2(lambda);
+      
+      ener->conint+=cqst*simulCond->lambdat*(rboltzui*simulCond->temp+qmass/X2(simulCond->taut));
+      
+      simulCond->lambdat+=0.5*cqst*(2.0*(ener->kin-simulCond->kintemp0)+
+	pmass*X2(simulCond->gammap)-rboltzui*simulCond->temp)/qmass;
+	
+    // apply npt
+	
+      simulCond->gammap+=0.5*chst*(((2.0*ener->kin-ener->virpot-virshake)-
+	3.0*simulCond->press*volume)/pmass-simulCond->gammap*simulCond->lambdat);
+      
+      gamma=exp(-chst*simulCond->gammap);
+      
+      for(i=0;i<simulCond->natom;i++)
+      {
+    // scale velocities
+	
+	atom[i].vx*=gamma;
+	atom[i].vy*=gamma;
+	atom[i].vz*=gamma;
+	
+      }
+      
+      ener->kin*=X2(gamma);
+      
+      volume*=exp(3.0*chst*simulCond->gammap);
+      
+      simulCond->gammap+=0.5*chst*(((2.0*ener->kin-ener->virpot-virshake)-
+	3.0*simulCond->press*volume)/pmass-simulCond->gammap*simulCond->lambdat);
+      
+    // apply nvt
+      
+      ener->kin=kinetic(atom,simulCond);
+      
+      simulCond->lambdat+=0.5*cqst*(2.0*(ener->kin-simulCond->kintemp0)+
+	pmass*X2(simulCond->gammap)-rboltzui*simulCond->temp)/qmass;
+      
+      lambda=exp(-cqst*simulCond->lambdat);
+      
+      #ifdef _OPENMP
+      #pragma omp parallel for default(none) shared(simulCond,atom,lambda) private(i)
+      #endif
+      for(i=0;i<simulCond->natom;i++)
+      {
+    // scale velocities
+	
+	atom[i].vx*=lambda;
+	atom[i].vy*=lambda;
+	atom[i].vz*=lambda;
+	
+      }
+      
+      ener->kin*=X2(lambda);
+      
+      ener->conint+=cqst*simulCond->lambdat*(rboltzui*simulCond->temp+qmass/X2(simulCond->taut));
+      
+      simulCond->lambdat+=0.5*cqst*(2.0*(ener->kin-simulCond->kintemp0)+
+	pmass*X2(simulCond->gammap)-rboltzui*simulCond->temp)/qmass;
+    }
+    
+    vom[0]=0.;
+    vom[1]=0.;
+    vom[2]=0.;
+    for(i=0;i<simulCond->natom;i++)
+    {
+      vom[0]+=atom[i].m*atom[i].vx;
+      vom[1]+=atom[i].m*atom[i].vy;
+      vom[2]+=atom[i].m*atom[i].vz;
+    }
+    vom[0]/=masst;
+    vom[1]/=masst;
+    vom[2]/=masst;
+    
+    for(i=0;i<simulCond->natom;i++)
+    {
+      atom[i].vx-=vom[0];
+      atom[i].vy-=vom[1];
+      atom[i].vz-=vom[2];
+    }
+    
+    scale=cbrt(volume/volume0);
+    scale_box(box,scale,cell0);
+    
+    ener->consv=ener->conint+simulCond->press*volume+0.5*(qmass*X2(simulCond->lambdat)+pmass*X2(simulCond->gammat));
+    
+    ener->kin=kinetic(atom,simulCond);
+    
+    stress_kinetic(atom,simulCond,stresk);
+    
+    box->stress1+=stress[0]+stresk[0];
+    box->stress2+=stress[1]+stresk[1];
+    box->stress3+=stress[2]+stresk[2];
+    box->stress4+=stress[1]+stresk[1];
+    box->stress5+=stress[3]+stresk[3];
+    box->stress6+=stress[4]+stresk[4];
+    box->stress7+=stress[2]+stresk[2];
+    box->stress8+=stress[4]+stresk[4];
+    box->stress9+=stress[5]+stresk[5];
+    
+  }
+  
+  if(stage==2)
+  {
+    
+// periodic boundary condition
+    
+    image_update(atom,simulCond,box);
+  }
+  
+  free(xo);
+  free(yo);
+  free(zo);
+  
+  free(vxo);
+  free(vyo);
+  free(vzo)
   
   if(simulCond->nconst>0)
   {
