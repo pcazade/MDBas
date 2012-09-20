@@ -31,6 +31,10 @@ else
 CC_OPT=-I"./dSFMT" -I"./include" -std=c99 -Wall -Wextra -O0 -g -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937
 endif
 
+ifeq ($(DEBUG),ADVI)
+CC_OPT=-I"./dSFMT" -I"./include" -std=c99 -Wall -Wextra -O2 -g -fno-inline-functions -ldl -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937
+endif
+
 CC_SFMT_OPT=-I"./dSFMT" -std=c99 -O2 -msse2 -fno-strict-aliasing -DHAVE_SSE2 -DDSFMT_MEXP=19937
 
 LD_OPT=-lm 

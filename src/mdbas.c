@@ -288,13 +288,15 @@ int main(int argc, char* argv[])
       if(simulCond.integrator==0)
       {
 	lf_integrate(atom,&ener,&simulCond,constList,&box);
-	printf("box.vol is %lf\n",box.vol);
-	printf("box params : %lf\t%lf\t%lf\n",box.a,box.b,box.c);
+	printf("box.vol is\t%lf\n",box.vol);
+	printf("box params :\t%lf\t%lf\t%lf\n",box.a,box.b,box.c);
 // 	printf("Leap frog done for step %d\n",simulCond.step);
       }
       else if(simulCond.integrator==1)
       {
 	vv_integrate(atom,&ener,&simulCond,constList,&box,2);
+	printf("box.vol is\t%lf\n",box.vol);
+	printf("box params :\t%lf\t%lf\t%lf\n",box.a,box.b,box.c);
 // 	printf("Velocity verlet second stage done for step %d\n",simulCond.step);
       }
       

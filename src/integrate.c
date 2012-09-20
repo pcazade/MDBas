@@ -935,7 +935,7 @@ void lf_npt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
 {
   int i,k,ia,ib,nosecycle;
   double lambda,lambdb,lambdc,ts2,qmass;
-  double gamma,gammb,gammc,pmass;
+  double gamma,gammb,gammc,cbrga,pmass;
   double *xo=NULL,*yo=NULL,*zo=NULL;
   double *vxo=NULL,*vyo=NULL,*vzo=NULL;
   double *xt=NULL,*yt=NULL,*zt=NULL;
@@ -1053,7 +1053,7 @@ void lf_npt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
   gammb=(2.0*ener->kin - ener->virpot - virshake - 3.0*simulCond->press*volume)/pmass-
     simulCond->lambdat*simulCond->gammap;
   gammc=simulCond->gammap+simulCond->timeStep*gammb;
-  gamma=0.5*(simulCond->gammap+gammc)
+  gamma=0.5*(simulCond->gammap+gammc);
   
   lambdb=(2.0*(ener->kin - simulCond->kintemp0 ) + pmass*X2(simulCond->gammap)-
     rboltzui*simulCond->temp)/qmass;
@@ -1156,7 +1156,7 @@ void lf_npt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
     gammb=(2.0*ener->kin-ener->virpot-virshake-3.0*simulCond->press*volume)/pmass-
       simulCond->lambdat*simulCond->gammap;
     gammc=simulCond->gammap+simulCond->timeStep*gammb;
-    gamma=0.5*(simulCond->gammap+gammc)
+    gamma=0.5*(simulCond->gammap+gammc);
     
     lambdb=(2.0*(ener->kin-simulCond->kintemp0)+pmass*X2(simulCond->gammap)-
       rboltzui*simulCond->temp)/qmass;
@@ -1517,8 +1517,8 @@ void vv_nvt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
 
 void vv_npt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box,int stage)
 {
-  int i,ia,ib,nosecycle;
-  double lambda,gamma,cbrga,pp;
+  int i,ia,ib,k,nosecycle;
+  double lambda,gamma,cbrga,volume,pp;
   double *xo=NULL,*yo=NULL,*zo=NULL;
   double *vxo=NULL,*vyo=NULL,*vzo=NULL;
   double virshake,stress[6]={0.},stresk[6]={0.};
@@ -1531,19 +1531,7 @@ void vv_npt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
   vxo=(double*)malloc(simulCond->natom*sizeof(*vxo));
   vyo=(double*)malloc(simulCond->natom*sizeof(*vyo));
   vzo=(double*)malloc(simulCond->natom*sizeof(*vzo));
-  
-  //Store initial box parameters
-  
-  cell0[0]=box->a1;
-  cell0[1]=box->a2;
-  cell0[2]=box->a3;
-  cell0[3]=box->b1;
-  cell0[4]=box->b2;
-  cell0[5]=box->b3;
-  cell0[6]=box->c1;
-  cell0[7]=box->c2;
-  cell0[8]=box->c3;
-  
+    
   volume=box->vol;
   
   if(simulCond->nconst>0)
@@ -1738,7 +1726,7 @@ void vv_npt_b(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
   
   free(vxo);
   free(vyo);
-  free(vzo)
+  free(vzo);
   
   if(simulCond->nconst>0)
   {
@@ -1914,10 +1902,10 @@ void vv_nvt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
 
 void vv_npt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box,int stage)
 {
-  int i,ia,ib,nosecycle,hoovercycle=5;
+  int i,ia,ib,k,kk,nosecycle,hoovercycle=5;
   double hts,chts,cqts;
   double cons0,lambda,lambda0,qmass;
-  double gamma,gamma0,pmass,scale;
+  double gamma,gamma0,pmass,cbrga,scale;
   double *xo=NULL,*yo=NULL,*zo=NULL;
   double *vxo=NULL,*vyo=NULL,*vzo=NULL;
   double volume,volume0,cell0[9],masst=0.,com[3]={0.},vom[3]={0.};
@@ -2023,10 +2011,10 @@ void vv_npt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
       // apply nvt
 	ener->kin=kinetic(atom,simulCond);
 	
-	simulCond->lambdat+=0.5*cqst*(2.0*(ener->kin-simulCond->kintemp0)+
+	simulCond->lambdat+=0.5*cqts*(2.0*(ener->kin-simulCond->kintemp0)+
 	  pmass*X2(simulCond->gammap)-rboltzui*simulCond->temp)/qmass;
 	
-	lambda=exp(-cqst*simulCond->lambdat);
+	lambda=exp(-cqts*simulCond->lambdat);
 	
 	#ifdef _OPENMP
 	#pragma omp parallel for default(none) shared(simulCond,atom,lambda) private(i)
@@ -2043,17 +2031,17 @@ void vv_npt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
 	
 	ener->kin*=X2(lambda);
 	
-	ener->conint+=cqst*simulCond->lambdat*(rboltzui*simulCond->temp+qmass/X2(simulCond->taut));
+	ener->conint+=cqts*simulCond->lambdat*(rboltzui*simulCond->temp+qmass/X2(simulCond->taut));
 	
-	simulCond->lambdat+=0.5*cqst*(2.0*(ener->kin-simulCond->kintemp0)+
+	simulCond->lambdat+=0.5*cqts*(2.0*(ener->kin-simulCond->kintemp0)+
 	  pmass*X2(simulCond->gammap)-rboltzui*simulCond->temp)/qmass;
 	  
       // apply npt
 	  
-	simulCond->gammap+=0.5*chst*(((2.0*ener->kin-ener->virpot-virshake)-
+	simulCond->gammap+=0.5*chts*(((2.0*ener->kin-ener->virpot-virshake)-
 	  3.0*simulCond->press*volume)/pmass-simulCond->gammap*simulCond->lambdat);
 	
-	gamma=exp(-chst*simulCond->gammap);
+	gamma=exp(-chts*simulCond->gammap);
 	
 	for(i=0;i<simulCond->natom;i++)
 	{
@@ -2067,19 +2055,19 @@ void vv_npt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
 	
 	ener->kin*=X2(gamma);
 	
-	volume*=exp(3.0*chst*simulCond->gammap);
+	volume*=exp(3.0*chts*simulCond->gammap);
 	
-	simulCond->gammap+=0.5*chst*(((2.0*ener->kin-ener->virpot-virshake)-
+	simulCond->gammap+=0.5*chts*(((2.0*ener->kin-ener->virpot-virshake)-
 	  3.0*simulCond->press*volume)/pmass-simulCond->gammap*simulCond->lambdat);
 	
       // apply nvt
 	
 	ener->kin=kinetic(atom,simulCond);
 	
-	simulCond->lambdat+=0.5*cqst*(2.0*(ener->kin-simulCond->kintemp0)+
+	simulCond->lambdat+=0.5*cqts*(2.0*(ener->kin-simulCond->kintemp0)+
 	  pmass*X2(simulCond->gammap)-rboltzui*simulCond->temp)/qmass;
 	
-	lambda=exp(-cqst*simulCond->lambdat);
+	lambda=exp(-cqts*simulCond->lambdat);
 	
 	#ifdef _OPENMP
 	#pragma omp parallel for default(none) shared(simulCond,atom,lambda) private(i)
@@ -2096,9 +2084,9 @@ void vv_npt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
 	
 	ener->kin*=X2(lambda);
 	
-	ener->conint+=cqst*simulCond->lambdat*(rboltzui*simulCond->temp+qmass/X2(simulCond->taut));
+	ener->conint+=cqts*simulCond->lambdat*(rboltzui*simulCond->temp+qmass/X2(simulCond->taut));
 	
-	simulCond->lambdat+=0.5*cqst*(2.0*(ener->kin-simulCond->kintemp0)+
+	simulCond->lambdat+=0.5*cqts*(2.0*(ener->kin-simulCond->kintemp0)+
 	  pmass*X2(simulCond->gammap)-rboltzui*simulCond->temp)/qmass;
       }
       
@@ -2214,10 +2202,10 @@ void vv_npt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
     // apply nvt
       ener->kin=kinetic(atom,simulCond);
       
-      simulCond->lambdat+=0.5*cqst*(2.0*(ener->kin-simulCond->kintemp0)+
+      simulCond->lambdat+=0.5*cqts*(2.0*(ener->kin-simulCond->kintemp0)+
 	pmass*X2(simulCond->gammap)-rboltzui*simulCond->temp)/qmass;
       
-      lambda=exp(-cqst*simulCond->lambdat);
+      lambda=exp(-cqts*simulCond->lambdat);
       
       #ifdef _OPENMP
       #pragma omp parallel for default(none) shared(simulCond,atom,lambda) private(i)
@@ -2234,17 +2222,17 @@ void vv_npt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
       
       ener->kin*=X2(lambda);
       
-      ener->conint+=cqst*simulCond->lambdat*(rboltzui*simulCond->temp+qmass/X2(simulCond->taut));
+      ener->conint+=cqts*simulCond->lambdat*(rboltzui*simulCond->temp+qmass/X2(simulCond->taut));
       
-      simulCond->lambdat+=0.5*cqst*(2.0*(ener->kin-simulCond->kintemp0)+
+      simulCond->lambdat+=0.5*cqts*(2.0*(ener->kin-simulCond->kintemp0)+
 	pmass*X2(simulCond->gammap)-rboltzui*simulCond->temp)/qmass;
 	
     // apply npt
 	
-      simulCond->gammap+=0.5*chst*(((2.0*ener->kin-ener->virpot-virshake)-
+      simulCond->gammap+=0.5*chts*(((2.0*ener->kin-ener->virpot-virshake)-
 	3.0*simulCond->press*volume)/pmass-simulCond->gammap*simulCond->lambdat);
       
-      gamma=exp(-chst*simulCond->gammap);
+      gamma=exp(-chts*simulCond->gammap);
       
       for(i=0;i<simulCond->natom;i++)
       {
@@ -2258,19 +2246,19 @@ void vv_npt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
       
       ener->kin*=X2(gamma);
       
-      volume*=exp(3.0*chst*simulCond->gammap);
+      volume*=exp(3.0*chts*simulCond->gammap);
       
-      simulCond->gammap+=0.5*chst*(((2.0*ener->kin-ener->virpot-virshake)-
+      simulCond->gammap+=0.5*chts*(((2.0*ener->kin-ener->virpot-virshake)-
 	3.0*simulCond->press*volume)/pmass-simulCond->gammap*simulCond->lambdat);
       
     // apply nvt
       
       ener->kin=kinetic(atom,simulCond);
       
-      simulCond->lambdat+=0.5*cqst*(2.0*(ener->kin-simulCond->kintemp0)+
+      simulCond->lambdat+=0.5*cqts*(2.0*(ener->kin-simulCond->kintemp0)+
 	pmass*X2(simulCond->gammap)-rboltzui*simulCond->temp)/qmass;
       
-      lambda=exp(-cqst*simulCond->lambdat);
+      lambda=exp(-cqts*simulCond->lambdat);
       
       #ifdef _OPENMP
       #pragma omp parallel for default(none) shared(simulCond,atom,lambda) private(i)
@@ -2287,9 +2275,9 @@ void vv_npt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
       
       ener->kin*=X2(lambda);
       
-      ener->conint+=cqst*simulCond->lambdat*(rboltzui*simulCond->temp+qmass/X2(simulCond->taut));
+      ener->conint+=cqts*simulCond->lambdat*(rboltzui*simulCond->temp+qmass/X2(simulCond->taut));
       
-      simulCond->lambdat+=0.5*cqst*(2.0*(ener->kin-simulCond->kintemp0)+
+      simulCond->lambdat+=0.5*cqts*(2.0*(ener->kin-simulCond->kintemp0)+
 	pmass*X2(simulCond->gammap)-rboltzui*simulCond->temp)/qmass;
     }
     
@@ -2316,7 +2304,7 @@ void vv_npt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
     scale=cbrt(volume/volume0);
     scale_box(box,scale,cell0);
     
-    ener->consv=ener->conint+simulCond->press*volume+0.5*(qmass*X2(simulCond->lambdat)+pmass*X2(simulCond->gammat));
+    ener->consv=ener->conint+simulCond->press*volume+0.5*(qmass*X2(simulCond->lambdat)+pmass*X2(simulCond->gammap));
     
     ener->kin=kinetic(atom,simulCond);
     
@@ -2348,7 +2336,7 @@ void vv_npt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
   
   free(vxo);
   free(vyo);
-  free(vzo)
+  free(vzo);
   
   if(simulCond->nconst>0)
   {
