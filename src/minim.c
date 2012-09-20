@@ -1,3 +1,11 @@
+/**
+ * \file minim.c
+ * \brief Contains functions performing energy minimisation.
+ * \author Pierre-Andre Cazade and Florent Hedin
+ * \version alpha-branch
+ * \date 2012
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -5,12 +13,12 @@
 #include "global.h"
 #include "energy.h"
 
-void minimise(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
+void minimise(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
 {
   
 }
 
-void steepestDescent(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
+void steepestDescent(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
   double step = 1.0e-7 ;
   double prec = 1.0e-3 ;
@@ -21,22 +29,22 @@ void steepestDescent(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS 
   
   int i, currSt=0 ;
   
-  energy(atom, ff, enerFor, simulCond);
-  eprev = enerFor->energyPot;
+  energy(atom, ff, ener, simulCond, box);
+  eprev = ener->pot;
   
 //   printf("eprev : %lf\n",eprev);
 
   do
   {
-    for (i=0 ; i < atom->natom ; i++)
+    for (i=0 ; i < simulCond->natom ; i++)
     {
-      atom->x[i] += step * atom->fx[i] ;
-      atom->y[i] += step * atom->fy[i] ;
-      atom->z[i] += step * atom->fz[i] ;
+      atom[i].x += step * atom[i].fx ;
+      atom[i].y += step * atom[i].fy ;
+      atom[i].z += step * atom[i].fz ;
     }
     
-    energy(atom, ff, enerFor, simulCond);
-    enow = enerFor->energyPot;
+    energy(atom, ff, ener, simulCond, box);
+    enow = ener->pot;
 //     printf("enow : %lf\n",enow);
     
     diff = fabs(enow-eprev);
@@ -44,13 +52,13 @@ void steepestDescent(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS 
     
     currSt++;
     
-    printf("Steepest Descent : after step %d : EDiff = %lf \n", currSt, diff );
+//     printf("Steepest Descent : after step %d : EDiff = %lf \n", currSt, diff );
     
   } while ( (diff >= prec) && (currSt<=maxSteps) ) ;
   
 }
 
-void conjugateGradients(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
+void conjugateGradients(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
 {
   
 }

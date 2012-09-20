@@ -1,238 +1,72 @@
+/**
+ * \file elec.c
+ * \brief Contains functions for evaluating electrostatic energies and forces.
+ * \author Pierre-Andre Cazade and Florent Hedin
+ * \version alpha-branch
+ * \date 2012
+ */
+
 #include "global.h"
 #include "utils.h"
 
-void coulomb_full(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
+/**
+ * \brief Empty function called when electrostatic energy and force are disabled.
+ * 
+ * \remarks delec is set to 0.0 .
+ *
+ * \return On return 0.0 as no energy evaluated.
+ */
+double coulomb_none(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
+		    int i, int j, double r, double *delec)
+{
+  *delec=0.;
+  return 0.;
+}
+
+/**
+ * \param atom Array of structure ATOM (coordinates, forces, etc...).
+ * \param ff Pointer to structure FORCEFIELD containing forcefield parameters.
+ * \param ener Pointer to structure ENERGY containing values of the different energies.
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ *
+ * \brief Function called for a full evaluation of the electrostatic energy and force.
+ */
+void coulomb_full(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
 {
   
-  int i,j;
+  int i,j,k,exclude;
   double elec=0.,pelec,delec;
   double r,fx,fy,fz,fxi,fyi,fzi;
   double delta[3];
   
-  for(i=0;i<atom->natom-1;i++)
+  for(i=0;i<simulCond->natom-1;i++)
   {
     fxi=0.;
     fyi=0.;
     fzi=0.;
     
-    for(j=i+1;j<atom->natom;j++)
+    for(j=i+1;j<simulCond->natom;j++)
     {
       
-      r=distance(i,j,atom,delta,simulCond);
-      
-      pelec=simulCond->chargeConst*ff->q[i]*ff->q[j]/r;
-      elec+=pelec;
-      delec=-pelec/r;
-      
-      fx=delec*delta[0]/r;
-      fy=delec*delta[1]/r;
-      fz=delec*delta[2]/r;
-      
-      fxi+=fx;
-      fyi+=fy;
-      fzi+=fz;
-      
-      atom->fx[j]+=-fx;
-      atom->fy[j]+=-fy;
-      atom->fz[j]+=-fz;
-      
-    }
-    
-    atom->fx[i]+=fxi;
-    atom->fy[i]+=fyi;
-    atom->fz[i]+=fzi;
-  }
-  enerFor->energyElec+=elec;
-  
-}
-
-void coulomb_shift1(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
-{
-  
- /*****************************************************************************
- * Shifted electrostatic potential with the shift fuctional form 1:
- * elecShift=elecPot(r)*shiftFunc(r)
- * elecPot=cte*qi*qj/r
- * shiftFunc=1-2r/rc+r**2/rc**2
- * delecShift=delecPot(r)*shiftFunc(r)+elecPot(r)*dshiftFunc(r)
- * delecPot(r)=-elecPot(r)/r
- * dshiftFunc(r)=-2/rc+2r/rc**2
- ****************************************************************************/
-  
-  int i,j,k,ipr;
-  double elec=0.,pelec,delec,shiftFunc,dshiftFunc;
-  double r,fx,fy,fz,fxi,fyi,fzi;
-  double delta[3];
-  
-  ipr=0;
-  for(i=0;i<atom->natom-1;i++)
-  {
-    fxi=0.;
-    fyi=0.;
-    fzi=0.;
-    
-    for(k=0;k<ff->verPair[i];k++)
-    {
-      j=ff->verList[ipr];
-      ipr++;
-      
-      r=distance(i,j,atom,delta,simulCond);
-      
-      if(r<=simulCond->cutoff)
+      exclude=0;
+      for (k=0;k<simulCond->excludeNum[i];k++)
       {
-	shiftFunc=1.-2.*r/simulCond->cutoff+X2(r/simulCond->cutoff);
-	dshiftFunc=-2./simulCond->cutoff+2.*r/X2(simulCond->cutoff);
-	  
-	pelec=simulCond->chargeConst*ff->q[i]*ff->q[j]/r;
-	elec+=pelec*shiftFunc;
-	delec=pelec*(dshiftFunc-shiftFunc/r);
-	
-	fx=delec*delta[0]/r;
-	fy=delec*delta[1]/r;
-	fz=delec*delta[2]/r;
-	
-	fxi+=fx;
-	fyi+=fy;
-	fzi+=fz;
-	
-	atom->fx[j]+=-fx;
-	atom->fy[j]+=-fy;
-	atom->fz[j]+=-fz;
-      } 
-    }
-    atom->fx[i]+=fxi;
-    atom->fy[i]+=fyi;
-    atom->fz[i]+=fzi;
-  }
-  enerFor->energyElec+=elec;
-}
-
-void coulomb_shift2(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
-{
-  
-/*****************************************************************************
- * Shifted electrostatic potential with the shift fuctional form 2 :
- * elecShift=elecPot(r)*shiftFunc(r)
- * elecPot=cte*qi*qj/r
- * shiftFunc=1-2r**2/rc**2+r**4/rc**4
- * delecShift=delecPot(r)*shiftFunc(r)+elecPot(r)*dshiftFunc(r)
- * delecPot(r)=-elecPot(r)/r
- * dshiftFunc(r)=-4r/rc**2+4r**3/rc**4
- ****************************************************************************/
-  
-  int i,j,k,ipr;
-  double elec=0.,pelec,delec,shiftFunc,dshiftFunc;
-  double r,fx,fy,fz,fxi,fyi,fzi;
-  double delta[3];
-  
-  ipr=0;
-  for(i=0;i<atom->natom-1;i++)
-  {
-    fxi=0.;
-    fyi=0.;
-    fzi=0.;
-    
-    for(k=0;k<ff->verPair[i];k++)
-    {
-      j=ff->verList[ipr];
-      ipr++;
-      
-      r=distance(i,j,atom,delta,simulCond);
-      
-      if(r<=simulCond->cutoff)
-      {
-	shiftFunc=1.-2.*X2(r/simulCond->cutoff)+X4(r/simulCond->cutoff);
-	dshiftFunc=-4.*r/X2(simulCond->cutoff)+4.*X3(r)/X4(simulCond->cutoff);
-	
-	pelec=simulCond->chargeConst*ff->q[i]*ff->q[j]/r;
-	elec+=pelec*shiftFunc;
-	delec=pelec*(dshiftFunc-shiftFunc/r);
-	
-	fx=delec*delta[0]/r;
-	fy=delec*delta[1]/r;
-	fz=delec*delta[2]/r;
-	
-	fxi+=fx;
-	fyi+=fy;
-	fzi+=fz;
-	
-	atom->fx[j]+=-fx;
-	atom->fy[j]+=-fy;
-	atom->fz[j]+=-fz;
-      }     
-    }
-    atom->fx[i]+=fxi;
-    atom->fy[i]+=fyi;
-    atom->fz[i]+=fzi;
-  }
-  enerFor->energyElec+=elec;
-  
-}
-
-void coulomb_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
-{
-  
-/*****************************************************************************
- * Switched electrostatic potential :
- * elecSwitch=elecPot(r)*switchFunc(r)
- * elecPot=cte*qi*qj/r
- * switchFunc=(rc**2+2r**2-3ro**2)*(rc**2-r**2)**2/(rc**2-ro**2)**3
- * delecSwitch=delecPot(r)*switchFunc(r)+elecPot(r)*dswitchFunc(r)
- * delecPot(r)=-elecPot(r)/r
- * dswitchFunc(r)=-12*r*(rc**2-r**2)*(ro**2-r**2)/(rc**2-ro**2)**3
- ****************************************************************************/
-  
-  int i,j,k,ipr;
-  double elec=0.,pelec,delec,switchFunc,dswitchFunc;
-  double r,fx,fy,fz,fxi,fyi,fzi;
-  double delta[3];
-  
-  ipr=0;
-  for(i=0;i<atom->natom-1;i++)
-  {
-    fxi=0.;
-    fyi=0.;
-    fzi=0.;
-    
-    for(k=0;k<ff->verPair[i];k++)
-    {
-      j=ff->verList[ipr];
-      ipr++;
-      
-      r=distance(i,j,atom,delta,simulCond);
-      
-      if(r<=simulCond->cuton)
-      {
-	
-	pelec=simulCond->chargeConst*ff->q[i]*ff->q[j]/r;
-	elec+=pelec;
-	delec=-pelec/r;
-	
-	fx=delec*delta[0]/r;
-	fy=delec*delta[1]/r;
-	fz=delec*delta[2]/r;
-	
-	fxi+=fx;
-	fyi+=fy;
-	fzi+=fz;
-	
-	atom->fx[j]+=-fx;
-	atom->fy[j]+=-fy;
-	atom->fz[j]+=-fz;
+	if(simulCond->excludeAtom[i][k]==j)
+	{
+	  exclude=1;
+	  break;
+	}
       }
-      else if(r<=simulCond->cutoff)
+      
+      if(!exclude)
       {
-	switchFunc=X2(X2(simulCond->cutoff)-X2(r))*
-	  (X2(simulCond->cutoff)+2.*X2(r)-3.*X2(simulCond->cuton))/
-	  X3(X2(simulCond->cutoff)-X2(simulCond->cuton));
-	  
-	dswitchFunc=12.*r*(X2(simulCond->cutoff)-X2(r))*
-	  (X2(simulCond->cuton)-X2(r))/
-	  X3(X2(simulCond->cutoff)-X2(simulCond->cuton));
+      
+	r=distance(i,j,atom,delta,simulCond,box);
 	
-	pelec=simulCond->chargeConst*ff->q[i]*ff->q[j]/r;
-	elec+=pelec*switchFunc;
-	delec=pelec*(dswitchFunc-switchFunc/r);
+	pelec=simulCond->chargeConst*atom[i].q*atom[j].q/r;
+	elec+=pelec;
+	delec=-pelec/r;
 	
 	fx=delec*delta[0]/r;
 	fy=delec*delta[1]/r;
@@ -242,228 +76,374 @@ void coulomb_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *
 	fyi+=fy;
 	fzi+=fz;
 	
-	atom->fx[j]+=-fx;
-	atom->fy[j]+=-fy;
-	atom->fz[j]+=-fz;
+	atom[j].fx+=-fx;
+	atom[j].fy+=-fy;
+	atom[j].fz+=-fz;
 	
-      }     
-    }
-    atom->fx[i]+=fxi;
-    atom->fy[i]+=fyi;
-    atom->fz[i]+=fzi;
-  }
-  enerFor->energyElec+=elec;
-}
-
-void coulomb14_full(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
-{
-  
-  int i,j,k;
-  double elec=0.,pelec,delec;
-  double r,fx,fy,fz;
-  double delta[3];
-  
-  for(k=0;k<ff->npr14;k++)
-  {
-    i=ff->ver14[k][0];
-    j=ff->ver14[k][1];
-    
-    r=distance(i,j,atom,delta,simulCond);
-    pelec=ff->scal14*simulCond->chargeConst*ff->q[i]*ff->q[j]/r;
-    elec+=pelec;
-    delec=-pelec/r;
-    
-    fx=delec*delta[0]/r;
-    fy=delec*delta[1]/r;
-    fz=delec*delta[2]/r;
-    
-    atom->fx[i]+=fx;
-    atom->fy[i]+=fy;
-    atom->fz[i]+=fz;
-    
-    atom->fx[j]+=-fx;
-    atom->fy[j]+=-fy;
-    atom->fz[j]+=-fz;
-    
-  }
-  enerFor->energyElec+=elec;
-}
-
-void coulomb14_shift1(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
-{
-  
- /*****************************************************************************
- * Shifted electrostatic potential with the shift fuctional form 1:
- * elecShift=elecPot(r)*shiftFunc(r)
- * elecPot=cte*qi*qj/r
- * shiftFunc=1-2r/rc+r**2/rc**2
- * delecShift=delecPot(r)*shiftFunc(r)+elecPot(r)*dshiftFunc(r)
- * delecPot(r)=-elecPot(r)/r
- * dshiftFunc(r)=-2/rc+2r/rc**2
- ****************************************************************************/
-  
-  int i,j,k;
-  double elec=0.,pelec,delec,shiftFunc,dshiftFunc;
-  double r,fx,fy,fz;
-  double delta[3];
-  
-  for(k=0;k<ff->npr14;k++)
-  {
-    i=ff->ver14[k][0];
-    j=ff->ver14[k][1];
-    
-    r=distance(i,j,atom,delta,simulCond);
-      
-    if(r<=simulCond->cutoff)
-    {
-      shiftFunc=1.-2.*r/simulCond->cutoff+X2(r/simulCond->cutoff);
-      dshiftFunc=-2./simulCond->cutoff+2.*r/X2(simulCond->cutoff);
-      
-      pelec=ff->scal14*simulCond->chargeConst*ff->q[i]*ff->q[j]/r;
-      elec+=pelec*shiftFunc;
-      delec=pelec*(dshiftFunc-shiftFunc/r);
-      
-      fx=delec*delta[0]/r;
-      fy=delec*delta[1]/r;
-      fz=delec*delta[2]/r;
-    
-      atom->fx[i]+=fx;
-      atom->fy[i]+=fy;
-      atom->fz[i]+=fz;
-    
-      atom->fx[j]+=-fx;
-      atom->fy[j]+=-fy;
-      atom->fz[j]+=-fz;
+      }
       
     }
+    
+    atom[i].fx+=fxi;
+    atom[i].fy+=fyi;
+    atom[i].fz+=fzi;
   }
-  enerFor->energyElec+=elec;
+  ener->elec+=elec;
+  
 }
 
-void coulomb14_shift2(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
-{
+/**
+ * \param atom Array of structure ATOM (coordinates, forces, etc...).
+ * \param ff Pointer to structure FORCEFIELD containing forcefield parameters.
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ * \param i Index of first atom.
+ * \param j Index of second atom.
+ * \param r Distance between the two atoms.
+ * \param delec Pointer to derivative of energy used for force evaluation.
+ * 
+ * \brief Evaluates the electrostatic energy and force for a pair when using the SHIFT_1 cutoff.
+ *
+ * \return On return the electrostatic energy.
+ *
+ *
+ * Shifted electrostatic potential with the shift functional form 1:
+ *
+ * \f$ elecShift=elecPot(r)*shiftFunc(r) \f$
+ *
+ * \f$ elecPot=cte*qi*qj/r \f$
+ * 
+ * Where cte is chgcharmm or chgnamd
+ *
+ * \f$ shiftFunc=1-2r/rc+r^2/rc^2 \f$
+ *
+ * \f$ delecShift=delecPot(r)*shiftFunc(r)+elecPot(r)*dshiftFunc(r) \f$
+ *
+ * \f$ delecPot(r)=-elecPot(r)/r \f$
+ * 
+ * \f$ dshiftFunc(r)=-2/rc+2r/rc^2 \f$
+ *
+ */
+double coulomb_shift1(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
+		    int i, int j, double r, double *delec)
+{ 
+  double elec=0.,pelec,shiftFunc,dshiftFunc;
+
+  shiftFunc=1.-2.*r/simulCond->cutoff+X2(r/simulCond->cutoff);
+  dshiftFunc=-2./simulCond->cutoff+2.*r/X2(simulCond->cutoff);
+    
+  pelec=simulCond->chargeConst*atom[i].q*atom[j].q/r;
+  elec=pelec*shiftFunc;
+  *delec=pelec*(dshiftFunc-shiftFunc/r);
   
-/*****************************************************************************
- * Shifted electrostatic potential with the shift fuctional form 2 :
- * elecShift=elecPot(r)*shiftFunc(r)
- * elecPot=cte*qi*qj/r
- * shiftFunc=1-2r**2/rc**2+r**4/rc**4
- * delecShift=delecPot(r)*shiftFunc(r)+elecPot(r)*dshiftFunc(r)
- * delecPot(r)=-elecPot(r)/r
- * dshiftFunc(r)=-4r/rc**2+4r**3/rc**4
- ****************************************************************************/
-  
-  int i,j,k;
-  double elec=0.,pelec,delec,shiftFunc,dshiftFunc;
-  double r,fx,fy,fz;
-  double delta[3];
-  
-  for(k=0;k<ff->npr14;k++)
-  {
-    i=ff->ver14[k][0];
-    j=ff->ver14[k][1];
-    
-    r=distance(i,j,atom,delta,simulCond);
-    
-    if(r<=simulCond->cutoff)
-    {
-      shiftFunc=1.-2.*X2(r/simulCond->cutoff)+X4(r/simulCond->cutoff);
-      dshiftFunc=-4.*r/X2(simulCond->cutoff)+4.*X3(r)/X4(simulCond->cutoff);
-      
-      pelec=ff->scal14*simulCond->chargeConst*ff->q[i]*ff->q[j]/r;
-      elec+=pelec*shiftFunc;
-      delec=pelec*(dshiftFunc-shiftFunc/r);
-      
-      fx=delec*delta[0]/r;
-      fy=delec*delta[1]/r;
-      fz=delec*delta[2]/r;
-    
-      atom->fx[i]+=fx;
-      atom->fy[i]+=fy;
-      atom->fz[i]+=fz;
-    
-      atom->fx[j]+=-fx;
-      atom->fy[j]+=-fy;
-      atom->fz[j]+=-fz;
-      
-    }     
-  }
-    
-  enerFor->energyElec+=elec;
+  return elec;
 }
 
-void coulomb14_switch(ATOM *atom,FORCEFIELD *ff,ENERGYFORCE *enerFor,SIMULPARAMS *simulCond)
+/**
+ * \param atom Array of structure ATOM (coordinates, forces, etc...).
+ * \param ff Pointer to structure FORCEFIELD containing forcefield parameters.
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ * \param i Index of first atom.
+ * \param j Index of second atom.
+ * \param r Distance between the two atoms.
+ * \param delec Pointer to derivative of energy used for force evaluation.
+ * 
+ * \brief Evaluates the electrostatic energy and force for a pair when using the SHIFT_2 cutoff.
+ *
+ * \return On return the electrostatic energy.
+ *
+ * Shifted electrostatic potential with the shift functional form 2 :
+ *
+ * \f$ elecShift=elecPot(r)*shiftFunc(r) \f$
+ *
+ * \f$ elecPot=cte*qi*qj/r \f$
+ *
+ * Where cte is chgcharmm or chgnam
+ *
+ * \f$ shiftFunc=1-2r^2/rc^2+r^4/rc^4 \f$
+ *
+ * \f$ delecShift=delecPot(r)*shiftFunc(r)+elecPot(r)*dshiftFunc(r) \f$
+ *
+ * \f$ delecPot(r)=-elecPot(r)/r \f$
+ *
+ * \f$ dshiftFunc(r)=-4r/rc^2+4r^3/rc^4 \f$
+ *
+ */
+double coulomb_shift2(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
+		    int i, int j, double r, double *delec)
 {
+  double elec=0.,pelec,shiftFunc,dshiftFunc;
   
-/*****************************************************************************
+  shiftFunc=1.-2.*X2(r/simulCond->cutoff)+X4(r/simulCond->cutoff);
+  dshiftFunc=-4.*r/X2(simulCond->cutoff)+4.*X3(r)/X4(simulCond->cutoff);
+  
+  pelec=simulCond->chargeConst*atom[i].q*atom[j].q/r;
+  elec=pelec*shiftFunc;
+  *delec=pelec*(dshiftFunc-shiftFunc/r);
+  
+  return elec;
+} //END of function
+
+/**
+ * \param atom Array of structure ATOM (coordinates, forces, etc...).
+ * \param ff Pointer to structure FORCEFIELD containing forcefield parameters.
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ * \param i Index of first atom.
+ * \param j Index of second atom.
+ * \param r Distance between the two atoms.
+ * \param delec Pointer to derivative of energy used for force evaluation.
+ * 
+ * \brief Evaluates the electrostatic energy and force for a pair when using the SWITCH cutoff.
+ *
+ * \return On return the electrostatic energy.
+ *
  * Switched electrostatic potential :
- * elecSwitch=elecPot(r)*switchFunc(r)
- * elecPot=cte*qi*qj/r
- * switchFunc=(rc**2+2r**2-3ro**2)*(rc**2-r**2)**2/(rc**2-ro**2)**3
- * delecSwitch=delecPot(r)*switchFunc(r)+elecPot(r)*dswitchFunc(r)
- * delecPot(r)=-elecPot(r)/r
- * dswitchFunc(r)=-12*r*(rc**2-r**2)*(ro**2-r**2)/(rc**2-ro**2)**3
- ****************************************************************************/
+ *
+ * \f$ elecSwitch=elecPot(r)*switchFunc(r) \f$
+ *
+ * \f$ elecPot=cte*qi*qj/r \f$
+ *
+ * Where cte is chgcharmm or chgnam
+ *
+ * \f$ switchFunc=(rc^2+2r^2-3ro^2)*(rc^2-r^2)^2/(rc^2-ro^2)^3 \f$
+ *
+ * \f$ delecSwitch=delecPot(r)*switchFunc(r)+elecPot(r)*dswitchFunc(r) \f$
+ *
+ * \f$ delecPot(r)=-elecPot(r)/r \f$
+ *
+ * \f$ dswitchFunc(r)=-12*r*(rc^2-r^2)*(ro^2-r^2)/(rc^2-ro^2)^3 \f$
+ *
+ */
+double coulomb_switch(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
+		    int i, int j, double r, double *delec)
+{
+  double elec=0.,pelec,switchFunc,dswitchFunc;
   
-  int i,j,k;
-  double elec=0.,pelec,delec,switchFunc,dswitchFunc;
-  double r,fx,fy,fz;
-  double delta[3];
-  
-  for(k=0;k<ff->npr14;k++)
+  if(r<=simulCond->cuton)
   {
-    i=ff->ver14[k][0];
-    j=ff->ver14[k][1];
     
-    r=distance(i,j,atom,delta,simulCond);
+    pelec=simulCond->chargeConst*atom[i].q*atom[j].q/r;
+    elec=pelec;
+    *delec=-pelec/r;
     
-    if(r<=simulCond->cuton)
-    {
-	pelec=ff->scal14*simulCond->chargeConst*ff->q[i]*ff->q[j]/r;
-	elec+=pelec;
-	delec=-pelec/r;
-	
-	fx=delec*delta[0]/r;
-	fy=delec*delta[1]/r;
-	fz=delec*delta[2]/r;
+  }
+  else
+  {
     
-	atom->fx[i]+=fx;
-	atom->fy[i]+=fy;
-	atom->fz[i]+=fz;
+    switchFunc=X2(X2(simulCond->cutoff)-X2(r))*
+      (X2(simulCond->cutoff)+2.*X2(r)-3.*X2(simulCond->cuton))/
+      X3(X2(simulCond->cutoff)-X2(simulCond->cuton));
+      
+    dswitchFunc=12.*r*(X2(simulCond->cutoff)-X2(r))*
+      (X2(simulCond->cuton)-X2(r))/
+      X3(X2(simulCond->cutoff)-X2(simulCond->cuton));
     
-	atom->fx[j]+=-fx;
-	atom->fy[j]+=-fy;
-	atom->fz[j]+=-fz;
-	
-    }
-    else if(r<=simulCond->cutoff)
-    {
-	switchFunc=X2(X2(simulCond->cutoff)-X2(r))*
-	  (X2(simulCond->cutoff)+2.*X2(r)-3.*X2(simulCond->cuton))/
-	  X3(X2(simulCond->cutoff)-X2(simulCond->cuton));
-	  
-	dswitchFunc=12.*r*(X2(simulCond->cutoff)-X2(r))*
-	  (X2(simulCond->cuton)-X2(r))/
-	  X3(X2(simulCond->cutoff)-X2(simulCond->cuton));
-	
-	pelec=ff->scal14*simulCond->chargeConst*ff->q[i]*ff->q[j]/r;
-	elec+=pelec*switchFunc;
-	delec=pelec*(dswitchFunc-switchFunc/r);
-	
-	fx=delec*delta[0]/r;
-	fy=delec*delta[1]/r;
-	fz=delec*delta[2]/r;
+    pelec=simulCond->chargeConst*atom[i].q*atom[j].q/r;
+    elec=pelec*switchFunc;
+    *delec=pelec*(dswitchFunc-switchFunc/r);
     
-	atom->fx[i]+=fx;
-	atom->fy[i]+=fy;
-	atom->fz[i]+=fz;
+  }     
+  
+  return elec;
+}
+
+/**
+ * \brief Empty function called when 1-4 electrostatic energy and force are disabled.
+ *
+ * \remarks delec is set to 0.0 .
+ *
+ * \return On return 0.0 as no energy evaluated.
+ */
+double coulomb14_none(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
+		      int i, int j, double r, double *delec)
+{
+  *delec=0.;
+  return 0.;
+}
+
+/**
+ * \param atom Array of structure ATOM (coordinates, forces, etc...).
+ * \param ff Pointer to structure FORCEFIELD containing forcefield parameters.
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ * \param i Index of first atom.
+ * \param j Index of second atom.
+ * \param r Distance between the two atoms.
+ * \param delec Pointer to derivative of energy used for force evaluation.
+ *
+ * \brief Function called for a full evaluation of the 1-4 electrostatic energy and force.
+ *
+ * \return On return the electrostatic energy.
+ */
+double coulomb14_full(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
+		    int i, int j, double r, double *delec)
+{
+  
+  double elec=0.;
+  
+  elec=ff->scal14*simulCond->chargeConst*atom[i].q*atom[j].q/r;
+  *delec=-elec/r;
+  
+  return elec;
+}
+
+/**
+ * \param atom Array of structure ATOM (coordinates, forces, etc...).
+ * \param ff Pointer to structure FORCEFIELD containing forcefield parameters.
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ * \param i Index of first atom.
+ * \param j Index of second atom.
+ * \param r Distance between the two atoms.
+ * \param delec Pointer to derivative of energy used for force evaluation.
+ * 
+ * \brief Evaluates the 1-4 electrostatic energy and force for a pair when using the SHIFT_1 cutoff.
+ *
+ * \return On return the electrostatic energy.
+ *
+ * Shifted 1-4 electrostatic potential with the shift functional form 1:
+ *
+ * \f$ elecShift=elecPot(r)*shiftFunc(r) \f$
+ *
+ * \f$ elecPot=cte*qi*qj/r \f$
+ *
+ * \f$ shiftFunc=1-2r/rc+r^2/rc^2 \f$
+ *
+ * \f$ delecShift=delecPot(r)*shiftFunc(r)+elecPot(r)*dshiftFunc(r) \f$
+ *
+ * \f$ delecPot(r)=-elecPot(r)/r \f$
+ *
+ * \f$ dshiftFunc(r)=-2/rc+2r/rc^2 \f$
+ * 
+ */
+double coulomb14_shift1(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
+		      int i, int j, double r, double *delec)
+{
+  double elec=0.,pelec,shiftFunc,dshiftFunc;
     
-	atom->fx[j]+=-fx;
-	atom->fy[j]+=-fy;
-	atom->fz[j]+=-fz;
-	
-    }     
+  if(r<=simulCond->cutoff)
+  {
+    
+    shiftFunc=1.-2.*r/simulCond->cutoff+X2(r/simulCond->cutoff);
+    dshiftFunc=-2./simulCond->cutoff+2.*r/X2(simulCond->cutoff);
+    
+    pelec=ff->scal14*simulCond->chargeConst*atom[i].q*atom[j].q/r;
+    elec=pelec*shiftFunc;
+    *delec=pelec*(dshiftFunc-shiftFunc/r);
+    
   }
   
-  enerFor->energyElec+=elec;
+  return elec;
+}
+
+/**
+ * \param atom Array of structure ATOM (coordinates, forces, etc...).
+ * \param ff Pointer to structure FORCEFIELD containing forcefield parameters.
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ * \param i Index of first atom.
+ * \param j Index of second atom.
+ * \param r Distance between the two atoms.
+ * \param delec Pointer to derivative of energy used for force evaluation.
+ * 
+ * \brief Evaluates the 1-4 electrostatic energy and force for a pair when using the SHIFT_2 cutoff.
+ *
+ * \return On return the electrostatic energy.
+ *
+ * Shifted 1-4 electrostatic potential with the shift functional form 2 :
+ *
+ * \f$ elecShift=elecPot(r)*shiftFunc(r) \f$
+ *
+ * \f$ elecPot=cte*qi*qj/r \f$
+ *
+ * \f$ shiftFunc=1-2r^2/rc^2+r^4/rc^4 \f$
+ *
+ * \f$ delecShift=delecPot(r)*shiftFunc(r)+elecPot(r)*dshiftFunc(r) \f$
+ *
+ * \f$ delecPot(r)=-elecPot(r)/r \f$
+ *
+ * \f$ dshiftFunc(r)=-4r/rc^2+4r^3/rc^4 \f$
+ *
+ */
+double coulomb14_shift2(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
+		      int i, int j, double r, double *delec)
+{
+  double elec=0.,pelec,shiftFunc,dshiftFunc;
+    
+  if(r<=simulCond->cutoff)
+  {
+    
+    shiftFunc=1.-2.*X2(r/simulCond->cutoff)+X4(r/simulCond->cutoff);
+    dshiftFunc=-4.*r/X2(simulCond->cutoff)+4.*X3(r)/X4(simulCond->cutoff);
+    
+    pelec=ff->scal14*simulCond->chargeConst*atom[i].q*atom[j].q/r;
+    elec=pelec*shiftFunc;
+    *delec=pelec*(dshiftFunc-shiftFunc/r);
+    
+  }
+  
+  return elec;
+}
+
+/**
+ * \param atom Array of structure ATOM (coordinates, forces, etc...).
+ * \param ff Pointer to structure FORCEFIELD containing forcefield parameters.
+ * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
+ * \param box Pointer to structure PBC containing Periodic Boundaries Conditions parameters.
+ * \param i Index of first atom.
+ * \param j Index of second atom.
+ * \param r Distance between the two atoms.
+ * \param delec Pointer to derivative of energy used for force evaluation.
+ * 
+ * \brief Evaluates the 1-4 electrostatic energy and force for a pair when using the SWITCH cutoff.
+ *
+ * \return On return the electrostatic energy.
+ *
+ * Switched 1-4 electrostatic potential :
+ *
+ * \f$ elecSwitch=elecPot(r)*switchFunc(r) \f$
+ *
+ * \f$ elecPot=cte*qi*qj/r \f$
+ *
+ * \f$ switchFunc=(rc^2+2r^2-3ro^2)*(rc^2-r^2)^2/(rc^2-ro^2)^3 \f$
+ *
+ * \f$ delecSwitch=delecPot(r)*switchFunc(r)+elecPot(r)*dswitchFunc(r) \f$
+ *
+ * \f$ delecPot(r)=-elecPot(r)/r \f$
+ *
+ * \f$ dswitchFunc(r)=-12*r*(rc^2-r^2)*(ro^2-r^2)/(rc^2-ro^2)^3 \f$
+ * 
+ */
+double coulomb14_switch(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
+		      int i, int j, double r, double *delec)
+{
+  double elec=0.,pelec,switchFunc,dswitchFunc;
+    
+  if(r<=simulCond->cuton)
+  {
+    
+    pelec=ff->scal14*simulCond->chargeConst*atom[i].q*atom[j].q/r;
+    elec=pelec;
+    *delec=-pelec/r;
+      
+  }
+  else if(r<=simulCond->cutoff)
+  {
+    
+    switchFunc=X2(X2(simulCond->cutoff)-X2(r))*
+      (X2(simulCond->cutoff)+2.*X2(r)-3.*X2(simulCond->cuton))/
+      X3(X2(simulCond->cutoff)-X2(simulCond->cuton));
+      
+    dswitchFunc=12.*r*(X2(simulCond->cutoff)-X2(r))*
+      (X2(simulCond->cuton)-X2(r))/
+      X3(X2(simulCond->cutoff)-X2(simulCond->cuton));
+    
+    pelec=ff->scal14*simulCond->chargeConst*atom[i].q*atom[j].q/r;
+    elec=pelec*switchFunc;
+    *delec=pelec*(dswitchFunc-switchFunc/r);
+      
+  }     
+  return elec;
 }

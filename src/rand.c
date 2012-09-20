@@ -1,4 +1,13 @@
+/**
+ * \file rand.c
+ * \brief File for generating random numbers : dSFMT, an external high quality generator is used.
+ * \author Pierre-Andre Cazade and Florent Hedin
+ * \version alpha-branch
+ * \date 2012
+ */
+
 #include <math.h>
+
 #include "global.h"
 #include "dSFMT.h"
 

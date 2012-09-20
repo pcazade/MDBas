@@ -1,19 +1,30 @@
+/**
+ * \file shake.c
+ * \brief Contains functions for applying the SHAKE constraints.
+ * \author Pierre-Andre Cazade and Florent Hedin
+ * \version alpha-branch
+ * \date 2012
+ */
+
 #include <stdlib.h>
 #include <math.h>
+
 #include "global.h"
 #include "utils.h"
 #include "io.h"
 
-void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd)
+
+void lf_shake(ATOM atom[],SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd,PBC *box,double *virshake,double *stress)
 {
   int i,ia,ib,icycle,converged;
   double *xt,*yt,*zt,*rt2,ts2,maxdist,dist;
   double lambda,lambdai,lambdaj,t2rmi,t2rmj,nia,nib;
-  DELTA *dt;
+
+  DELTA *dt=NULL;
   
-  xt=(double*)malloc(atom->natom*sizeof(*xt));
-  yt=(double*)malloc(atom->natom*sizeof(*yt));
-  zt=(double*)malloc(atom->natom*sizeof(*zt));
+  xt=(double*)malloc(simulCond->natom*sizeof(*xt));
+  yt=(double*)malloc(simulCond->natom*sizeof(*yt));
+  zt=(double*)malloc(simulCond->natom*sizeof(*zt));
   
   rt2=(double*)malloc(simulCond->nconst*sizeof(*rt2));
   
@@ -21,6 +32,12 @@ void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd)
   
   icycle=0;
   converged=0;
+  
+  *virshake=0.;
+  for(i=0;i<6;i++)
+  {
+    stress[i]=0.;
+  }
   
   ts2=X2(simulCond->timeStep);
 
@@ -33,7 +50,7 @@ void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd)
       ia=constList[i].a;
       ib=constList[i].b;
       
-      rt2[i]=distance2(ia,ib,atom,&(dt[i]),simulCond);
+      rt2[i]=distance2(ia,ib,atom,&(dt[i]),simulCond,box);
       
       dist=fabs(rt2[i]-constList[i].rc2)/sqrt(constList[i].rc2);
       maxdist=MAX(maxdist,dist);
@@ -46,7 +63,7 @@ void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd)
     
     if(!converged)
     {
-      for(i=0;i<atom->natom;i++)
+      for(i=0;i<simulCond->natom;i++)
       {
 	xt[i]=0.;
 	yt[i]=0.;
@@ -58,11 +75,20 @@ void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd)
 	ia=constList[i].a;
 	ib=constList[i].b;
 	
-	t2rmi=ts2/atom->m[ia];
-	t2rmj=ts2/atom->m[ib];
+	t2rmi=ts2/atom[ia].m;
+	t2rmj=ts2/atom[ib].m;
 	
 	lambda=-(constList[i].rc2-rt2[i])/(2.*(t2rmi+t2rmj)*
 	  ((dd[i].x*dt[i].x)+(dd[i].y*dt[i].y)+(dd[i].z*dt[i].z)));
+	
+	*virshake+=lambda*(X2(dd[i].x)+X2(dd[i].y)+X2(dd[i].z));
+	
+	stress[0]-=lambda*X2(dd[i].x);
+	stress[1]-=lambda*dd[i].x*dd[i].y;
+	stress[2]-=lambda*dd[i].x*dd[i].z;
+	stress[3]-=lambda*X2(dd[i].y);
+	stress[4]-=lambda*dd[i].y*dd[i].z;
+	stress[5]-=lambda*X2(dd[i].z);
 	
 	lambdai=lambda*t2rmi;
 	xt[ia]+=dd[i].x*lambdai;
@@ -81,16 +107,16 @@ void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd)
 	ia=constList[i].a;
 	ib=constList[i].b;
 	
-	nia=(double)atom->inconst[ia];
-	nib=(double)atom->inconst[ib];
+	nia=(double)atom[ia].inconst;
+	nib=(double)atom[ib].inconst;
 	
-	atom->x[ia]+=xt[ia]/nia;
-	atom->y[ia]+=yt[ia]/nia;
-	atom->z[ia]+=zt[ia]/nia;
+	atom[ia].x+=xt[ia]/nia;
+	atom[ia].y+=yt[ia]/nia;
+	atom[ia].z+=zt[ia]/nia;
 	
-	atom->x[ib]+=xt[ib]/nib;
-	atom->y[ib]+=yt[ib]/nib;
-	atom->z[ib]+=zt[ib]/nib;
+	atom[ib].x+=xt[ib]/nib;
+	atom[ib].y+=yt[ib]/nib;
+	atom[ib].z+=zt[ib]/nib;
 	
       }
       
@@ -102,6 +128,21 @@ void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd)
   
   if(!converged)
     error(311);
+
+/*
+  ener->virshake+=virshake;
+*/
+  
+  box->stress1+=stress[0];
+  box->stress2+=stress[1];
+  box->stress3+=stress[2];
+  box->stress4+=stress[1];
+  box->stress5+=stress[3];
+  box->stress6+=stress[4];
+  box->stress7+=stress[2];
+  box->stress8+=stress[4];
+  box->stress9+=stress[5];
+
   
   free(xt);
   free(yt);
@@ -111,16 +152,17 @@ void lf_shake(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd)
   
 }
 
-void vv_shake_r(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd)
+
+void vv_shake_r(ATOM atom[],SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd,PBC *box,double *virshake,double *stress)
 {
   int i,ia,ib,icycle,converged;
   double *xt,*yt,*zt,*rt2,maxdist,dist;
   double lambda,lambdai,lambdaj,trmi,trmj,nia,nib;
   DELTA *dt;
   
-  xt=(double*)malloc(atom->natom*sizeof(*xt));
-  yt=(double*)malloc(atom->natom*sizeof(*yt));
-  zt=(double*)malloc(atom->natom*sizeof(*zt));
+  xt=(double*)malloc(simulCond->natom*sizeof(*xt));
+  yt=(double*)malloc(simulCond->natom*sizeof(*yt));
+  zt=(double*)malloc(simulCond->natom*sizeof(*zt));
   
   rt2=(double*)malloc(simulCond->nconst*sizeof(*rt2));
   
@@ -128,6 +170,12 @@ void vv_shake_r(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *d
   
   icycle=0;
   converged=0;
+  
+  *virshake=0.;
+  for(i=0;i<6;i++)
+  {
+    stress[i]=0.;
+  }
 
   do
   {
@@ -138,7 +186,7 @@ void vv_shake_r(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *d
       ia=constList[i].a;
       ib=constList[i].b;
       
-      rt2[i]=distance2(ia,ib,atom,&(dt[i]),simulCond);
+      rt2[i]=distance2(ia,ib,atom,&(dt[i]),simulCond,box);
       
       dist=fabs(rt2[i]-constList[i].rc2)/sqrt(constList[i].rc2);
       maxdist=MAX(maxdist,dist);
@@ -151,7 +199,7 @@ void vv_shake_r(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *d
     
     if(!converged)
     {
-      for(i=0;i<atom->natom;i++)
+      for(i=0;i<simulCond->natom;i++)
       {
 	xt[i]=0.;
 	yt[i]=0.;
@@ -163,11 +211,20 @@ void vv_shake_r(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *d
 	ia=constList[i].a;
 	ib=constList[i].b;
 	
-	trmi=simulCond->timeStep/atom->m[ia];
-	trmj=simulCond->timeStep/atom->m[ib];
+	trmi=simulCond->timeStep/atom[ia].m;
+	trmj=simulCond->timeStep/atom[ib].m;
 	
 	lambda=-(constList[i].rc2-rt2[i])/(simulCond->timeStep*(trmi+trmj)*
 	  ((dd[i].x*dt[i].x)+(dd[i].y*dt[i].y)+(dd[i].z*dt[i].z)));
+	
+	*virshake+=lambda*(X2(dd[i].x)+X2(dd[i].y)+X2(dd[i].z));
+	
+	stress[0]-=lambda*X2(dd[i].x);
+	stress[1]-=lambda*dd[i].x*dd[i].y;
+	stress[2]-=lambda*dd[i].x*dd[i].z;
+	stress[3]-=lambda*X2(dd[i].y);
+	stress[4]-=lambda*dd[i].y*dd[i].z;
+	stress[5]-=lambda*X2(dd[i].z);
 	
 	lambdai=0.5*lambda*trmi;
 	xt[ia]+=dd[i].x*lambdai;
@@ -186,24 +243,24 @@ void vv_shake_r(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *d
 	ia=constList[i].a;
 	ib=constList[i].b;
 	
-	nia=(double)atom->inconst[ia];
-	nib=(double)atom->inconst[ib];
+	nia=(double)atom[ia].inconst;
+	nib=(double)atom[ib].inconst;
 	
-	atom->x[ia]+=simulCond->timeStep*xt[ia]/nia;
-	atom->y[ia]+=simulCond->timeStep*yt[ia]/nia;
-	atom->z[ia]+=simulCond->timeStep*zt[ia]/nia;
+	atom[ia].x+=simulCond->timeStep*xt[ia]/nia;
+	atom[ia].y+=simulCond->timeStep*yt[ia]/nia;
+	atom[ia].z+=simulCond->timeStep*zt[ia]/nia;
 	
-	atom->x[ib]+=simulCond->timeStep*xt[ib]/nib;
-	atom->y[ib]+=simulCond->timeStep*yt[ib]/nib;
-	atom->z[ib]+=simulCond->timeStep*zt[ib]/nib;
+	atom[ib].x+=simulCond->timeStep*xt[ib]/nib;
+	atom[ib].y+=simulCond->timeStep*yt[ib]/nib;
+	atom[ib].z+=simulCond->timeStep*zt[ib]/nib;
 	
-	atom->vx[ia]+=xt[ia]/nia;
-	atom->vy[ia]+=yt[ia]/nia;
-	atom->vz[ia]+=zt[ia]/nia;
+	atom[ia].vx+=xt[ia]/nia;
+	atom[ia].vy+=yt[ia]/nia;
+	atom[ia].vz+=zt[ia]/nia;
 	
-	atom->vx[ib]+=xt[ib]/nib;
-	atom->vy[ib]+=yt[ib]/nib;
-	atom->vz[ib]+=zt[ib]/nib;
+	atom[ib].vx+=xt[ib]/nib;
+	atom[ib].vy+=yt[ib]/nib;
+	atom[ib].vz+=zt[ib]/nib;
 	
       }
       
@@ -224,15 +281,15 @@ void vv_shake_r(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *d
   
 }
 
-void vv_shake_v(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd)
+void vv_shake_v(ATOM atom[],SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd)
 {
   int i,ia,ib,icycle,converged;
   double *xt,*yt,*zt,maxdist,tolvel;
   double lambda,lambdai,lambdaj,trmi,trmj,nia,nib;
   
-  xt=(double*)malloc(atom->natom*sizeof(*xt));
-  yt=(double*)malloc(atom->natom*sizeof(*yt));
-  zt=(double*)malloc(atom->natom*sizeof(*zt));
+  xt=(double*)malloc(simulCond->natom*sizeof(*xt));
+  yt=(double*)malloc(simulCond->natom*sizeof(*yt));
+  zt=(double*)malloc(simulCond->natom*sizeof(*zt));
   
   icycle=0;
   converged=0;
@@ -242,7 +299,7 @@ void vv_shake_v(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *d
   do
   {
     
-    for(i=0;i<atom->natom;i++)
+    for(i=0;i<simulCond->natom;i++)
     {
       xt[i]=0.;
       yt[i]=0.;
@@ -256,11 +313,11 @@ void vv_shake_v(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *d
       ia=constList[i].a;
       ib=constList[i].b;
       
-      trmi=0.5*simulCond->timeStep/atom->m[ia];
-      trmj=0.5*simulCond->timeStep/atom->m[ib];
+      trmi=0.5*simulCond->timeStep/atom[ia].m;
+      trmj=0.5*simulCond->timeStep/atom[ib].m;
       
-      lambda=(dd[i].x*(atom->vx[ib]-atom->vx[ia])+dd[i].y*(atom->vy[ib]-atom->vy[ia])+
-	dd[i].z*(atom->vz[ib]-atom->vz[ia]))/((trmi+trmj)*
+      lambda=(dd[i].x*(atom[ib].vx-atom[ia].vx)+dd[i].y*(atom[ib].vy-atom[ia].vy)+
+	dd[i].z*(atom[ib].vz-atom[ia].vz))/((trmi+trmj)*
 	(X2(dd[i].x)+X2(dd[i].y)+X2(dd[i].z)));
 	
       maxdist=MAX(maxdist,fabs(lambda));
@@ -287,16 +344,16 @@ void vv_shake_v(ATOM *atom,SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *d
 	ia=constList[i].a;
 	ib=constList[i].b;
 	
-	nia=(double)atom->inconst[ia];
-	nib=(double)atom->inconst[ib];
+	nia=(double)atom[ia].inconst;
+	nib=(double)atom[ib].inconst;
 	
-	atom->vx[ia]+=xt[ia]/nia;
-	atom->vy[ia]+=yt[ia]/nia;
-	atom->vz[ia]+=zt[ia]/nia;
+	atom[ia].vx+=xt[ia]/nia;
+	atom[ia].vy+=yt[ia]/nia;
+	atom[ia].vz+=zt[ia]/nia;
 	
-	atom->vx[ib]+=xt[ib]/nib;
-	atom->vy[ib]+=yt[ib]/nib;
-	atom->vz[ib]+=zt[ib]/nib;
+	atom[ib].vx+=xt[ib]/nib;
+	atom[ib].vy+=yt[ib]/nib;
+	atom[ib].vz+=zt[ib]/nib;
 	
       }
     }

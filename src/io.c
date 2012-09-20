@@ -1,14 +1,23 @@
+/**
+ * \file io.c
+ * \brief Contains functions in charge of I/O and parsing. 
+ * \author Pierre-Andre Cazade and Florent Hedin
+ * \version alpha-branch
+ * \date 2012
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
 #include <ctype.h>
+
 #include "global.h"
 #include "io.h"
 #include "memory.h"
 #include "utils.h"
 
-void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
+void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff,PBC *box)
 {
   char buff1[1024]="", *buff2=NULL, *buff3=NULL, *buff4=NULL;
   FILE *simuFile;
@@ -22,6 +31,11 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
   
   simulCond->keymd=1;
   
+  simulCond->keyminim=0;
+  simulCond->tolminim=1.e-3;
+  simulCond->maxminst=1000;
+  simulCond->maxminsiz=0.15;
+  
   simulCond->step=0;
   simulCond->firstener=1;
   
@@ -34,22 +48,26 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
   simulCond->delr=2.0;
 
   simulCond->temp=300.0;
+  simulCond->press=1.0;
   
   simulCond->keyrand=0;
   simulCond->seed=12345;
   
-  simulCond->elecType=1;
-  simulCond->vdwType=1;
+  simulCond->elecType=FULL;
+  simulCond->vdwType=VFULL;
   simulCond->nb14=0;
   ff->scal14=1.0;
   simulCond->numDeriv=0;
   simulCond->listupdate=20;
+  simulCond->linkRatio=1;
+  simulCond->nolink=0;
 
   simulCond->integrator=1;
   simulCond->ens=0;
   simulCond->taut=0.1;
-  simulCond->tolshake=1e-8;
-  simulCond->maxcycle=100;
+  simulCond->taup=0.5;
+  simulCond->tolshake=1.e-8;
+  simulCond->maxcycle=150;
   simulCond->keyconsth=0;
   simulCond->nconst=0;
   
@@ -59,10 +77,10 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
   simulCond->printo=1000;
   simulCond->printtr=1000;
   
-  simulCond->periodicType=0;
-  simulCond->periodicBox[0][0]=0.;
-  simulCond->periodicBox[1][1]=0.;
-  simulCond->periodicBox[2][2]=0.;
+  box->type=0;
+  box->a1=0.;
+  box->b2=0.;
+  box->c3=0.;
   
   while(fgets(buff1,1024,simuFile)!=NULL)
   {
@@ -85,6 +103,42 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
     else if(!strcmp(buff2,"nomd"))
       simulCond->keymd=0;
     
+    else if(!strcmp(buff2,"minim"))
+    {
+      simulCond->keyminim=1;
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	error(63);
+      
+      nocase(buff3);
+      
+      if(!strcmp(buff3,"tol"))
+      {
+	buff4=strtok(NULL," \n\t");
+	if(buff4==NULL)
+	  error(63);
+	
+	simulCond->tolminim=atof(buff4);
+      }
+      else if(!strcmp(buff3,"maxcycle"))
+      {
+	buff4=strtok(NULL," \n\t");
+	if(buff4==NULL)
+	  error(63);
+	
+	simulCond->maxminst=atoi(buff4);
+      }
+      else if(!strcmp(buff3,"maxsize"))
+      {
+	buff4=strtok(NULL," \n\t");
+	if(buff4==NULL)
+	  error(63);
+	
+	simulCond->maxminsiz=atof(buff4);
+      }
+      else
+	error(62);
+    }
     else if(!strcmp(buff2,"timestep"))
     {
       buff3=strtok(NULL," \n\t");
@@ -134,15 +188,15 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
       nocase(buff3);
       
       if(!strcmp(buff3,"noelec"))
-	simulCond->elecType=0;
+	simulCond->elecType=NOELEC;
       else if(!strcmp(buff3,"full"))
-	simulCond->elecType=1;
+	simulCond->elecType=FULL;
       else if(!strcmp(buff3,"shift1"))
-	simulCond->elecType=2;
+	simulCond->elecType=SHIFT1;
       else if(!strcmp(buff3,"shift2"))
-	simulCond->elecType=3;
+	simulCond->elecType=SHIFT2;
       else if(!strcmp(buff3,"switch"))
-	simulCond->elecType=4;
+	simulCond->elecType=SWITCH;
       else
 	error(62);
     }
@@ -155,11 +209,11 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
       nocase(buff3);
       
       if(!strcmp(buff3,"novdw"))
-	simulCond->vdwType=0;
+	simulCond->vdwType=NOVDW;
       else if(!strcmp(buff3,"full"))
-	simulCond->vdwType=1;
+	simulCond->vdwType=VFULL;
       else if(!strcmp(buff3,"switch"))
-	simulCond->vdwType=2;
+	simulCond->vdwType=VSWITCH;
       else
 	error(62);
     }
@@ -183,6 +237,18 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
 	error(63);
       
       simulCond->listupdate=atoi(buff3);
+    }
+    else if(!strcmp(buff2,"link"))
+    {
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	error(63);
+      
+      simulCond->linkRatio=atoi(buff3);
+    }
+    else if(!strcmp(buff2,"nolink"))
+    {
+      simulCond->nolink=1;
     }
     else if(!strcmp(buff2,"integrator"))
     {
@@ -213,6 +279,10 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
 	simulCond->ens=1;
       else if(!strcmp(buff3,"nptb"))
 	simulCond->ens=2;
+      else if(!strcmp(buff3,"nvth"))
+	simulCond->ens=3;
+      else if(!strcmp(buff3,"npth"))
+	simulCond->ens=4;
       else
 	error(62);
       
@@ -224,6 +294,15 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
 	
 	simulCond->taut=atof(buff3);
       }
+      
+      if(simulCond->ens==2||simulCond->ens==4)
+      {
+	buff3=strtok(NULL," \n\t");
+	if(buff3==NULL)
+	error(63);
+	
+	simulCond->taup=atof(buff3);
+      }
     }
     else if(!strcmp(buff2,"temperature"))
     {
@@ -232,6 +311,14 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
 	error(63);
       
       simulCond->temp=atof(buff3);
+    }
+    else if(!strcmp(buff2,"pressure"))
+    {
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	error(63);
+      
+      simulCond->press=atof(buff3)*bartoiu;
     }
     else if(!strcmp(buff2,"consth"))
     {
@@ -310,7 +397,7 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
       if(buff3==NULL)
 	error(63);
       
-      simulCond->periodicType=atoi(buff3);
+      box->type=atoi(buff3);
       
       if(fgets(buff1,1024,simuFile)!=NULL)
       {
@@ -321,7 +408,7 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
 	else if(isdigit(buff2[0])==0)
 	  error(62);
 	
-	simulCond->periodicBox[0][0]=atof(buff2);
+	box->a1=atof(buff2);
 	
 	buff2=strtok(NULL," \n\t");
 	if(buff2==NULL)
@@ -329,7 +416,7 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
 	else if(isdigit(buff2[0])==0)
 	  error(62);
 	
-	simulCond->periodicBox[0][1]=atof(buff2);
+	box->a2=atof(buff2);
 	
 	buff2=strtok(NULL," \n\t");
 	if(buff2==NULL)
@@ -337,7 +424,7 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
 	else if(isdigit(buff2[0])==0)
 	  error(62);
 	
-	simulCond->periodicBox[0][2]=atof(buff2);
+	box->a3=atof(buff2);
 	
       }
       else
@@ -352,7 +439,7 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
 	else if(isdigit(buff2[0])==0)
 	  error(62);
 	
-	simulCond->periodicBox[1][0]=atof(buff2);
+	box->b1=atof(buff2);
 	
 	buff2=strtok(NULL," \n\t");
 	if(buff2==NULL)
@@ -360,7 +447,7 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
 	else if(isdigit(buff2[0])==0)
 	  error(62);
 	
-	simulCond->periodicBox[1][1]=atof(buff2);
+	box->b2=atof(buff2);
 	
 	buff2=strtok(NULL," \n\t");
 	if(buff2==NULL)
@@ -368,7 +455,7 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
 	else if(isdigit(buff2[0])==0)
 	  error(62);
 	
-	simulCond->periodicBox[1][2]=atof(buff2);
+	box->b3=atof(buff2);
 	
       }
       else
@@ -383,7 +470,7 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
 	else if(isdigit(buff2[0])==0)
 	  error(62);
 	
-	simulCond->periodicBox[2][0]=atof(buff2);
+	box->c1=atof(buff2);
 	
 	buff2=strtok(NULL," \n\t");
 	if(buff2==NULL)
@@ -391,7 +478,7 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
 	else if(isdigit(buff2[0])==0)
 	  error(62);
 	
-	simulCond->periodicBox[2][1]=atof(buff2);
+	box->c2=atof(buff2);
 	
 	buff2=strtok(NULL," \n\t");
 	if(buff2==NULL)
@@ -399,7 +486,7 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
 	else if(isdigit(buff2[0])==0)
 	  error(62);
 	
-	simulCond->periodicBox[2][2]=atof(buff2);
+	box->c3=atof(buff2);
 	
       }
       else
@@ -413,7 +500,7 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff)
   
 }
 
-void read_PSF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAINT **constList)
+void read_PSF(INPUTS *inp,ATOM **atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAINT **constList)
 {
   FILE *psfFile=NULL;
   char buff1[1024]="", *buff2=NULL, *buff3=NULL, *buff4=NULL, *buff5=NULL;
@@ -432,44 +519,17 @@ void read_PSF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONST
     if(strstr(buff1,"NATOM")!=NULL)
     {
       buff2=strtok(buff1," \n\t");
-      atom->natom=atoi(buff2);
+      simulCond->natom=atoi(buff2);
       break;
     }
   }
   
   inp->typesNum=(int*)malloc(nalloc*sizeof(*(inp->typesNum)));
 
-  atom->x=(double*)malloc(atom->natom*sizeof(*(atom->x)));
-  atom->y=(double*)malloc(atom->natom*sizeof(*(atom->y)));
-  atom->z=(double*)malloc(atom->natom*sizeof(*(atom->z)));
-    
-  atom->vx=(double*)malloc(atom->natom*sizeof(*(atom->vx)));
-  atom->vy=(double*)malloc(atom->natom*sizeof(*(atom->vy)));
-  atom->vz=(double*)malloc(atom->natom*sizeof(*(atom->vz)));
-  
-  atom->fx=(double*)malloc(atom->natom*sizeof(*(atom->fx)));
-  atom->fy=(double*)malloc(atom->natom*sizeof(*(atom->fy)));
-  atom->fz=(double*)malloc(atom->natom*sizeof(*(atom->fz)));
-  
-  atom->atomType=(int*)malloc(atom->natom*sizeof(*(atom->atomType)));
-  atom->resn=(int*)malloc(atom->natom*sizeof(*(atom->resn)));
-  atom->m=(double*)malloc(atom->natom*sizeof(*(atom->m)));
-  
-  atom->atomLabel=(char**)malloc(atom->natom*sizeof(*(atom->atomLabel)));
-  atom->segi=(char**)malloc(atom->natom*sizeof(*(atom->segi)));
-  atom->resi=(char**)malloc(atom->natom*sizeof(*(atom->resi)));
-    
-  for(i=0;i<atom->natom;i++)
-  {
-    atom->atomLabel[i]=(char*)malloc(5*sizeof(**(atom->atomLabel)));
-    atom->segi[i]=(char*)malloc(5*sizeof(**(atom->segi)));
-    atom->resi[i]=(char*)malloc(5*sizeof(**(atom->resi)));
-  }
-  
-  ff->q=(double*)malloc(atom->natom*sizeof(*(ff->q)));
+  *atom=(ATOM*)malloc(simulCond->natom*sizeof(**atom));
   
   k=-1;
-  for(i=0;i<atom->natom;i++)
+  for(i=0;i<simulCond->natom;i++)
   {
     if(fgets(buff1,1024,psfFile)!=NULL)
     {
@@ -478,16 +538,16 @@ void read_PSF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONST
       buff4=strtok(NULL," \n\t");
       buff5=strtok(NULL," \n\t");
 
-      strcpy(atom->segi[i],buff3);
-      atom->resn[i]=atoi(buff4);
-      strcpy(atom->resi[i],buff5);
+      strcpy((*atom)[i].segi,buff3);
+      (*atom)[i].resn=atoi(buff4);
+      strcpy((*atom)[i].resi,buff5);
       
       buff2=strtok(NULL," \n\t");
       buff3=strtok(NULL," \n\t");
       buff4=strtok(NULL," \n\t");
       buff5=strtok(NULL," \n\t");
       
-      strcpy(atom->atomLabel[i],buff2);
+      strcpy((*atom)[i].label,buff2);
       
       kt=atoi(buff3)-1;
       k++;
@@ -513,9 +573,9 @@ void read_PSF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONST
 //       if(k==-1)
 //  	error(21);
 
-      atom->atomType[i]=kk;
-      ff->q[i]=atof(buff4);
-      atom->m[i]=atof(buff5);
+      (*atom)[i].type=kk;
+      (*atom)[i].q=atof(buff4);
+      (*atom)[i].m=atof(buff5);
     }
     else
     {
@@ -542,9 +602,8 @@ void read_PSF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONST
   
   if(simulCond->keyconsth)
   {
-    atom->inconst=(int*)malloc(atom->natom*sizeof(*(atom->inconst)));
-    for(i=0;i<atom->natom;i++)
-      atom->inconst[i]=0;
+    for(i=0;i<simulCond->natom;i++)
+      (*atom)[i].inconst=0;
     
     *constList=(CONSTRAINT*)malloc(ff->nBond*sizeof(**constList));
     simulCond->nconst=0;
@@ -563,13 +622,13 @@ void read_PSF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONST
       {
 	ia=atoi(buff2)-1;
 	ib=atoi(buff3)-1;
-	if(atom->atomLabel[ia][0]=='H'||atom->atomLabel[ib][0]=='H')
+	if((*atom)[ia].label[0]=='H'||(*atom)[ib].label[0]=='H')
 	{
 	  (*constList)[simulCond->nconst].a=ia;
 	  (*constList)[simulCond->nconst].b=ib;
 	  
-	  atom->inconst[ia]++;
-	  atom->inconst[ib]++;
+	  (*atom)[ia].inconst++;
+	  (*atom)[ib].inconst++;
 	  
 	  buff2=strtok(NULL," \n\t");
 	  buff3=strtok(NULL," \n\t");
@@ -1505,7 +1564,7 @@ void read_PAR(INPUTS *inp)
     fclose(parFile);
 }
 
-void read_CONF(ATOM *atom)
+void read_CONF(ATOM atom[],SIMULPARAMS *simulCond)
 {
   
   char buff1[1024]="", *buff2=NULL;
@@ -1533,22 +1592,22 @@ void read_CONF(ATOM *atom)
     buff2=strtok(buff1," \n\t");
     natomCheck=atof(buff2);
     
-    if(natomCheck!=atom->natom)
+    if(natomCheck!=simulCond->natom)
       error(41);
     
     for(i=0;i<natomCheck;i++)
     {
       fscanf(confFile,"%d %d %s %s %lf %lf %lf %s %d %lf",&atn,&ire,ren,atl,&xx,&yy,&zz,sen,&res,&wei);
-      atom->x[i]=xx;
-      atom->y[i]=yy;
-      atom->z[i]=zz;
+      atom[i].x=xx;
+      atom[i].y=yy;
+      atom[i].z=zz;
 
     }
     
     fclose(confFile);
 }
 
-void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAINT *constList)
+void setup(INPUTS *inp,ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAINT *constList)
 {
   int i,j,k,ia,ib,ic,id,i0,i1,i2,i3,itype;
   
@@ -1588,14 +1647,14 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAI
       ff->parmImpr[i]=(double*)malloc(3*sizeof(**(ff->parmImpr)));
   }
   
-  ff->parmVdw=(double**)malloc(atom->natom*sizeof(*(ff->parmVdw)));
-  for(i=0;i<atom->natom;i++)
+  ff->parmVdw=(double**)malloc(simulCond->natom*sizeof(*(ff->parmVdw)));
+  for(i=0;i<simulCond->natom;i++)
     ff->parmVdw[i]=(double*)malloc(6*sizeof(**(ff->parmVdw)));
   
   /*printf("Let's check what there is in atom->atomType\n");
-  for(i=0;i<atom->natom;i++)
+  for(i=0;i<simulCond->natom;i++)
   {
-    printf("%d %d %d\n",atom->natom,i,atom->atomType[i]);
+    printf("%d %d %d\n",simulCond->natom,i,atom[i].type);
   }
 
   printf("Let's check what there is in inp->types\n");
@@ -1607,7 +1666,7 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAI
   printf("Let's check what there is in iBond\n");
   for(i=0;i<ff->nBond;i++)
   {
-     printf("%d %d %d %d %d\n",ff->nBond,simulCond->iBond[i][0],simulCond->iBond[i][1],atom->atomType[simulCond->iBond[i][0]],atom->atomType[simulCond->iBond[i][1]]);
+     printf("%d %d %d %d %d\n",ff->nBond,simulCond->iBond[i][0],simulCond->iBond[i][1],atom[simulCond->iBond[i][0]].type,atom[simulCond->iBond[i][1]].type);
   }
   
   printf("Let's check what there is in bondTypes\n");
@@ -1654,8 +1713,8 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAI
 
   for(i=0;i<ff->nBond;i++)
   {
-    ia=atom->atomType[simulCond->iBond[i][0]];
-    ib=atom->atomType[simulCond->iBond[i][1]];
+    ia=atom[simulCond->iBond[i][0]].type;
+    ib=atom[simulCond->iBond[i][1]].type;
     
     if(ib<ia)
     {
@@ -1690,8 +1749,8 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAI
   {
     for(i=0;i<simulCond->nconst;i++)
     {
-      ia=atom->atomType[constList[i].a];
-      ib=atom->atomType[constList[i].b];
+      ia=atom[constList[i].a].type;
+      ib=atom[constList[i].b].type;
       
       if(ib<ia)
       {
@@ -1724,9 +1783,9 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAI
   ff->nUb=0;
   for(i=0;i<ff->nAngle;i++)
   {
-    ia=atom->atomType[simulCond->iAngle[i][0]];
-    ib=atom->atomType[simulCond->iAngle[i][1]];
-    ic=atom->atomType[simulCond->iAngle[i][2]];
+    ia=atom[simulCond->iAngle[i][0]].type;
+    ib=atom[simulCond->iAngle[i][1]].type;
+    ic=atom[simulCond->iAngle[i][2]].type;
     
     if(ic<ia)
     {
@@ -1781,9 +1840,9 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAI
   k=0;
   for(i=0;i<ff->nAngle;i++)
   {
-    ia=atom->atomType[simulCond->iAngle[i][0]];
-    ib=atom->atomType[simulCond->iAngle[i][1]];
-    ic=atom->atomType[simulCond->iAngle[i][2]];
+    ia=atom[simulCond->iAngle[i][0]].type;
+    ib=atom[simulCond->iAngle[i][1]].type;
+    ic=atom[simulCond->iAngle[i][2]].type;
     
     if(ic<ia)
     {
@@ -1820,10 +1879,10 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAI
   
   for(i=0;i<ff->nDihedral;i++)
   {
-    ia=atom->atomType[simulCond->iDihedral[i][0]];
-    ib=atom->atomType[simulCond->iDihedral[i][1]];
-    ic=atom->atomType[simulCond->iDihedral[i][2]];
-    id=atom->atomType[simulCond->iDihedral[i][3]];
+    ia=atom[simulCond->iDihedral[i][0]].type;
+    ib=atom[simulCond->iDihedral[i][1]].type;
+    ic=atom[simulCond->iDihedral[i][2]].type;
+    id=atom[simulCond->iDihedral[i][3]].type;
     
     if(id<ia)
     {
@@ -1920,10 +1979,10 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAI
   
   for(i=0;i<ff->nImproper;i++)
   {
-    ia=atom->atomType[simulCond->iImproper[i][0]];
-    ib=atom->atomType[simulCond->iImproper[i][1]];
-    ic=atom->atomType[simulCond->iImproper[i][2]];
-    id=atom->atomType[simulCond->iImproper[i][3]];
+    ia=atom[simulCond->iImproper[i][0]].type;
+    ib=atom[simulCond->iImproper[i][1]].type;
+    ic=atom[simulCond->iImproper[i][2]].type;
+    id=atom[simulCond->iImproper[i][3]].type;
     
     if(id<ia)
     {
@@ -2107,18 +2166,18 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAI
       simulCond->imprType[i]=1;
   }
   
-  for(i=0;i<atom->natom;i++)
+  for(i=0;i<simulCond->natom;i++)
   {
     
-    ff->parmVdw[i][0]=sqrt(-kcaltoiu*inp->nonBondedTypesParm[atom->atomType[i]][1]);
-    ff->parmVdw[i][1]=inp->nonBondedTypesParm[atom->atomType[i]][2]/sq6rt2;
-    ff->parmVdw[i][2]=inp->nonBondedTypesParm[atom->atomType[i]][0];
+    ff->parmVdw[i][0]=sqrt(-kcaltoiu*inp->nonBondedTypesParm[atom[i].type][1]);
+    ff->parmVdw[i][1]=inp->nonBondedTypesParm[atom[i].type][2]/sq6rt2;
+    ff->parmVdw[i][2]=inp->nonBondedTypesParm[atom[i].type][0];
     
-    if(inp->nonBondedTypesParm[atom->atomType[i]][5]>=0.)
+    if(inp->nonBondedTypesParm[atom[i].type][5]>=0.)
     {
-      ff->parmVdw[i][3]=sqrt(-kcaltoiu*inp->nonBondedTypesParm[atom->atomType[i]][4]);
-      ff->parmVdw[i][4]=inp->nonBondedTypesParm[atom->atomType[i]][5]/sq6rt2;
-      ff->parmVdw[i][5]=inp->nonBondedTypesParm[atom->atomType[i]][3];
+      ff->parmVdw[i][3]=sqrt(-kcaltoiu*inp->nonBondedTypesParm[atom[i].type][4]);
+      ff->parmVdw[i][4]=inp->nonBondedTypesParm[atom[i].type][5]/sq6rt2;
+      ff->parmVdw[i][5]=inp->nonBondedTypesParm[atom[i].type][3];
     }
     else
     {
@@ -2130,7 +2189,7 @@ void setup(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAI
   
 }
 
-void write_FORF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
+void write_FORF(INPUTS *inp,ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond)
 {
   FILE *forfFile;
   int i,j,k,l,ia,ib,ic,id,nd;
@@ -2138,12 +2197,12 @@ void write_FORF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
   
   forfFile=fopen("FORF","w");
   
-  fprintf(forfFile,"ATOMS %d\n",atom->natom);
+  fprintf(forfFile,"ATOMS %d\n",simulCond->natom);
   
-  for(i=0;i<atom->natom;i++)
+  for(i=0;i<simulCond->natom;i++)
   {
-    k=atom->atomType[i];
-    fprintf(forfFile,"%s %lf %lf 1\n",inp->types[k],atom->m[i],ff->q[i]);
+    k=atom[i].type;
+    fprintf(forfFile,"%s %lf %lf 1\n",inp->types[k],atom[i].m,atom[i].q);
   }
   
   fprintf(forfFile,"BONDS %d\n",ff->nBond+ff->nUb);
@@ -2236,15 +2295,15 @@ void write_FORF(INPUTS *inp,ATOM *atom,FORCEFIELD *ff,SIMULPARAMS *simulCond)
     fprintf(forfFile,"harm %d %d %d %d %lf %lf\n",ia,ib,ic,id,kf,r0);
   }
   
-  nd=atom->natom*(atom->natom+1)/2;
+  nd=simulCond->natom*(simulCond->natom+1)/2;
   fprintf(forfFile,"VDW %d\n",nd);
   
-  for(i=0;i<atom->natom;i++)
+  for(i=0;i<simulCond->natom;i++)
   {
-    for(j=i;j<atom->natom;j++)
+    for(j=i;j<simulCond->natom;j++)
     {
-      k=atom->atomType[i];
-      l=atom->atomType[j];
+      k=atom[i].type;
+      l=atom[j].type;
       kf=ff->parmVdw[i][0]*ff->parmVdw[j][0]/kcaltoiu;
       r0=ff->parmVdw[i][1]+ff->parmVdw[j][1];
       
@@ -2385,6 +2444,11 @@ void error(int errorNumber)
     printf("Unknown van der Waals potential. This is most likely due to an\n");
     printf("error in the SIMU file. Please check this file and the manual\n");
     printf("for the list of keywords and available potentials.\n");
+    break;
+  case 310:
+    printf("Velocities quenching convergence failure, most likely due a non suitable\n");
+    printf("initial configuration. If not, you can try increasing the number of cycles or\n");
+    printf("make Shake convergence criterion more tolerant. Please check the manual.\n");
     break;
   case 311:
     printf("Shake convergence failure, most likely due a non suitable initial\n");
