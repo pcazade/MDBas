@@ -1651,66 +1651,6 @@ void setup(INPUTS *inp,ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRA
   for(i=0;i<simulCond->natom;i++)
     ff->parmVdw[i]=(double*)malloc(6*sizeof(**(ff->parmVdw)));
   
-  /*printf("Let's check what there is in atom->atomType\n");
-  for(i=0;i<simulCond->natom;i++)
-  {
-    printf("%d %d %d\n",simulCond->natom,i,atom[i].type);
-  }
-
-  printf("Let's check what there is in inp->types\n");
-  for(i=0;i<inp->nTypes;i++)
-  {
-     printf("%d %d %d %s\n",inp->nTypes,i,inp->typesNum[i],inp->types[i]);
-  }
-  
-  printf("Let's check what there is in iBond\n");
-  for(i=0;i<ff->nBond;i++)
-  {
-     printf("%d %d %d %d %d\n",ff->nBond,simulCond->iBond[i][0],simulCond->iBond[i][1],atom[simulCond->iBond[i][0]].type,atom[simulCond->iBond[i][1]].type);
-  }
-  
-  printf("Let's check what there is in bondTypes\n");
-  for(j=0;j<inp->nBondTypes;j++)
-  {
-     printf("%d %d %d\n",inp->nBondTypes,inp->bondTypes[j][0],inp->bondTypes[j][1]);
-  }
-
-  printf("Let's check what there is in iAngle\n");
-  for(i=0;i<ff->nAngle;i++)
-  {
-     printf("%d %d %d %d\n",ff->nAngle,simulCond->iAngle[i][0],simulCond->iAngle[i][1],simulCond->iAngle[i][2]);
-  }
-  
-  printf("Let's check what there is in angTypes\n");
-  for(j=0;j<inp->nAngTypes;j++)
-  {
-     printf("%d %d %d %d\n",inp->nAngTypes,inp->angTypes[j][0],inp->angTypes[j][1],inp->angTypes[j][2]);
-  }
-
-  printf("Let's check what there is in iDihedral\n");
-  for(i=0;i<ff->nDihedral;i++)
-  {
-     printf("%d %d %d %d %d\n",ff->nDihedral,simulCond->iDihedral[i][0],simulCond->iDihedral[i][1],simulCond->iDihedral[i][2],simulCond->iDihedral[i][3]);
-  }
-  
-  printf("Let's check what there is in diheTypes\n");
-  for(j=0;j<inp->nDiheTypes;j++)
-  {
-     printf("%d %d %d %d %d\n",inp->nDiheTypes,inp->diheTypes[j][0],inp->diheTypes[j][1],inp->diheTypes[j][2],inp->diheTypes[j][3]);
-  }
-  
-  if(simulCond->keyconsth)
-  {
-    printf("Let's check what there is in constList\n");
-    printf("pointer adress=%p\n",constList);
-    for(i=0;i<simulCond->nconst;i++)
-    {
-      printf("%d %d %d\n",simulCond->nconst,constList[i].a,constList[i].b);
-    }
-  }
-
-  printf("Now if the loop.\n");*/
-
   for(i=0;i<ff->nBond;i++)
   {
     ia=atom[simulCond->iBond[i][0]].type;
