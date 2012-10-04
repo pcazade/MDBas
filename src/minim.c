@@ -13,6 +13,9 @@
 #include "global.h"
 #include "energy.h"
 
+/** Pointer to the output file. **/
+extern FILE *outFile;
+
 void minimise(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
 {
   
@@ -32,7 +35,7 @@ void steepestDescent(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulC
   energy(atom, ff, ener, simulCond, box);
   eprev = ener->pot;
   
-//   printf("eprev : %lf\n",eprev);
+//   fprintf(outFile,"eprev : %lf\n",eprev);
 
   do
   {
@@ -45,14 +48,14 @@ void steepestDescent(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulC
     
     energy(atom, ff, ener, simulCond, box);
     enow = ener->pot;
-//     printf("enow : %lf\n",enow);
+//     fprintf(outFile,"enow : %lf\n",enow);
     
     diff = fabs(enow-eprev);
     eprev=enow;
     
     currSt++;
     
-//     printf("Steepest Descent : after step %d : EDiff = %lf \n", currSt, diff );
+//     fprintf(outFile,"Steepest Descent : after step %d : EDiff = %lf \n", currSt, diff );
     
   } while ( (diff >= prec) && (currSt<=maxSteps) ) ;
   

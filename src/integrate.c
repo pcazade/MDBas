@@ -15,6 +15,9 @@
 #include "shake.h"
 #include "integrate.h"
 
+/** Pointer to the output file. **/
+extern FILE *outFile;
+
 void lf_integrate(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box)
 {
   switch (simulCond->ens)
@@ -1970,30 +1973,25 @@ void vv_npt_h(ATOM atom[], ENERGY *ener, SIMULPARAMS *simulCond,CONSTRAINT *cons
   if(stage==1)
   {
     
-    if(simulCond->nconst>0)
+    lambda0=simulCond->lambdat;
+    gamma0=simulCond->gammap;
+    cons0=ener->conint;
+    
+    #ifdef _OPENMP
+    #pragma omp parallel for default(none) shared(simulCond,xo,yo,zo,vxo,vyo,vzo,atom) private(i)
+    #endif
+    for(i=0;i<simulCond->natom;i++)
     {
       
-      lambda0=simulCond->lambdat;
-      gamma0=simulCond->gammap;
-      cons0=ener->conint;
-      
-      #ifdef _OPENMP
-      #pragma omp parallel for default(none) shared(simulCond,xo,yo,zo,vxo,vyo,vzo,atom) private(i)
-      #endif
-      for(i=0;i<simulCond->natom;i++)
-      {
-	
-    // Store old coordinates and old velocities.
+  // Store old coordinates and old velocities.
 
-	xo[i]=atom[i].x;
-	yo[i]=atom[i].y;
-	zo[i]=atom[i].z;
-	
-	vxo[i]=atom[i].vx;
-	vyo[i]=atom[i].vy;
-	vzo[i]=atom[i].vz;
-	
-      }
+      xo[i]=atom[i].x;
+      yo[i]=atom[i].y;
+      zo[i]=atom[i].z;
+      
+      vxo[i]=atom[i].vx;
+      vyo[i]=atom[i].vy;
+      vzo[i]=atom[i].vz;
       
     }
     

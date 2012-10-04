@@ -12,6 +12,8 @@ void image_array(int size_array,DELTA d[],SIMULPARAMS *simulCond,PBC *box);
 void init_box(PBC *box);
 void scale_box(PBC *box,double scale,double cell0[9]);
 void vv_scale_box(PBC *box,double scale);
+void box_to_lattice(PBC *box,double lattice[6]);
+void box_to_crystal(PBC *box,double crystal[6]);
 
 double kinetic(ATOM atom[],SIMULPARAMS *simulCond);
 void stress_kinetic(ATOM atom[],SIMULPARAMS *simulCond,double stress[6]);

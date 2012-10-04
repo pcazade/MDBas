@@ -15,7 +15,7 @@
 #define kcaltoiu (418.4)                /*!< Conversion factor : internal units (10 Joules) to kcal (kilo-calory). */
 #define clight  (299792458.)            /*!< The speed of light (c) in \f$ m.s^{-1} \f$. */
 #define NA	(6.02214129e+23)        /*!< The Avogadro constant in \f$ mol^{-1} \f$. */
-#define bartoiu	(6.02214129e+3)         /*!< For converting pressure from bar \f$ 10^5.J.m^{-3} \f$ to internal units \f$ 10 J.mol^{-1}.A^{-3} \f$. */
+#define bartoiu	(6.02214129e-3)         /*!< For converting pressure from bar \f$ 10^5.J.m^{-3} \f$ to internal units \f$ 10 J.mol^{-1}.A^{-3} \f$. */
 #define kboltz  (1.3806488e-23)         /*!< The Boltzmann Constant in \f$ J.K^{-1} \f$. */
 #define rboltz  (8.3144621)             /*!< The Gas constant in \f$ J.K^{-1}.mol^{-1} \f$ : it is kboltz divided by NA. */
 #define rboltzui  (0.83144621)          /*!< The Gas constant in internal units,  \f$ 10 J.K^{-1}.mol^{-1} \f$. */
@@ -85,8 +85,8 @@ enum BOX_TYPE{
  */
 typedef struct
 {
-  char label[5],segi[5],resi[5];
-  int type,resn,inconst;
+  char label[5],segn[5],resn[5];
+  int type,resi,ires,inconst;
 
   double x,y,z;
   double vx,vy,vz;
@@ -146,17 +146,18 @@ typedef struct
 typedef struct
 {
   int natom,nb14,step,nsteps,degfree,firstener,listupdate;
-  int printo,printtr,integrator,ens,nconst,maxcycle;
-  int keyrand,seed,keytraj,keyener,keyforf,keymd,keyconsth;
+  int printo,printpr,printtr,integrator,ens,nconst,maxcycle;
+  int fresconf;
+  int keyrand,seed,keytraj,keyprop,keyforf,keymd,keyconsth;
   int keyminim,maxminst,mdNature,numDeriv;
-  int linkRatio,keylink,nolink;
+  int linkRatio,keylink,nolink,keyrestart;
   int *excludeNum,**excludeAtom;
   int *bondType,*ubType,*angleType,*diheType,*imprType;
   int **iBond,**iUb,**iAngle,**iDihedral,**iImproper;
   double chargeConst,cutoff,cuton,delr,tolshake;
   double lambdat,gammap,kintemp0,taut;
   double tolminim,maxminsiz,temp,timeStep;
-  double press,tempStep,pressStep,taup;
+  double press,tempStep,pressStep,taup,compres;
   enum ELEC_TYPE elecType;
   enum VDW_TYPE  vdwType;
 }SIMULPARAMS;

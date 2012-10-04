@@ -6,6 +6,7 @@
  * \date 2012
  */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
@@ -550,8 +551,6 @@ void scale_box(PBC *box,double scale,double cell0[9])
   box->c2=scale*cell0[7];
   box->c3=scale*cell0[8];
   
-//   printf("%lf %lf %lf\n",box->a1,box->b2,box->c3);
-  
   // get norm
   box->a=sqrt(X2(box->a1)+X2(box->a2)+X2(box->a3));
   box->b=sqrt(X2(box->b1)+X2(box->b2)+X2(box->b3));
@@ -637,8 +636,6 @@ void vv_scale_box(PBC *box,double scale)
   box->c2*=scale;
   box->c3*=scale;
   
-//   printf("%lf %lf %lf\n",box->a1,box->b2,box->c3);
-  
   // get norm
   box->a=sqrt(X2(box->a1)+X2(box->a2)+X2(box->a3));
   box->b=sqrt(X2(box->b1)+X2(box->b2)+X2(box->b3));
@@ -703,6 +700,44 @@ void vv_scale_box(PBC *box,double scale)
     box->v3=0.0;
     box->w3=0.0;
   }
+  
+}
+
+void box_to_lattice(PBC *box,double lattice[6])
+{
+  double cost;
+  
+  lattice[0]=box->a;
+  lattice[1]=box->b;
+  lattice[2]=box->c;
+  
+  cost = ( (box->b1*box->c1) + (box->b2*box->c2) + (box->b3*box->c3) ) / ( box->b * box->c );
+  lattice[3]= acos(cost)*180./PI;
+  
+  cost = ( (box->a1*box->c1) + (box->a2*box->c2) + (box->a3*box->c3) ) / ( box->a * box->c );
+  lattice[4]= acos(cost)*180./PI;
+  
+  cost = ( (box->a1*box->b1) + (box->a2*box->b2) + (box->a3*box->b3) ) / ( box->a * box->b );
+  lattice[4]= acos(cost)*180./PI;
+  
+}
+
+void box_to_crystal(PBC *box,double crystal[6])
+{
+  
+  /** crystal is the lower triangle of the symetric matrix of the box vectors
+   * a1
+   * a2  b2
+   * a3  b3  c3
+   **/
+  
+  crystal[0]=box->a1;
+  crystal[2]=box->b2;
+  crystal[5]=box->c3;
+  
+  crystal[1]=box->a2;
+  crystal[3]=box->a3;
+  crystal[4]=box->b3;
   
 }
 

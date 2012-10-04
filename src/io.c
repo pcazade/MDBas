@@ -11,11 +11,15 @@
 #include <math.h>
 #include <string.h>
 #include <ctype.h>
+#include <time.h>
 
 #include "global.h"
 #include "io.h"
 #include "memory.h"
 #include "utils.h"
+
+/** Pointer to the output file. **/
+extern FILE *outFile;
 
 void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff,PBC *box)
 {
@@ -30,6 +34,8 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff,PBC *box)
   }
   
   simulCond->keymd=1;
+  
+  simulCond->keyrestart=0;
   
   simulCond->keyminim=0;
   simulCond->tolminim=1.e-3;
@@ -47,8 +53,12 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff,PBC *box)
   simulCond->cuton=10.0;
   simulCond->delr=2.0;
 
+  simulCond->ens=0;
   simulCond->temp=300.0;
   simulCond->press=1.0;
+  simulCond->taut=0.1;
+  simulCond->taup=0.5;
+  simulCond->compres=watercomp;
   
   simulCond->keyrand=0;
   simulCond->seed=12345;
@@ -63,19 +73,18 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff,PBC *box)
   simulCond->nolink=0;
 
   simulCond->integrator=1;
-  simulCond->ens=0;
-  simulCond->taut=0.1;
-  simulCond->taup=0.5;
   simulCond->tolshake=1.e-8;
   simulCond->maxcycle=150;
   simulCond->keyconsth=0;
   simulCond->nconst=0;
   
-  simulCond->keyener=0;
+  simulCond->keyprop=0;
   simulCond->keytraj=0;
   simulCond->keyforf=0;
   simulCond->printo=1000;
+  simulCond->printpr=1000;
   simulCond->printtr=1000;
+  simulCond->fresconf=1000;
   
   box->type=0;
   box->a1=0.;
@@ -102,6 +111,9 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff,PBC *box)
     
     else if(!strcmp(buff2,"nomd"))
       simulCond->keymd=0;
+    
+    else if(!strcmp(buff2,"restart"))
+      simulCond->keyrestart=1;
     
     else if(!strcmp(buff2,"minim"))
     {
@@ -320,6 +332,14 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff,PBC *box)
       
       simulCond->press=atof(buff3)*bartoiu;
     }
+    else if(!strcmp(buff2,"compressibility"))
+    {
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	error(63);
+      
+      simulCond->compres=atof(buff3)/bartoiu;
+    }
     else if(!strcmp(buff2,"consth"))
     {
       simulCond->keyconsth=1;
@@ -360,14 +380,22 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff,PBC *box)
 	simulCond->keyrand=1;
 	simulCond->seed=atoi(buff3);
     }
-    else if(!strcmp(buff2,"ener"))
+    else if(!strcmp(buff2,"print"))
     {
       buff3=strtok(NULL," \n\t");
       if(buff3==NULL)
 	error(63);
       
-      simulCond->keyener=1;
       simulCond->printo=atoi(buff3);
+    }
+    else if(!strcmp(buff2,"prop"))
+    {
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	error(63);
+      
+      simulCond->keyprop=1;
+      simulCond->printpr=atoi(buff3);
     }
     else if(!strcmp(buff2,"traj"))
     {
@@ -377,6 +405,14 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff,PBC *box)
       
       simulCond->keytraj=1;
       simulCond->printtr=atoi(buff3);
+    }
+    else if(!strcmp(buff2,"resconf"))
+    {
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	error(63);
+      
+      simulCond->fresconf=atoi(buff3);
     }
     else if(!strcmp(buff2,"write"))
     {
@@ -538,9 +574,9 @@ void read_PSF(INPUTS *inp,ATOM **atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONS
       buff4=strtok(NULL," \n\t");
       buff5=strtok(NULL," \n\t");
 
-      strcpy((*atom)[i].segi,buff3);
-      (*atom)[i].resn=atoi(buff4);
-      strcpy((*atom)[i].resi,buff5);
+      strcpy((*atom)[i].segn,buff3);
+      (*atom)[i].resi=atoi(buff4);
+      strcpy((*atom)[i].resn,buff5);
       
       buff2=strtok(NULL," \n\t");
       buff3=strtok(NULL," \n\t");
@@ -1601,6 +1637,8 @@ void read_CONF(ATOM atom[],SIMULPARAMS *simulCond)
       atom[i].x=xx;
       atom[i].y=yy;
       atom[i].z=zz;
+      
+      atom[i].ires=ire;
 
     }
     
@@ -1651,6 +1689,66 @@ void setup(INPUTS *inp,ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRA
   for(i=0;i<simulCond->natom;i++)
     ff->parmVdw[i]=(double*)malloc(6*sizeof(**(ff->parmVdw)));
   
+  /*fprintf(outFile,"Let's check what there is in atom->atomType\n");
+  for(i=0;i<simulCond->natom;i++)
+  {
+    fprintf(outFile,"%d %d %d\n",simulCond->natom,i,atom[i].type);
+  }
+
+  fprintf(outFile,"Let's check what there is in inp->types\n");
+  for(i=0;i<inp->nTypes;i++)
+  {
+     fprintf(outFile,"%d %d %d %s\n",inp->nTypes,i,inp->typesNum[i],inp->types[i]);
+  }
+  
+  fprintf(outFile,"Let's check what there is in iBond\n");
+  for(i=0;i<ff->nBond;i++)
+  {
+     fprintf(outFile,"%d %d %d %d %d\n",ff->nBond,simulCond->iBond[i][0],simulCond->iBond[i][1],atom[simulCond->iBond[i][0]].type,atom[simulCond->iBond[i][1]].type);
+  }
+  
+  fprintf(outFile,"Let's check what there is in bondTypes\n");
+  for(j=0;j<inp->nBondTypes;j++)
+  {
+     fprintf(outFile,"%d %d %d\n",inp->nBondTypes,inp->bondTypes[j][0],inp->bondTypes[j][1]);
+  }
+
+  fprintf(outFile,"Let's check what there is in iAngle\n");
+  for(i=0;i<ff->nAngle;i++)
+  {
+     fprintf(outFile,"%d %d %d %d\n",ff->nAngle,simulCond->iAngle[i][0],simulCond->iAngle[i][1],simulCond->iAngle[i][2]);
+  }
+  
+  fprintf(outFile,"Let's check what there is in angTypes\n");
+  for(j=0;j<inp->nAngTypes;j++)
+  {
+     fprintf(outFile,"%d %d %d %d\n",inp->nAngTypes,inp->angTypes[j][0],inp->angTypes[j][1],inp->angTypes[j][2]);
+  }
+
+  fprintf(outFile,"Let's check what there is in iDihedral\n");
+  for(i=0;i<ff->nDihedral;i++)
+  {
+     fprintf(outFile,"%d %d %d %d %d\n",ff->nDihedral,simulCond->iDihedral[i][0],simulCond->iDihedral[i][1],simulCond->iDihedral[i][2],simulCond->iDihedral[i][3]);
+  }
+  
+  fprintf(outFile,"Let's check what there is in diheTypes\n");
+  for(j=0;j<inp->nDiheTypes;j++)
+  {
+     fprintf(outFile,"%d %d %d %d %d\n",inp->nDiheTypes,inp->diheTypes[j][0],inp->diheTypes[j][1],inp->diheTypes[j][2],inp->diheTypes[j][3]);
+  }
+  
+  if(simulCond->keyconsth)
+  {
+    fprintf(outFile,"Let's check what there is in constList\n");
+    fprintf(outFile,"pointer adress=%p\n",constList);
+    for(i=0;i<simulCond->nconst;i++)
+    {
+      fprintf(outFile,"%d %d %d\n",simulCond->nconst,constList[i].a,constList[i].b);
+    }
+  }
+
+  fprintf(outFile,"Now if the loop.\n");*/
+
   for(i=0;i<ff->nBond;i++)
   {
     ia=atom[simulCond->iBond[i][0]].type;
@@ -2129,6 +2227,180 @@ void setup(INPUTS *inp,ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRA
   
 }
 
+void write_CONF(ATOM atom[],SIMULPARAMS *simulCond)
+{
+  
+  FILE *confFile=NULL;
+  int i;
+  double wei=0.;
+
+  confFile=fopen("RESCONF","w");
+
+  if (confFile==NULL)
+  {
+    error(47);
+  }
+
+  fprintf(confFile,"*Restart Configuration\n");
+  fprintf(confFile,"* Written by MDBas\n");
+  fprintf(confFile,"*\n");
+  fprintf(confFile,"%5d\n",simulCond->natom);
+  
+  for(i=0;i<simulCond->natom;i++)
+  {
+    fprintf(confFile,"%5d %4d %-4s %-4s%10.5lf%10.5lf%10.5lf %-4s %-4d%10.5lf\n",
+	    i+1,atom[i].ires,atom[i].resn,atom[i].label,atom[i].x,atom[i].y,
+	    atom[i].z,atom[i].segn,atom[i].resi,wei);
+    
+  }
+
+  fclose(confFile);
+}
+
+void write_prop(SIMULPARAMS *simulCond,ENERGY *ener,PBC *box)
+{
+  FILE *propFile=fopen("PROP","ab");
+  
+  double buffer[29];
+  double temp,press;
+  
+  temp=2.*ener->kin/((double)simulCond->degfree*rboltzui);
+  if(box->type>0)
+    press=(2.*ener->kin-ener->virtot)/(3.*box->vol*bartoiu);
+  else
+    press=0.;
+
+  buffer[0]=(double)simulCond->step;
+  buffer[1]=(double)simulCond->step*simulCond->timeStep;
+  buffer[2]=temp;
+  buffer[3]=press;
+  buffer[4]=box->vol;
+  buffer[5]=ener->tot/kcaltoiu;
+  buffer[6]=ener->kin/kcaltoiu;
+  buffer[7]=ener->pot/kcaltoiu;
+  buffer[8]=ener->elec/kcaltoiu;
+  buffer[9]=ener->vdw/kcaltoiu;
+  buffer[10]=ener->bond/kcaltoiu;
+  buffer[11]=ener->ang/kcaltoiu;
+  buffer[12]=ener->ub/kcaltoiu;
+  buffer[13]=ener->dihe/kcaltoiu;
+  buffer[14]=ener->impr/kcaltoiu;
+  buffer[15]=ener->virtot/kcaltoiu;
+  buffer[16]=ener->virpot/kcaltoiu;
+  buffer[17]=ener->virelec/kcaltoiu;
+  buffer[18]=ener->virvdw/kcaltoiu;
+  buffer[19]=ener->virbond/kcaltoiu;
+  buffer[20]=ener->virub/kcaltoiu;
+  buffer[21]=ener->virshake/kcaltoiu;
+  buffer[22]=ener->consv/kcaltoiu;
+  
+  box_to_lattice(box,&(buffer[23]));
+  
+  fwrite(buffer,sizeof(double),29,propFile);
+  
+  fclose(propFile);
+  
+}
+
+void write_rest(SIMULPARAMS *simulCond,ENERGY *ener,ATOM *atom)
+{
+  FILE *restFile=fopen("RESTART","wb");
+  
+  /*/double buffer[20];
+  
+  fwrite(&(simulCond->step),sizeof(int),1,restFile);
+
+  buffer[0]=ener->tot;
+  buffer[1]=ener->kin;
+  buffer[2]=ener->pot;
+  buffer[3]=ener->elec;
+  buffer[4]=ener->vdw;
+  buffer[5]=ener->bond;
+  buffer[6]=ener->ang;
+  buffer[7]=ener->ub;
+  buffer[8]=ener->dihe;
+  buffer[9]=ener->impr;
+  buffer[10]=ener->virtot;
+  buffer[11]=ener->virpot;
+  buffer[12]=ener->virelec;
+  buffer[13]=ener->virvdw;
+  buffer[14]=ener->virbond;
+  buffer[15]=ener->virub;
+  buffer[16]=ener->virshake;
+  buffer[17]=ener->conint;
+  buffer[18]=simulCond->lambdat;
+  buffer[19]=simulCond->lambdat;
+  
+  fwrite(buffer,sizeof(double),20,propFile);
+  
+  int i;
+  double *x,*y,*z;
+  double *vx,*vy,*vz;
+  double *fx,*fy,*fz;
+  
+  
+  
+  for(i=0;i<simulCond;i++)
+  {
+    x[i]=
+  }*/
+  
+  size_t ret;
+  
+  ret=fwrite(atom,sizeof(ATOM),simulCond->natom,restFile);
+  if(ret!=simulCond->natom)
+    error(501);
+  
+  ret=fwrite(ener,sizeof(ENERGY),1,restFile);
+  if(ret!=1)
+    error(501);
+  
+  ret=fwrite(&(simulCond->step),sizeof(int),1,restFile);
+  if(ret!=1)
+    error(501);
+  
+  ret=fwrite(&(simulCond->lambdat),sizeof(double),1,restFile);
+  if(ret!=1)
+    error(501);
+  
+  ret=fwrite(&(simulCond->gammap),sizeof(double),1,restFile);
+  if(ret!=1)
+    error(501);
+  
+  fclose(restFile);
+  
+}
+
+void read_rest(SIMULPARAMS *simulCond,ENERGY *ener,ATOM *atom)
+{
+  FILE *restFile=fopen("RESTART","rb");
+  
+  size_t ret;
+  
+  ret=fread(atom,sizeof(ATOM),simulCond->natom,restFile);
+  if(ret!=simulCond->natom)
+    error(502);
+  
+  ret=fread(ener,sizeof(ENERGY),1,restFile);
+  if(ret!=1)
+    error(502);
+  
+  ret=fread(&(simulCond->step),sizeof(int),1,restFile);
+  if(ret!=1)
+    error(502);
+  
+  ret=fread(&(simulCond->lambdat),sizeof(double),1,restFile);
+  if(ret!=1)
+    error(502);
+  
+  ret=fread(&(simulCond->gammap),sizeof(double),1,restFile);
+  if(ret!=1)
+    error(502);
+  
+  fclose(restFile);
+  
+}
+
 void write_FORF(INPUTS *inp,ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond)
 {
   FILE *forfFile;
@@ -2254,6 +2526,112 @@ void write_FORF(INPUTS *inp,ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond)
   fclose(forfFile);
 }
 
+void write_DCD_header(SIMULPARAMS *simulCond, PBC *box)
+{
+    FILE *dcdf=fopen("TRAJ","wb");
+    
+    char HDR[4]={'C','O','R','D'};
+    
+    int ICNTRL[20]={0};
+    ICNTRL[0]= simulCond->nsteps/simulCond->printtr;
+    ICNTRL[1]= simulCond->printtr;
+    ICNTRL[2]= simulCond->printtr;
+    ICNTRL[3]= simulCond->nsteps;
+    ICNTRL[7]= simulCond->degfree;
+    ICNTRL[8]= 0; //no frozen atom
+    //ICNTRL[9]= timestep in akma but in 32 bits mode
+    ICNTRL[10]= (box->type == NOBOX)?0:1;
+    ICNTRL[19]= 37;
+    
+    int NATOM=simulCond->natom;
+    
+    int NTITLE=1;
+    char TITLE[80]="";
+    
+    time_t rawtime;
+    struct tm *timeinfo;
+
+    time(&rawtime);
+    timeinfo = localtime(&rawtime);
+  
+    sprintf(TITLE,"* DCD writing time : %s",asctime(timeinfo));
+    
+    unsigned int size;
+    
+    // first : HDR + ICNTRL
+    size = 4*sizeof(char)+20*sizeof(int);
+    fwrite(&size,sizeof(unsigned int),1,dcdf);
+    fwrite(HDR,sizeof(char),4,dcdf);
+    fwrite(ICNTRL,sizeof(int),20,dcdf);
+    fwrite(&size,sizeof(unsigned int),1,dcdf);
+    
+    // second : NTITLE + TITLE
+    size = sizeof(int) + 80*sizeof(char);
+    fwrite(&size,sizeof(unsigned int),1,dcdf);
+    fwrite(&NTITLE,sizeof(int),1,dcdf);
+    fwrite(TITLE,sizeof(char),80,dcdf);
+    fwrite(&size,sizeof(unsigned int),1,dcdf);
+    
+    // third : natom
+    size = sizeof(int);
+    fwrite(&size,sizeof(unsigned int),1,dcdf);
+    fwrite(&NATOM,sizeof(int),1,dcdf);
+    fwrite(&size,sizeof(unsigned int),1,dcdf);
+    
+    fclose(dcdf);
+}
+
+void write_DCD_traj(ATOM atom[], SIMULPARAMS *simulCond, PBC *box)
+{
+    FILE *dcdf=fopen("TRAJ","ab");
+    
+    unsigned int size;
+    
+    // if some PBC write a part of the matrix
+    if (box->type != NOBOX)
+    {
+        double box_matrix[6]; 
+        box_to_crystal(box,box_matrix);
+        
+        size = 6*sizeof(double);
+        fwrite(&size,sizeof(unsigned int),1,dcdf);
+        fwrite(box_matrix,sizeof(double),6,dcdf);
+        fwrite(&size,sizeof(unsigned int),1,dcdf);
+    }
+    
+    // alloc of crdinates array + loading of coordinates ; but in float mode !
+    float *X = (float*)malloc(simulCond->natom*sizeof(float));
+    float *Y = (float*)malloc(simulCond->natom*sizeof(float));
+    float *Z = (float*)malloc(simulCond->natom*sizeof(float));
+    
+    int i;
+    for(i=0;i<simulCond->natom;i++)
+    {
+        X[i] = (float) atom[i].x;
+        Y[i] = (float) atom[i].y;
+        Z[i] = (float) atom[i].z;
+    }
+    
+    size = simulCond->natom*sizeof(float);
+    
+    // writing X coordinates
+    fwrite(&size,sizeof(unsigned int),1,dcdf);
+    fwrite(X,sizeof(float),simulCond->natom,dcdf);
+    fwrite(&size,sizeof(unsigned int),1,dcdf);
+    
+    // writing Y coordinates
+    fwrite(&size,sizeof(unsigned int),1,dcdf);
+    fwrite(Y,sizeof(float),simulCond->natom,dcdf);
+    fwrite(&size,sizeof(unsigned int),1,dcdf);
+    
+    // writing Z coordinates
+    fwrite(&size,sizeof(unsigned int),1,dcdf);
+    fwrite(Z,sizeof(float),simulCond->natom,dcdf);
+    fwrite(&size,sizeof(unsigned int),1,dcdf);
+    
+    fclose(dcdf);
+}
+
 void free_temp_array(INPUTS *inp)
 {
   free(inp->typesNum);
@@ -2268,137 +2646,158 @@ void free_temp_array(INPUTS *inp)
 
 void error(int errorNumber)
 {
-  printf("MDBas failed due to error number: %d\n",errorNumber);
+  fprintf(outFile,"MDBas failed due to error number: %d\n",errorNumber);
   switch (errorNumber)
   {
   case 10:
-    printf("MDBas cannot find or open topology file TOP.\n");
-    printf("Most likely, it is not properly named. Please check.\n");
+    fprintf(outFile,"MDBas cannot find or open topology file TOP.\n");
+    fprintf(outFile,"Most likely, it is not properly named. Please check.\n");
     break;
   case 20:
-    printf("MDBas cannot find or open structure file PSF.\n");
-    printf("Most likely, it is not properly named. Please check.\n");
+    fprintf(outFile,"MDBas cannot find or open structure file PSF.\n");
+    fprintf(outFile,"Most likely, it is not properly named. Please check.\n");
     break;
   case 22:
-    printf("MDBas encountered a problem while reading atomic properties\n");
-    printf("in the PSF file. There is an unexpected line there. Please\n");
-    printf("consult the manual for further details about PSF file\n");
+    fprintf(outFile,"MDBas encountered a problem while reading atomic properties\n");
+    fprintf(outFile,"in the PSF file. There is an unexpected line there. Please\n");
+    fprintf(outFile,"consult the manual for further details about PSF file\n");
     break;
   case 23:
-    printf("There is problem in bonds sequence in the PSF file. Please\n");
-    printf("consult the manual for further details about PSF file\n");
+    fprintf(outFile,"There is problem in bonds sequence in the PSF file. Please\n");
+    fprintf(outFile,"consult the manual for further details about PSF file\n");
     break;
   case 24:
-    printf("There is problem in angles sequence in the PSF file. Please\n");
-    printf("consult the manual for further details about PSF file\n");
+    fprintf(outFile,"There is problem in angles sequence in the PSF file. Please\n");
+    fprintf(outFile,"consult the manual for further details about PSF file\n");
     break;
   case 25:
-    printf("There is problem in dihedrals sequence in the PSF file. Please\n");
-    printf("consult the manual for further details about PSF file\n");
+    fprintf(outFile,"There is problem in dihedrals sequence in the PSF file. Please\n");
+    fprintf(outFile,"consult the manual for further details about PSF file\n");
     break;
   case 26:
-    printf("There is problem in improper angles sequence in the PSF file.\n");
-    printf("Please consult the manual for further details about PSF file\n");
+    fprintf(outFile,"There is problem in improper angles sequence in the PSF file.\n");
+    fprintf(outFile,"Please consult the manual for further details about PSF file\n");
     break;
   case 30:
-    printf("MDBas cannot find or open parameter file PAR.\n");
-    printf("Most likely, it is not properly named. Please check.\n");
+    fprintf(outFile,"MDBas cannot find or open parameter file PAR.\n");
+    fprintf(outFile,"Most likely, it is not properly named. Please check.\n");
     break;
   case 40:
-    printf("MDBas cannot find or open configuration file CONF.\n");
-    printf("Most likely, it is not properly named. Please check.\n");
+    fprintf(outFile,"MDBas cannot find or open configuration file CONF.\n");
+    fprintf(outFile,"Most likely, it is not properly named. Please check.\n");
     break;
   case 41:
-    printf("MDBas found a different number of atoms in CONF file and\n");
-    printf("in PSF file. Structure does not match configuration.\n");
-    printf("Check carefully these files.\n");
+    fprintf(outFile,"MDBas found a different number of atoms in CONF file and\n");
+    fprintf(outFile,"in PSF file. Structure does not match configuration.\n");
+    fprintf(outFile,"Check carefully these files.\n");
+    break;
+  case 47:
+    fprintf(outFile,"MDBas cannot open configuration file RESCONF.\n");
     break;
   case 50:
-    printf("A dihedral angle is specified as a Fourier series but\n");
-    printf("with one of the component being an harmonic potential.\n");
-    printf("Check in PAR file.\n");
+    fprintf(outFile,"A dihedral angle is specified as a Fourier series but\n");
+    fprintf(outFile,"with one of the component being an harmonic potential.\n");
+    fprintf(outFile,"Check in PAR file.\n");
     break;
   case 60:
-    printf("MDBas cannot find or open simulation file SIMU.\n");
-    printf("Most likely, it is not properly named. Please check.\n");
+    fprintf(outFile,"MDBas cannot find or open simulation file SIMU.\n");
+    fprintf(outFile,"Most likely, it is not properly named. Please check.\n");
     break;
   case 61:
-    printf("MDBas does not recognise a keyword specified in SIMU.\n");
-    printf("Please check SIMU file and the manual for the list of\n");
-    printf("allowed keywords.\n");
+    fprintf(outFile,"MDBas does not recognise a keyword specified in SIMU.\n");
+    fprintf(outFile,"Please check SIMU file and the manual for the list of\n");
+    fprintf(outFile,"allowed keywords.\n");
     break;
   case 62:
-    printf("MDBas does not recognise a parameter specified in SIMU.\n");
-    printf("Please check SIMU file and the manual for the list of\n");
-    printf("allowed keywords and their associated parameters.\n");
+    fprintf(outFile,"MDBas does not recognise a parameter specified in SIMU.\n");
+    fprintf(outFile,"Please check SIMU file and the manual for the list of\n");
+    fprintf(outFile,"allowed keywords and their associated parameters.\n");
     break;
   case 63:
-    printf("MDBas does not find a required parameter in SIMU.\n");
-    printf("Please check SIMU file and the manual for the list of\n");
-    printf("allowed keywords and their associated parameters.\n");
+    fprintf(outFile,"MDBas does not find a required parameter in SIMU.\n");
+    fprintf(outFile,"Please check SIMU file and the manual for the list of\n");
+    fprintf(outFile,"allowed keywords and their associated parameters.\n");
     break;
   case 71:
-    printf("There is an undefined bond in the PSF. Most likely,\n");
-    printf("there are missing parameters in the PAR file. Please check\n");
+    fprintf(outFile,"There is an undefined bond in the PSF. Most likely,\n");
+    fprintf(outFile,"there are missing parameters in the PAR file. Please check\n");
     break;
   case 72:
-    printf("There is an undefined angle in the PSF. Most likely,\n");
-    printf("there are missing parameters in the PAR file. Please check\n");
+    fprintf(outFile,"There is an undefined angle in the PSF. Most likely,\n");
+    fprintf(outFile,"there are missing parameters in the PAR file. Please check\n");
     break;
   case 73:
-    printf("There is an undefined dihedral angle in the PSF. Most likely,\n");
-    printf("there are missing parameters in the PAR file. Please check\n");
+    fprintf(outFile,"There is an undefined dihedral angle in the PSF. Most likely,\n");
+    fprintf(outFile,"there are missing parameters in the PAR file. Please check\n");
     break;
   case 74:
-    printf("There is an undefined improper angle in the PSF. Most likely,\n");
-    printf("there are missing parameters in the PAR file. Please check\n");
+    fprintf(outFile,"There is an undefined improper angle in the PSF. Most likely,\n");
+    fprintf(outFile,"there are missing parameters in the PAR file. Please check\n");
     break;
   case 110:
-    printf("MDBas found a too many non-parameterised dihedral angles:\n");
-    printf("4*nDihedrals. nDihedrals comes from the value specified\n");
-    printf("in PSF file. Please check in PAR file. If such a number is\n");
-    printf("normal for your simulation, you have to enter list.c to\n");
-    printf("increase the size of the 1-4 pairs array from 5*nDihedrals to\n");
-    printf("the size you really need. Then recompile MDBas.\n");
+    fprintf(outFile,"MDBas found a too many non-parameterised dihedral angles:\n");
+    fprintf(outFile,"4*nDihedrals. nDihedrals comes from the value specified\n");
+    fprintf(outFile,"in PSF file. Please check in PAR file. If such a number is\n");
+    fprintf(outFile,"normal for your simulation, you have to enter list.c to\n");
+    fprintf(outFile,"increase the size of the 1-4 pairs array from 5*nDihedrals to\n");
+    fprintf(outFile,"the size you really need. Then recompile MDBas.\n");
     break;
   case 111:
-    printf("MDBas encountered a problem while setting the excluded atoms\n");
-    printf("list. The last atom has exclusion which should not happen. This\n");
-    printf("a bit annoying for there is no simple explanation for this.\n");
-    printf("Maybe an error in one of the input files which is not detected\n");
-    printf("by MDBas. Sorry for the trouble.\n");
+    fprintf(outFile,"MDBas encountered a problem while setting the excluded atoms\n");
+    fprintf(outFile,"list. The last atom has exclusion which should not happen. This\n");
+    fprintf(outFile,"a bit annoying for there is no simple explanation for this.\n");
+    fprintf(outFile,"Maybe an error in one of the input files which is not detected\n");
+    fprintf(outFile,"by MDBas. Sorry for the trouble.\n");
     break;
   case 112:
-    printf("MDBas encountered a problem while setting the excluded atoms\n");
-    printf("list. The total excluded atoms does not match of the sum of\n");
-    printf("excluded atoms for each atom. This a bit annoying for there is\n");
-    printf("no simple explanation for this. Maybe an error in one of the\n");
-    printf("input files which is not detected by MDBas. Sorry for the trouble.\n");
+    fprintf(outFile,"MDBas encountered a problem while setting the excluded atoms\n");
+    fprintf(outFile,"list. The total excluded atoms does not match of the sum of\n");
+    fprintf(outFile,"excluded atoms for each atom. This a bit annoying for there is\n");
+    fprintf(outFile,"no simple explanation for this. Maybe an error in one of the\n");
+    fprintf(outFile,"input files which is not detected by MDBas. Sorry for the trouble.\n");
+    break;
+  case 120:
+    fprintf(outFile,"The number of neighbours around an atom is larger than the\n");
+    fprintf(outFile,"maximum allocated memory in the verList array (default 2048).\n");
+    fprintf(outFile,"This can occur fo very large cutoffs or in very heterogeneous\n");
+    fprintf(outFile,"systems. This can be fixed by changing the variable MAXLIST in\n");
+    fprintf(outFile,"global.h and recompilation of MDBas. An easy way to achieve this\n");
+    fprintf(outFile,"without editing the header file, is to add the compilation option\n");
+    fprintf(outFile,"-DMAXLIST=X, X being the new size of the array, for example 3072.\n");
     break;
   case 201:
-    printf("Unknown electrostatic potential. This is most likely due to an\n");
-    printf("error in the SIMU file. Please check this file and the manual\n");
-    printf("for the list of keywords and available potentials.\n");
+    fprintf(outFile,"Unknown electrostatic potential. This is most likely due to an\n");
+    fprintf(outFile,"error in the SIMU file. Please check this file and the manual\n");
+    fprintf(outFile,"for the list of keywords and available potentials.\n");
     break;
   case 202:
-    printf("Unknown van der Waals potential. This is most likely due to an\n");
-    printf("error in the SIMU file. Please check this file and the manual\n");
-    printf("for the list of keywords and available potentials.\n");
+    fprintf(outFile,"Unknown van der Waals potential. This is most likely due to an\n");
+    fprintf(outFile,"error in the SIMU file. Please check this file and the manual\n");
+    fprintf(outFile,"for the list of keywords and available potentials.\n");
     break;
   case 310:
-    printf("Velocities quenching convergence failure, most likely due a non suitable\n");
-    printf("initial configuration. If not, you can try increasing the number of cycles or\n");
-    printf("make Shake convergence criterion more tolerant. Please check the manual.\n");
+    fprintf(outFile,"Velocities quenching convergence failure, most likely due a non suitable\n");
+    fprintf(outFile,"initial configuration. If not, you can try increasing the number of cycles or\n");
+    fprintf(outFile,"make Shake convergence criterion more tolerant. Please check the manual.\n");
     break;
   case 311:
-    printf("Shake convergence failure, most likely due a non suitable initial\n");
-    printf("configuration. If not, you can try increasing the number of cycles or\n");
-    printf("make Shake convergence criterion more tolerant. Please check the manual.\n");
+    fprintf(outFile,"Shake convergence failure, most likely due a non suitable initial\n");
+    fprintf(outFile,"configuration. If not, you can try increasing the number of cycles or\n");
+    fprintf(outFile,"make Shake convergence criterion more tolerant. Please check the manual.\n");
+    break;
+  case 411:
+    fprintf(outFile,"Too large ratio of the cutoff for the link cell is asked. Maximum is 5.\n");
+    break;
+  case 412:
+    fprintf(outFile,"Too few link cells are created compared to the required ratio of the\n");
+    fprintf(outFile,"cutoff. Please check first that you cutoff is smaller than half of the\n");
+    fprintf(outFile,"smallest lattice parameter of your simulation. Alternatively, you can\n");
+    fprintf(outFile,"change the ratio or force the use of the standard neighbour list algorithm.\n");
     break;
   default:
-    printf("MDBas failed due to unknown error number: %d\n",errorNumber);
-    printf("Reading the manual will not help you. You are by yourself.\n");
-    printf("Errare humanum est.\n");
+    fprintf(outFile,"MDBas failed due to unknown error number: %d\n",errorNumber);
+    fprintf(outFile,"Reading the manual will not help you. You are by yourself.\n");
+    fprintf(outFile,"Errare humanum est.\n");
     break;
   }
   

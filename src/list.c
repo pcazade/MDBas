@@ -16,6 +16,9 @@
 #include "io.h"
 #include "list.h"
 
+/** Pointer to the output file. **/
+extern FILE *outFile;
+
 void makelist(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *constList,PBC *box)
 {
   int nlcx,nlcy,nlcz;
@@ -62,15 +65,15 @@ void makelist(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *cons
     
     if(simulCond->keylink)
     {
-      printf("\nCalling link_cell_verlet_list_update at step %d\n",simulCond->step);
+      fprintf(outFile,"\nCalling link_cell_verlet_list_update at step %d\n",simulCond->step);
       link_cell_verlet_list_update(simulCond,atom,ff,box);
-      printf("List update done.\n\n");
+      fprintf(outFile,"List update done.\n\n");
     }
     else
     {
-      printf("\nCalling verlet_list_update at step %d\n",simulCond->step);
+      fprintf(outFile,"\nCalling verlet_list_update at step %d\n",simulCond->step);
       verlet_list_update(simulCond,atom,ff,box);
-      printf("List update done.\n\n");
+      fprintf(outFile,"List update done.\n\n");
     }
     
   }
@@ -2320,12 +2323,12 @@ void fast_verlet_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,PBC *box
    * **********************************************************/
   
   int i,j,k,kk,m,dm,s,m1,m2,stripes,atpercell;
-  int ilx,ily,ilz,nlcx,nlcy,nlcz;
+  int nlcx,nlcy,nlcz;
   int dmx,dmy,dmz,dnx,dny,dnz;
   int t1ny,t2ny,t1nz,t2nz;
   int exclude,nalloc;
   
-  double r,r2,rlcx,rlcy,rlcz,rlcx2,rlcy2,rlcz2,cutnb,cutnb2;
+  double r,rlcx,rlcy,rlcz,rlcx2,rlcy2,rlcz2,cutnb,cutnb2;
   double dnlcx,dnlcy,dnlcz;
   
   int ix,iy,iz;

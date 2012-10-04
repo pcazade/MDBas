@@ -6,13 +6,13 @@
  * \date 2012
  */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 
 #include "global.h"
 #include "utils.h"
 #include "io.h"
-
 
 void lf_shake(ATOM atom[],SIMULPARAMS *simulCond,CONSTRAINT *constList,DELTA *dd,PBC *box,double *virshake,double *stress)
 {

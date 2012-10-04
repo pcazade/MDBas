@@ -13,4 +13,7 @@ double coulomb14_shift1(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *b
 double coulomb14_shift2(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,int i,int j,double r,double *delec);
 double coulomb14_switch(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,int i,int j,double r,double *delec);
 
+/** Pointer to the output file. **/
+extern FILE *outFile;
+
 #endif
