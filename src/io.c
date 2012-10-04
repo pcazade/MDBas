@@ -2347,15 +2347,19 @@ void write_rest(SIMULPARAMS *simulCond,ENERGY *ener,ATOM *atom)
   
   size_t ret;
   
+  ret=fwrite(&(simulCond->step),sizeof(int),1,restFile);
+  if(ret!=1)
+    error(501);
+  
+  ret=fwrite(&(simulCond->natom),sizeof(double),1,restFile);
+  if(ret!=1)
+    error(501);
+  
   ret=fwrite(atom,sizeof(ATOM),simulCond->natom,restFile);
   if(ret!=simulCond->natom)
     error(501);
   
   ret=fwrite(ener,sizeof(ENERGY),1,restFile);
-  if(ret!=1)
-    error(501);
-  
-  ret=fwrite(&(simulCond->step),sizeof(int),1,restFile);
   if(ret!=1)
     error(501);
   
@@ -2377,15 +2381,19 @@ void read_rest(SIMULPARAMS *simulCond,ENERGY *ener,ATOM *atom)
   
   size_t ret;
   
+  ret=fread(&(simulCond->step),sizeof(int),1,restFile);
+  if(ret!=1)
+    error(502);
+  
+  ret=fread(&(simulCond->natom),sizeof(double),1,restFile);
+  if(ret!=1)
+    error(502);
+  
   ret=fread(atom,sizeof(ATOM),simulCond->natom,restFile);
   if(ret!=simulCond->natom)
     error(502);
   
   ret=fread(ener,sizeof(ENERGY),1,restFile);
-  if(ret!=1)
-    error(502);
-  
-  ret=fread(&(simulCond->step),sizeof(int),1,restFile);
   if(ret!=1)
     error(502);
   
