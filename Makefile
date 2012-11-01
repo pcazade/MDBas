@@ -4,7 +4,7 @@
 
 #use : make DEBUG=ON for a debug build
 DEBUG=OFF
-COMP=gcc
+COMP=x86_64-w64-mingw32-gcc
 OMP=OFF
 
 ifeq ($(COMP),icc)
@@ -18,9 +18,9 @@ endif
 else
 
 ifeq ($(OMP),ON)
-CC=gcc -fopenmp
+CC=x86_64-w64-mingw32-gcc -fopenmp
 else
-CC=gcc
+CC=x86_64-w64-mingw32-gcc
 endif
 
 endif
