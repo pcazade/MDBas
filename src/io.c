@@ -12,86 +12,105 @@
 #include <string.h>
 #include <ctype.h>
 #include <time.h>
+#include <float.h>
 
 #include "global.h"
 #include "io.h"
 #include "memory.h"
 #include "utils.h"
+#include "errors.h"
 
 /** Pointer to the output file. **/
 extern FILE *outFile;
 
-void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff,PBC *box)
+/** First write of traj in dcd, or not*/
+static int first=1;
+
+void read_SIMU(IO *inout,CTRL *ctrl,PARAM *param,BATH *bath,NEIGH *neigh,EWALD *ewald,PBC *box)
 {
   char buff1[1024]="", *buff2=NULL, *buff3=NULL, *buff4=NULL;
-  FILE *simuFile;
   
-  simuFile=fopen("SIMU","r");
+  inout->simuFile=fopen(inout->simuName,"r");
   
-  if (simuFile==NULL)
+  if (inout->simuFile==NULL)
   {
-    error(60);
+    my_error(SIMU_FILE_ERROR,__FILE__,__LINE__,0);
   }
   
-  simulCond->keymd=1;
+  strcpy(inout->confName,"CONF");
+  strcpy(inout->forfName,"FORF");
+  strcpy(inout->propName,"PROP");
+  strcpy(inout->restName,"REST");
+  strcpy(inout->rconName,"RCON");
+  strcpy(inout->trajName,"TRAJ");
   
-  simulCond->keyrestart=0;
+  ctrl->keyMd=1;
   
-  simulCond->keyminim=0;
-  simulCond->tolminim=1.e-3;
-  simulCond->maxminst=1000;
-  simulCond->maxminsiz=0.15;
+  ctrl->keyRest=0;
   
-  simulCond->step=0;
-  simulCond->firstener=1;
+  ctrl->keyMinim=0;
+  param->tolMinim=1.e-3;
+  param->maxminst=1000;
+  param->maxminsiz=0.15;
   
-  simulCond->mdNature=1;
-  simulCond->timeStep=0.001;
-  simulCond->nsteps=0;
+  param->step=0;
+  ctrl->newjob=1;
+  
+  ctrl->mdType=1;
+  param->timeStep=0.001;
+  param->nSteps=0;
  
-  simulCond->cutoff=12.0;
-  simulCond->cuton=10.0;
-  simulCond->delr=2.0;
+  param->cutOff=12.0;
+  param->cutOn=10.0;
+  param->delr=2.0;
 
-  simulCond->ens=0;
-  simulCond->temp=300.0;
-  simulCond->press=1.0;
-  simulCond->taut=0.1;
-  simulCond->taup=0.5;
-  simulCond->compres=watercomp;
+  ctrl->ens=NVE;
+  param->temp0=300.0;
+  param->press0=1.0;
+  bath->tauT=0.1;
+  bath->tauP=0.5;
+  bath->compress=watercomp;
   
-  simulCond->keyrand=0;
-  simulCond->seed=12345;
+  ctrl->keyRand=0;
+  ctrl->seed=12345;
   
-  simulCond->elecType=FULL;
-  simulCond->vdwType=VFULL;
-  simulCond->nb14=0;
-  ff->scal14=1.0;
-  simulCond->numDeriv=0;
-  simulCond->listupdate=20;
-  simulCond->linkRatio=1;
-  simulCond->nolink=0;
+  ctrl->keyEwald=0;
+  ctrl->keyAlpha=0;
+  ctrl->keyMmax=0;
+  ewald->nbsp=8;
+  
+  ctrl->elecType=FULL;
+  ctrl->vdwType=VFULL;
+  
+  ctrl->keyNb14=0;
+  param->scal14=1.0;
+  
+  ctrl->keyNumForce=0;
+  
+  neigh->update=20;
+  neigh->linkRatio=1;
+  ctrl->noLink=0;
 
-  simulCond->integrator=1;
-  simulCond->tolshake=1.e-8;
-  simulCond->maxcycle=150;
-  simulCond->keyconsth=0;
-  simulCond->nconst=0;
+  ctrl->integrator=VELOCITY;
+  param->tolShake=1.e-8;
+  param->maxCycle=150;
+  ctrl->keyConstH=0;
+  param->nConst=0;
   
-  simulCond->keyprop=0;
-  simulCond->keytraj=0;
-  simulCond->keyforf=0;
-  simulCond->printo=1000;
-  simulCond->printpr=1000;
-  simulCond->printtr=1000;
-  simulCond->fresconf=1000;
+  ctrl->keyProp=0;
+  ctrl->keyTraj=0;
+  ctrl->keyForF=0;
+  ctrl->printOut=1000;
+  ctrl->printProp=1000;
+  ctrl->printTraj=1000;
+  ctrl->printRest=1000;
   
   box->type=0;
   box->a1=0.;
   box->b2=0.;
   box->c3=0.;
   
-  while(fgets(buff1,1024,simuFile)!=NULL)
+  while(fgets(buff1,1024,inout->simuFile)!=NULL)
   {
     buff2=strtok(buff1," \n\t");
     
@@ -101,26 +120,88 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff,PBC *box)
     nocase(buff2);
     
     if(!strcmp(buff2,"mdbas"))
-      simulCond->mdNature=0;
+      ctrl->mdType=0;
     
     else if(!strcmp(buff2,"charmm"))
-      simulCond->mdNature=1;
+      ctrl->mdType=1;
     
     else if(!strcmp(buff2,"namd"))
-      simulCond->mdNature=2;
+      ctrl->mdType=2;
+    
+    else if(!strcmp(buff2,"dlpoly"))
+      ctrl->mdType=3;
     
     else if(!strcmp(buff2,"nomd"))
-      simulCond->keymd=0;
+      ctrl->keyMd=0;
     
     else if(!strcmp(buff2,"restart"))
-      simulCond->keyrestart=1;
+      ctrl->keyRest=1;
     
-    else if(!strcmp(buff2,"minim"))
+    else if(!strcmp(buff2,"file"))
     {
-      simulCond->keyminim=1;
       buff3=strtok(NULL," \n\t");
       if(buff3==NULL)
-	error(63);
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,2,buff2,"type of file");
+      
+      nocase(buff3);
+      
+      if(!strcmp(buff3,"conf"))
+      {
+	buff4=strtok(NULL," \n\t");
+	if(buff4==NULL)
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,2,buff3,"name of file");
+	
+	strcpy(inout->confName,buff4);
+      }
+      else if(!strcmp(buff3,"forf"))
+      {
+	buff4=strtok(NULL," \n\t");
+	if(buff4==NULL)
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,2,buff3,"name of file");
+	
+	strcpy(inout->forfName,buff4);
+      }
+      else if(!strcmp(buff3,"prop"))
+      {
+	buff4=strtok(NULL," \n\t");
+	if(buff4==NULL)
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,2,buff3,"name of file");
+	
+	strcpy(inout->propName,buff4);
+      }
+      else if(!strcmp(buff3,"rest"))
+      {
+	buff4=strtok(NULL," \n\t");
+	if(buff4==NULL)
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,2,buff3,"name of file");
+	
+	strcpy(inout->restName,buff4);
+      }
+      else if(!strcmp(buff3,"rcon"))
+      {
+	buff4=strtok(NULL," \n\t");
+	if(buff4==NULL)
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,2,buff3,"name of file");
+	
+	strcpy(inout->rconName,buff4);
+      }
+      else if(!strcmp(buff3,"traj"))
+      {
+	buff4=strtok(NULL," \n\t");
+	if(buff4==NULL)
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,2,buff3,"name of file");
+	
+	strcpy(inout->trajName,buff4);
+      }
+      else
+	my_error(SIMU_PARAM_ERROR,__FILE__,__LINE__,2,buff2,buff3);
+    }
+    else if(!strcmp(buff2,"minim"))
+    {
+      ctrl->keyMinim=1;
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
       
       nocase(buff3);
       
@@ -128,227 +209,323 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff,PBC *box)
       {
 	buff4=strtok(NULL," \n\t");
 	if(buff4==NULL)
-	  error(63);
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
 	
-	simulCond->tolminim=atof(buff4);
+	param->tolMinim=atof(buff4);
       }
       else if(!strcmp(buff3,"maxcycle"))
       {
 	buff4=strtok(NULL," \n\t");
 	if(buff4==NULL)
-	  error(63);
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
 	
-	simulCond->maxminst=atoi(buff4);
+	param->maxminst=atoi(buff4);
       }
       else if(!strcmp(buff3,"maxsize"))
       {
 	buff4=strtok(NULL," \n\t");
 	if(buff4==NULL)
-	  error(63);
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
 	
-	simulCond->maxminsiz=atof(buff4);
+	param->maxminsiz=atof(buff4);
       }
       else
-	error(62);
+	my_error(SIMU_PARAM_ERROR,__FILE__,__LINE__,2,buff2,buff3);
     }
     else if(!strcmp(buff2,"timestep"))
     {
       buff3=strtok(NULL," \n\t");
       if(buff3==NULL)
-	error(63);
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
       
-      simulCond->timeStep=atof(buff3);
+      param->timeStep=atof(buff3);
     }
     else if(!strcmp(buff2,"nsteps"))
     {
       buff3=strtok(NULL," \n\t");
       if(buff3==NULL)
-	error(63);
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
       
-      simulCond->nsteps=atoi(buff3);
+      param->nSteps=atoi(buff3);
     }
     else if(!strcmp(buff2,"cutoff"))
     {
       buff3=strtok(NULL," \n\t");
       if(buff3==NULL)
-	error(63);
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
       
-      simulCond->cutoff=atof(buff3);
+      param->cutOff=atof(buff3);
     }
     else if(!strcmp(buff2,"cuton"))
     {
       buff3=strtok(NULL," \n\t");
       if(buff3==NULL)
-	error(63);
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
       
-      simulCond->cuton=atof(buff3);
+      param->cutOn=atof(buff3);
     }
     else if(!strcmp(buff2,"delr"))
     {
       buff3=strtok(NULL," \n\t");
       if(buff3==NULL)
-	error(63);
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
       
-      simulCond->delr=atof(buff3);
+      param->delr=atof(buff3);
+    }
+    else if(!strcmp(buff2,"ewald"))
+    {
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
+      
+      nocase(buff3);
+      
+      if(!strcmp(buff3,"prec"))
+      {
+	buff4=strtok(NULL," \n\t");
+	if(buff4==NULL)
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
+	
+	ewald->prec=atof(buff4);
+      }
+      else if(!strcmp(buff3,"alpha"))
+      {
+	buff4=strtok(NULL," \n\t");
+	if(buff4==NULL)
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
+	
+	ctrl->keyAlpha=1;
+	ewald->alpha=atof(buff4);
+      }
+      else if(!strcmp(buff3,"nbsp"))
+      {
+	buff4=strtok(NULL," \n\t");
+	if(buff4==NULL)
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
+	
+	ewald->nbsp=atoi(buff4);
+      }
+      else if(!strcmp(buff3,"recvec"))
+      {
+	buff4=strtok(NULL," \n\t");
+	if(buff4==NULL)
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
+	
+	ctrl->keyMmax=1;
+	ewald->m1max=atof(buff4);
+	
+	buff4=strtok(NULL," \n\t");
+	if(buff4==NULL)
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
+	
+	ewald->m2max=atof(buff4);
+	
+	buff4=strtok(NULL," \n\t");
+	if(buff4==NULL)
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
+	
+	ewald->m3max=atof(buff4);
+      }
+      else
+	my_error(SIMU_PARAM_ERROR,__FILE__,__LINE__,2,buff2,buff3);
     }
     else if(!strcmp(buff2,"elec"))
     {
       buff3=strtok(NULL," \n\t");
       if(buff3==NULL)
-	error(63);
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
       
       nocase(buff3);
       
       if(!strcmp(buff3,"noelec"))
-	simulCond->elecType=NOELEC;
+	ctrl->elecType=NOELEC;
       else if(!strcmp(buff3,"full"))
-	simulCond->elecType=FULL;
+	ctrl->elecType=FULL;
       else if(!strcmp(buff3,"shift1"))
-	simulCond->elecType=SHIFT1;
+	ctrl->elecType=SHIFT1;
       else if(!strcmp(buff3,"shift2"))
-	simulCond->elecType=SHIFT2;
+	ctrl->elecType=SHIFT2;
       else if(!strcmp(buff3,"switch"))
-	simulCond->elecType=SWITCH;
+	ctrl->elecType=SWITCH;
+      else if(!strcmp(buff3,"ewald"))
+	ctrl->keyEwald=1;
+      else if(!strcmp(buff3,"spme"))
+	ctrl->keyEwald=2;
       else
-	error(62);
+	my_error(SIMU_PARAM_ERROR,__FILE__,__LINE__,2,buff2,buff3);
     }
     else if(!strcmp(buff2,"vdw"))
     {
       buff3=strtok(NULL," \n\t");
       if(buff3==NULL)
-	error(63);
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
       
       nocase(buff3);
       
       if(!strcmp(buff3,"novdw"))
-	simulCond->vdwType=NOVDW;
+	ctrl->vdwType=NOVDW;
       else if(!strcmp(buff3,"full"))
-	simulCond->vdwType=VFULL;
+	ctrl->vdwType=VFULL;
       else if(!strcmp(buff3,"switch"))
-	simulCond->vdwType=VSWITCH;
+	ctrl->vdwType=VSWITCH;
       else
-	error(62);
+	my_error(SIMU_PARAM_ERROR,__FILE__,__LINE__,2,buff2,buff3);
     }
     else if(!strcmp(buff2,"nb14"))
     {
-      simulCond->nb14=1;
+      ctrl->keyNb14=1;
       buff3=strtok(NULL," \n\t");
       if(buff3==NULL)
-	error(63);
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
       
-      ff->scal14=atof(buff3);
+      param->scal14=atof(buff3);
     }
     else if(!strcmp(buff2,"numforce"))
     {
-      simulCond->numDeriv=1;
+      ctrl->keyNumForce=1;
     }
     else if(!strcmp(buff2,"list"))
     {
       buff3=strtok(NULL," \n\t");
       if(buff3==NULL)
-	error(63);
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
       
-      simulCond->listupdate=atoi(buff3);
+      neigh->update=atoi(buff3);
     }
     else if(!strcmp(buff2,"link"))
     {
       buff3=strtok(NULL," \n\t");
       if(buff3==NULL)
-	error(63);
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
       
-      simulCond->linkRatio=atoi(buff3);
+      neigh->linkRatio=atoi(buff3);
     }
     else if(!strcmp(buff2,"nolink"))
     {
-      simulCond->nolink=1;
+      ctrl->noLink=1;
     }
     else if(!strcmp(buff2,"integrator"))
     {
       buff3=strtok(NULL," \n\t");
       if(buff3==NULL)
-	error(63);
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
       
       nocase(buff3);
       
       if(!strcmp(buff3,"leapfrog"))
-	simulCond->integrator=0;
+	ctrl->integrator=LEAPFROG;
       else if(!strcmp(buff3,"velocity"))
-	simulCond->integrator=1;
+	ctrl->integrator=VELOCITY;
       else
-	error(62);
+	my_error(SIMU_PARAM_ERROR,__FILE__,__LINE__,2,buff2,buff3);
     }
     else if(!strcmp(buff2,"ensemble"))
     {
       buff3=strtok(NULL," \n\t");
       if(buff3==NULL)
-	error(63);
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
       
       nocase(buff3);
       
       if(!strcmp(buff3,"nve"))
-	simulCond->ens=0;
-      else if(!strcmp(buff3,"nvtb"))
-	simulCond->ens=1;
-      else if(!strcmp(buff3,"nptb"))
-	simulCond->ens=2;
-      else if(!strcmp(buff3,"nvth"))
-	simulCond->ens=3;
-      else if(!strcmp(buff3,"npth"))
-	simulCond->ens=4;
+	ctrl->ens=NVE;
+      else if(!strcmp(buff3,"nvt"))
+      {
+	
+	buff4=strtok(NULL," \n\t");
+	if(buff4==NULL)
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
+      
+	nocase(buff4);
+	
+	if(!strcmp(buff4,"beren"))
+	{
+	  ctrl->ens=NVT_B;
+	}
+	else if(!strcmp(buff4,"hoover"))
+	{
+	  ctrl->ens=NVT_H;
+	}
+	else
+	  my_error(SIMU_PARAM_ERROR,__FILE__,__LINE__,2,buff3,buff4);
+      }
+      else if(!strcmp(buff3,"npt"))
+      {
+	
+	buff4=strtok(NULL," \n\t");
+	if(buff4==NULL)
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
+      
+	nocase(buff4);
+	
+	if(!strcmp(buff4,"beren"))
+	{
+	  ctrl->ens=NPT_B;
+	}
+	else if(!strcmp(buff4,"hoover"))
+	{
+	  ctrl->ens=NPT_H;
+	}
+	else
+	  my_error(SIMU_PARAM_ERROR,__FILE__,__LINE__,2,buff3,buff4);
+	
+      }
       else
-	error(62);
+	my_error(SIMU_PARAM_ERROR,__FILE__,__LINE__,2,buff2,buff3);
+    }
+    else if(!strcmp(buff2,"taut"))
+    {
       
-      if(simulCond->ens>0)
-      {
-	buff3=strtok(NULL," \n\t");
-	if(buff3==NULL)
-	error(63);
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
 	
-	simulCond->taut=atof(buff3);
-      }
+      bath->tauT=atof(buff3);
       
-      if(simulCond->ens==2||simulCond->ens==4)
-      {
-	buff3=strtok(NULL," \n\t");
-	if(buff3==NULL)
-	error(63);
+    }
+    else if(!strcmp(buff2,"taup"))
+    {
+      
+      buff3=strtok(NULL," \n\t");
+      if(buff3==NULL)
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
 	
-	simulCond->taup=atof(buff3);
-      }
+      bath->tauP=atof(buff3);
+      
     }
     else if(!strcmp(buff2,"temperature"))
     {
       buff3=strtok(NULL," \n\t");
       if(buff3==NULL)
-	error(63);
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
       
-      simulCond->temp=atof(buff3);
+      param->temp0=atof(buff3);
     }
     else if(!strcmp(buff2,"pressure"))
     {
       buff3=strtok(NULL," \n\t");
       if(buff3==NULL)
-	error(63);
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
       
-      simulCond->press=atof(buff3)*bartoiu;
+      param->press0=atof(buff3)*bartoiu;
     }
     else if(!strcmp(buff2,"compressibility"))
     {
       buff3=strtok(NULL," \n\t");
       if(buff3==NULL)
-	error(63);
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
       
-      simulCond->compres=atof(buff3)/bartoiu;
+      bath->compress=atof(buff3)/bartoiu;
     }
     else if(!strcmp(buff2,"consth"))
     {
-      simulCond->keyconsth=1;
+      ctrl->keyConstH=1;
     }
     else if(!strcmp(buff2,"shake"))
     {
       buff3=strtok(NULL," \n\t");
       if(buff3==NULL)
-	error(63);
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
       
       nocase(buff3);
       
@@ -356,1268 +533,215 @@ void read_SIMU(SIMULPARAMS *simulCond,FORCEFIELD *ff,PBC *box)
       {
 	buff4=strtok(NULL," \n\t");
 	if(buff4==NULL)
-	  error(63);
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
 	
-	simulCond->tolshake=atof(buff4);
+	param->tolShake=atof(buff4);
       }
       else if(!strcmp(buff3,"maxcycle"))
       {
 	buff4=strtok(NULL," \n\t");
 	if(buff4==NULL)
-	  error(63);
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
 	
-	simulCond->maxcycle=atoi(buff4);
+	param->maxCycle=atoi(buff4);
       }
       else
-	error(62);
+	my_error(SIMU_PARAM_ERROR,__FILE__,__LINE__,2,buff2,buff3);
     }
     else if(!strcmp(buff2,"seed"))
     {
       buff3=strtok(NULL," \n\t");
 	if(buff3==NULL)
-	error(63);
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
 	
-	simulCond->keyrand=1;
-	simulCond->seed=atoi(buff3);
+	ctrl->keyRand=1;
+	ctrl->seed=atoi(buff3);
     }
     else if(!strcmp(buff2,"print"))
     {
       buff3=strtok(NULL," \n\t");
       if(buff3==NULL)
-	error(63);
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
       
-      simulCond->printo=atoi(buff3);
+      ctrl->printOut=atoi(buff3);
     }
     else if(!strcmp(buff2,"prop"))
     {
       buff3=strtok(NULL," \n\t");
       if(buff3==NULL)
-	error(63);
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
       
-      simulCond->keyprop=1;
-      simulCond->printpr=atoi(buff3);
+      ctrl->keyProp=1;
+      ctrl->printProp=atoi(buff3);
     }
     else if(!strcmp(buff2,"traj"))
     {
       buff3=strtok(NULL," \n\t");
       if(buff3==NULL)
-	error(63);
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
       
-      simulCond->keytraj=1;
-      simulCond->printtr=atoi(buff3);
+      ctrl->keyTraj=1;
+      ctrl->printTraj=atoi(buff3);
     }
     else if(!strcmp(buff2,"resconf"))
     {
       buff3=strtok(NULL," \n\t");
       if(buff3==NULL)
-	error(63);
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
       
-      simulCond->fresconf=atoi(buff3);
+      ctrl->printRest=atoi(buff3);
     }
     else if(!strcmp(buff2,"write"))
     {
       buff3=strtok(NULL," \n\t");
       if(buff3==NULL)
-	error(63);
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
       
       nocase(buff3);
       
       if(!strcmp(buff3,"field"))
-	simulCond->keyforf=1;
+	ctrl->keyForF=1;
       else
-	error(62);
+	my_error(SIMU_PARAM_ERROR,__FILE__,__LINE__,2,buff2,buff3);
     }
     else if(!strcmp(buff2,"pbc"))
     {
       buff3=strtok(NULL," \n\t");
       if(buff3==NULL)
-	error(63);
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
       
       box->type=atoi(buff3);
       
-      if(fgets(buff1,1024,simuFile)!=NULL)
+      if(fgets(buff1,1024,inout->simuFile)!=NULL)
       {
 	
 	buff2=strtok(buff1," \n\t");
 	if(buff2==NULL)
-	  error(63);
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
 	else if(isdigit(buff2[0])==0)
-	  error(62);
+	  my_error(SIMU_PARAM_ERROR,__FILE__,__LINE__,0);
 	
 	box->a1=atof(buff2);
 	
 	buff2=strtok(NULL," \n\t");
 	if(buff2==NULL)
-	  error(63);
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
 	else if(isdigit(buff2[0])==0)
-	  error(62);
+	  my_error(SIMU_PARAM_ERROR,__FILE__,__LINE__,0);
 	
 	box->a2=atof(buff2);
 	
 	buff2=strtok(NULL," \n\t");
 	if(buff2==NULL)
-	  error(63);
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
 	else if(isdigit(buff2[0])==0)
-	  error(62);
+	  my_error(SIMU_PARAM_ERROR,__FILE__,__LINE__,0);
 	
 	box->a3=atof(buff2);
 	
       }
       else
-	error(63);
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
 	
-      if(fgets(buff1,1024,simuFile)!=NULL)
+      if(fgets(buff1,1024,inout->simuFile)!=NULL)
       {
 	
 	buff2=strtok(buff1," \n\t");
 	if(buff2==NULL)
-	  error(63);
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
 	else if(isdigit(buff2[0])==0)
-	  error(62);
+	  my_error(SIMU_PARAM_ERROR,__FILE__,__LINE__,0);
 	
 	box->b1=atof(buff2);
 	
 	buff2=strtok(NULL," \n\t");
 	if(buff2==NULL)
-	  error(63);
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
 	else if(isdigit(buff2[0])==0)
-	  error(62);
+	  my_error(SIMU_PARAM_ERROR,__FILE__,__LINE__,0);
 	
 	box->b2=atof(buff2);
 	
 	buff2=strtok(NULL," \n\t");
 	if(buff2==NULL)
-	  error(63);
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
 	else if(isdigit(buff2[0])==0)
-	  error(62);
+	  my_error(SIMU_PARAM_ERROR,__FILE__,__LINE__,0);
 	
 	box->b3=atof(buff2);
 	
       }
       else
-	error(63);
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
       
-      if(fgets(buff1,1024,simuFile)!=NULL)
+      if(fgets(buff1,1024,inout->simuFile)!=NULL)
       {
 	
 	buff2=strtok(buff1," \n\t");
 	if(buff2==NULL)
-	  error(63);
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
 	else if(isdigit(buff2[0])==0)
-	  error(62);
+	  my_error(SIMU_PARAM_ERROR,__FILE__,__LINE__,0);
 	
 	box->c1=atof(buff2);
 	
 	buff2=strtok(NULL," \n\t");
 	if(buff2==NULL)
-	  error(63);
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
 	else if(isdigit(buff2[0])==0)
-	  error(62);
+	  my_error(SIMU_PARAM_ERROR,__FILE__,__LINE__,0);
 	
 	box->c2=atof(buff2);
 	
 	buff2=strtok(NULL," \n\t");
 	if(buff2==NULL)
-	  error(63);
+	  my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
 	else if(isdigit(buff2[0])==0)
-	  error(62);
+	  my_error(SIMU_PARAM_ERROR,__FILE__,__LINE__,0);
 	
 	box->c3=atof(buff2);
 	
       }
       else
-	error(63);
+	my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
     }
     else if(!strcmp(buff2,"end"))
       break;
     else
-      error(61);
+      my_error(SIMU_KEYWORD_ERROR,__FILE__,__LINE__,1,buff2);
   }
+  
+  param->rcutOff=1./param->cutOff;
+  
+  param->cutOff2=X2(param->cutOff);
+  param->rcutOff2=1./param->cutOff2;
+  
+  param->cutOn2=X2(param->cutOn);
+  
+  param->switch2=1./X3(param->cutOff2-param->cutOn2);
+  
+  param->rTimeStep=1./param->timeStep;
+  
   
 }
 
-void read_PSF(INPUTS *inp,ATOM **atom,FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAINT **constList)
-{
-  FILE *psfFile=NULL;
-  char buff1[1024]="", *buff2=NULL, *buff3=NULL, *buff4=NULL, *buff5=NULL;
-  int i,j,k,kk,kt,nalloc=100,nincr=100;
-  int ia,ib;
-  
-  psfFile=fopen("PSF","r");
-  
-  if(psfFile==NULL)
-  {
-    error(20);
-  }
-  
-  while(fgets(buff1,1024,psfFile)!=NULL)
-  {
-    if(strstr(buff1,"NATOM")!=NULL)
-    {
-      buff2=strtok(buff1," \n\t");
-      simulCond->natom=atoi(buff2);
-      break;
-    }
-  }
-  
-  inp->typesNum=(int*)malloc(nalloc*sizeof(*(inp->typesNum)));
-
-  *atom=(ATOM*)malloc(simulCond->natom*sizeof(**atom));
-  
-  k=-1;
-  for(i=0;i<simulCond->natom;i++)
-  {
-    if(fgets(buff1,1024,psfFile)!=NULL)
-    {
-      buff2=strtok(buff1," \n\t");
-      buff3=strtok(NULL," \n\t");
-      buff4=strtok(NULL," \n\t");
-      buff5=strtok(NULL," \n\t");
-
-      strcpy((*atom)[i].segn,buff3);
-      (*atom)[i].resi=atoi(buff4);
-      strcpy((*atom)[i].resn,buff5);
-      
-      buff2=strtok(NULL," \n\t");
-      buff3=strtok(NULL," \n\t");
-      buff4=strtok(NULL," \n\t");
-      buff5=strtok(NULL," \n\t");
-      
-      strcpy((*atom)[i].label,buff2);
-      
-      kt=atoi(buff3)-1;
-      k++;
-      
-      if(k>=nalloc)
-      {
-	nalloc+=nincr;
-	inp->typesNum=(int*)realloc(inp->typesNum,nalloc*sizeof(*(inp->typesNum)));
-      }
-      
-      kk=k;
-      inp->typesNum[k]=kt;
-      for(j=0;j<k;j++)
-      {
-	if(kt==inp->typesNum[j])
-	{
-	  k--;
-	  kk=j;
-	  break;
-	}
-      }
-//       k=inp->typesNum[atoi(buff3)-1];
-//       if(k==-1)
-//  	error(21);
-
-      (*atom)[i].type=kk;
-      (*atom)[i].q=atof(buff4);
-      (*atom)[i].m=atof(buff5);
-    }
-    else
-    {
-      error(22);
-    }
-  }
-  
-  inp->nTypes=k+1;
-  inp->typesNum=(int*)realloc(inp->typesNum,(inp->nTypes*sizeof*(inp->typesNum)));
-  
-  while(fgets(buff1,1024,psfFile)!=NULL)
-  {
-    if(strstr(buff1,"NBOND")!=NULL)
-    {
-      buff2=strtok(buff1," \n\t");
-      ff->nBond=atoi(buff2);
-      break;
-    }
-  }
-  
-  simulCond->iBond=(int**)malloc(ff->nBond*sizeof(*(simulCond->iBond)));
-  for(i=0;i<ff->nBond;i++)
-    simulCond->iBond[i]=(int*)malloc(2*sizeof(**(simulCond->iBond)));
-  
-  if(simulCond->keyconsth)
-  {
-    for(i=0;i<simulCond->natom;i++)
-      (*atom)[i].inconst=0;
-    
-    *constList=(CONSTRAINT*)malloc(ff->nBond*sizeof(**constList));
-    simulCond->nconst=0;
-  }
-  
-  i=0;
-  while(fgets(buff1,1024,psfFile)!=NULL)
-  {
-    buff2=strtok(buff1," \n\t");
-    buff3=strtok(NULL," \n\t");
-    
-    while(buff2!=NULL && buff3!=NULL)
-    {
-      
-      if(simulCond->keyconsth)
-      {
-	ia=atoi(buff2)-1;
-	ib=atoi(buff3)-1;
-	if((*atom)[ia].label[0]=='H'||(*atom)[ib].label[0]=='H')
-	{
-	  (*constList)[simulCond->nconst].a=ia;
-	  (*constList)[simulCond->nconst].b=ib;
-	  
-	  (*atom)[ia].inconst++;
-	  (*atom)[ib].inconst++;
-	  
-	  buff2=strtok(NULL," \n\t");
-	  buff3=strtok(NULL," \n\t");
-	  
-	  simulCond->nconst++;
-	  ff->nBond--;
-	}
-	else
-	{
-	  simulCond->iBond[i][0]=ia;
-	  simulCond->iBond[i][1]=ib;
-	
-	  buff2=strtok(NULL," \n\t");
-	  buff3=strtok(NULL," \n\t");
-	  i++;
-	}
-      }
-      else
-      {
-	simulCond->iBond[i][0]=atoi(buff2)-1;
-	simulCond->iBond[i][1]=atoi(buff3)-1;
-	
-	buff2=strtok(NULL," \n\t");
-	buff3=strtok(NULL," \n\t");
-	i++;
-      }
-      
-    }
-    if(buff2!=NULL && buff3==NULL)
-      error(23);
-    if(i==ff->nBond)
-      break;
-  }
-  
-  if(simulCond->keyconsth)
-  {
-    *constList=(CONSTRAINT*)realloc(*constList,simulCond->nconst*sizeof(**constList));
-  }
-  
-  while(fgets(buff1,1024,psfFile)!=NULL)
-  {
-    if(strstr(buff1,"NTHETA")!=NULL)
-    {
-      buff2=strtok(buff1," \n\t");
-      ff->nAngle=atoi(buff2);
-      break;
-    }
-  }
-  
-  simulCond->iAngle=(int**)malloc(ff->nAngle*sizeof(*(simulCond->iAngle)));
-  for(i=0;i<ff->nAngle;i++)
-    simulCond->iAngle[i]=(int*)malloc(3*sizeof(**(simulCond->iAngle)));
-  
-  i=0;
-  while(fgets(buff1,1024,psfFile)!=NULL)
-  {
-    buff2=strtok(buff1," \n\t");
-    buff3=strtok(NULL," \n\t");
-    buff4=strtok(NULL," \n\t");
-    
-    while(buff2!=NULL && buff3!=NULL && buff4!=NULL)
-    {
-      
-      simulCond->iAngle[i][0]=atoi(buff2)-1;
-      simulCond->iAngle[i][1]=atoi(buff3)-1;
-      simulCond->iAngle[i][2]=atoi(buff4)-1;
-      
-      buff2=strtok(NULL," \n\t");
-      buff3=strtok(NULL," \n\t");
-      buff4=strtok(NULL," \n\t");
-      i++;
-    }
-    if((buff2!=NULL && buff3==NULL)||(buff2!=NULL && buff4==NULL))
-      error(24);
-    if(i==ff->nAngle)
-      break;
-  }
-  
-  while(fgets(buff1,1024,psfFile)!=NULL)
-  {
-    if(strstr(buff1,"NPHI")!=NULL)
-    {
-      buff2=strtok(buff1," \n\t");
-      ff->nDihedral=atoi(buff2);
-      break;
-    }
-  }
-  
-  simulCond->iDihedral=(int**)malloc(ff->nAngle*sizeof(*(simulCond->iDihedral)));
-  for(i=0;i<ff->nDihedral;i++)
-    simulCond->iDihedral[i]=(int*)malloc(4*sizeof(**(simulCond->iDihedral)));
-  
-  i=0;
-  while(fgets(buff1,1024,psfFile)!=NULL)
-  {
-    buff2=strtok(buff1," \n\t");
-    buff3=strtok(NULL," \n\t");
-    buff4=strtok(NULL," \n\t");
-    buff5=strtok(NULL," \n\t");
-    
-    while(buff2!=NULL && buff3!=NULL && buff4!=NULL)
-    {
-      
-      simulCond->iDihedral[i][0]=atoi(buff2)-1;
-      simulCond->iDihedral[i][1]=atoi(buff3)-1;
-      simulCond->iDihedral[i][2]=atoi(buff4)-1;
-      simulCond->iDihedral[i][3]=atoi(buff5)-1;
-      
-      buff2=strtok(NULL," \n\t");
-      buff3=strtok(NULL," \n\t");
-      buff4=strtok(NULL," \n\t");
-      buff5=strtok(NULL," \n\t");
-      i++;
-    }
-    if((buff2!=NULL && buff3==NULL)||(buff2!=NULL && buff4==NULL)||(buff2!=NULL && buff5==NULL))
-      error(25);
-    if(i==ff->nDihedral)
-      break;
-  }
-  
-  while(fgets(buff1,1024,psfFile)!=NULL)
-  {
-    if(strstr(buff1,"NIMPHI")!=NULL)
-    {
-      buff2=strtok(buff1," \n\t");
-      ff->nImproper=atoi(buff2);
-      break;
-    }
-  }
-  
-  simulCond->iImproper=(int**)malloc(ff->nAngle*sizeof(*(simulCond->iImproper)));
-  for(i=0;i<ff->nImproper;i++)
-    simulCond->iImproper[i]=(int*)malloc(4*sizeof(**(simulCond->iImproper)));
-  
-  i=0;
-  while(fgets(buff1,1024,psfFile)!=NULL)
-  {
-    buff2=strtok(buff1," \n\t");
-    buff3=strtok(NULL," \n\t");
-    buff4=strtok(NULL," \n\t");
-    buff5=strtok(NULL," \n\t");
-    
-    while(buff2!=NULL && buff3!=NULL && buff4!=NULL)
-    {
-      
-      simulCond->iImproper[i][0]=atoi(buff2)-1;
-      simulCond->iImproper[i][1]=atoi(buff3)-1;
-      simulCond->iImproper[i][2]=atoi(buff4)-1;
-      simulCond->iImproper[i][3]=atoi(buff5)-1;
-      
-      buff2=strtok(NULL," \n\t");
-      buff3=strtok(NULL," \n\t");
-      buff4=strtok(NULL," \n\t");
-      buff5=strtok(NULL," \n\t");
-      i++;
-    }
-    if((buff2!=NULL && buff3==NULL)||(buff2!=NULL && buff4==NULL)||(buff2!=NULL && buff5==NULL))
-      error(26);
-    if(i==ff->nImproper)
-      break;
-  }
-  
-  fclose(psfFile);
-}
-
-void read_TOP(INPUTS *inp)
-{
-  
-  FILE *topFile=NULL;
-  char buff1[1024]="", *buff2=NULL, *buff3=NULL, *buff4=NULL ;
-  int i,k;
-  
-  topFile=fopen("TOP","r");
-
-  if (topFile==NULL)
-  {
-    error(10);
-  }
-  
-  inp->types=(char**)malloc(inp->nTypes*sizeof(*(inp->types)));
-  for(i=0;i<inp->nTypes;i++)
-      inp->types[i]=(char*)malloc(5*sizeof(**(inp->types)));
-  
-  while(fgets(buff1,1024,topFile)!=NULL)
-  {
-    
-    buff2=strtok(buff1," \n\t");
-    
-    if (buff2 != NULL)
-    {	
-      if (!strcmp(buff2,"MASS"))
-      {
-	buff3=strtok(NULL," \n\t");
-	buff4=strtok(NULL," \n\t");
-	k=atoi(buff3)-1;
-	for(i=0;i<inp->nTypes;i++)
-	{
-	  if(k==inp->typesNum[i])
-	  {
-	    strcpy(inp->types[i],buff4);
-	    break;
-	  }
-	}
-      }
-    }
-  }
-  
-  fclose(topFile);
-    
-}
-
-void read_PAR(INPUTS *inp)
-{
-  
-  char buff1[1024]="", *buff2=NULL, *buff3=NULL, *buff4=NULL, *buff5=NULL, *buff6=NULL;
-
-    FILE *parFile=NULL;
-    int i,j,l,k=0;
-    
-    parFile=fopen("PAR","r");
-
-    if(parFile==NULL)
-    {
-      error(30);
-    }
-    
-    while(fgets(buff1,1024,parFile)!=NULL)
-    {
-      buff2=strtok(buff1," \n\t");
-      
-      if(buff2==NULL)
-	continue;
-      
-      if(!strcmp(buff2,"BONDS"))
-      {
-	k=1;
-	inp->nBondTypes=0;
-	continue;
-      }
-      else if(!strcmp(buff2,"ANGLES"))
-      {
-	k=2;
-	inp->nAngTypes=0;
-	inp->nUbTypes=0;
-	continue;
-      }
-      else if(!strcmp(buff2,"DIHEDRALS"))
-      {
-	k=3;
-	inp->nDiheTypes=0;
-	continue;
-      }
-      else if(!strcmp(buff2,"IMPROPER"))
-      {
-	k=4;
-	inp->nImprTypes=0;
-	continue;
-      }
-      else if(!strcmp(buff2,"NONBONDED"))
-      {
-	k=5;
-	inp->nNonBonded=0;
-	continue;
-      }
-      else if(!strcmp(buff2,"NBFIX"))
-      {
-	k=6;
-	continue;
-      }
-      else if(!strcmp(buff2,"CMAP"))
-      {
-	k=7;
-	continue;
-      }
-      else if(!strcmp(buff2,"HBOND"))
-      {
-	k=8;
-	continue;
-      }
-      else if(!strcmp(buff2,"END"))
-      {
-	break;
-      }
-      
-      
-      if(k==1)      
-      {
-	if((buff2!=NULL)&&(buff2[0]!='!'))
-	    inp->nBondTypes++;
-      }
-      else if(k==2)      
-      {
-	if((buff2!=NULL)&&(buff2[0]!='!'))
-	{
-	    inp->nAngTypes++;
-	    
-	    buff2=strtok(NULL," \n\t");
-	    buff2=strtok(NULL," \n\t");
-	    buff2=strtok(NULL," \n\t");
-	    buff2=strtok(NULL," \n\t");
-	    buff2=strtok(NULL," \n\t");
-	    if((buff2!=NULL)&&(buff2[0]!='!'))
-	      inp->nUbTypes++;
-	}
-      }
-      else if(k==3)      
-      {
-	if((buff2!=NULL)&&(buff2[0]!='!'))
-	    inp->nDiheTypes++;
-      }
-      else if(k==4)      
-      {
-	if((buff2!=NULL)&&(buff2[0]!='!'))
-	    inp->nImprTypes++;
-      }
-      else if(k==5)      
-      {
-	if((buff2!=NULL)&&(buff2[0]!='!'))
-	    inp->nNonBonded++;
-      }
-    }
-    
-//       Bond types arrays allocation
-    
-    inp->bondTypes=(int**)malloc(inp->nBondTypes*sizeof(*(inp->bondTypes)));
-    inp->bondTypesParm=(double**)malloc(inp->nBondTypes*sizeof(*(inp->bondTypesParm)));
-    
-    for(i=0;i<inp->nBondTypes;i++)
-    {
-      inp->bondTypes[i]=(int*)malloc(2*sizeof(**(inp->bondTypes)));
-      inp->bondTypesParm[i]=(double*)malloc(2*sizeof(**(inp->bondTypesParm)));
-    }
-    
-//       Angle types arrays allocation
-    
-    inp->angTypes=(int**)malloc(inp->nAngTypes*sizeof(*(inp->angTypes)));
-    inp->angTypesParm=(double**)malloc(inp->nAngTypes*sizeof(*(inp->angTypesParm)));
-    
-    for(i=0;i<inp->nAngTypes;i++)
-    {
-      inp->angTypes[i]=(int*)malloc(3*sizeof(**(inp->angTypes)));
-      inp->angTypesParm[i]=(double*)malloc(2*sizeof(**(inp->angTypesParm)));
-    }
-    
-//       Uray-Bradley types arrays allocation
-    
-    inp->ubTypes=(int**)malloc(inp->nUbTypes*sizeof(*(inp->ubTypes)));
-    inp->ubTypesParm=(double**)malloc(inp->nUbTypes*sizeof(*(inp->ubTypesParm)));
-        
-    for(i=0;i<inp->nUbTypes;i++)
-    {
-      inp->ubTypes[i]=(int*)malloc(3*sizeof(**(inp->ubTypes)));
-      inp->ubTypesParm[i]=(double*)malloc(2*sizeof(**(inp->ubTypesParm)));
-    }
-    
-//       Dihedral types arrays allocation
-    
-    inp->diheTypes=(int**)malloc(inp->nDiheTypes*sizeof(*(inp->diheTypes)));
-    inp->diheTypesParm=(double**)malloc(inp->nDiheTypes*sizeof(*(inp->diheTypesParm)));
-    inp->nDiheTypesParm=(int*)malloc(inp->nDiheTypes*sizeof(*(inp->nDiheTypesParm)));
-        
-    for(i=0;i<inp->nDiheTypes;i++)
-    {
-      inp->diheTypes[i]=(int*)malloc(4*sizeof(**(inp->diheTypes)));
-      inp->diheTypesParm[i]=(double*)malloc(3*sizeof(**(inp->diheTypesParm)));
-    }
-    
-    for(i=0;i<inp->nDiheTypes;i++)
-      inp->nDiheTypesParm[i]=1;
-    
-//       Improper types arrays allocation
-    
-    inp->imprTypes=(int**)malloc(inp->nImprTypes*sizeof(*(inp->imprTypes)));
-    inp->imprTypesParm=(double**)malloc(inp->nImprTypes*sizeof(*(inp->imprTypesParm)));
-    
-    for(i=0;i<inp->nImprTypes;i++)
-    {
-      inp->imprTypes[i]=(int*)malloc(4*sizeof(**(inp->imprTypes)));
-      inp->imprTypesParm[i]=(double*)malloc(3*sizeof(**(inp->imprTypesParm)));
-    }
-    
-//       Non-bonding types arrays allocation
-    
-    inp->nonBondedTypesParm=(double**)malloc(inp->nTypes*sizeof(*(inp->nonBondedTypesParm)));
-    
-    for(i=0;i<inp->nTypes;i++)
-      inp->nonBondedTypesParm[i]=(double*)malloc(6*sizeof(**(inp->nonBondedTypesParm)));
-    
-    for(i=0;i<inp->nTypes;i++)
-    {
-      for(j=0;j<6;j++)
-	inp->nonBondedTypesParm[i][j]=-100.;
-    }
-      
-    rewind(parFile);
-    
-    int ia,ib,ic,id,ii;
-    k=0;
-    
-    while(fgets(buff1,1024,parFile)!=NULL)
-    {
-      
-      buff2=strtok(buff1," \n\t");
-      
-      if(buff2==NULL)
-	continue;
-      
-      if(!strcmp(buff2,"BONDS"))
-      {
-	k=1;
-	i=0;
-	inp->nBondTypes=0;
-	continue;
-      }
-      else if(!strcmp(buff2,"ANGLES"))
-      {
-	k=2;
-	i=0;
-	j=0;
-	inp->nAngTypes=0;
-	inp->nUbTypes=0;
-	continue;
-      }
-      else if(!strcmp(buff2,"DIHEDRALS"))
-      {
-	k=3;
-	i=0;
-	inp->nDiheTypes=0;
-	continue;
-      }
-      else if(!strcmp(buff2,"IMPROPER"))
-      {
-	k=4;
-	i=0;
-	inp->nImprTypes=0;
-	continue;
-      }
-      else if(!strcmp(buff2,"NONBONDED"))
-      {
-	k=5;
-	i=0;
-	inp->nNonBonded=0;
-	continue;
-      }
-      else if(!strcmp(buff2,"NBFIX"))
-      {
-	k=6;
-	i=0;
-	continue;
-      }
-      else if(!strcmp(buff2,"CMAP"))
-      {
-	k=7;
-	i=0;
-	continue;
-      }
-      else if(!strcmp(buff2,"HBOND"))
-      {
-	k=8;
-	i=0;
-	continue;
-      }
-      else if(!strcmp(buff2,"END"))
-      {
-	break;
-      }
-      
-      
-      if(k==1)      
-      {
-	if((buff2!=NULL)&&(buff2[0]!='!'))
-	{
-	  buff3=strtok(NULL," \n\t");
-	  buff4=strtok(NULL," \n\t");
-	  buff5=strtok(NULL," \n\t");
-	  
-	  ia=-1;
-	  ib=-1;
-	  for(l=0;l<inp->nTypes;l++)
-	  {
-	    if(!strcmp(buff2,inp->types[l]))
-	    {
-	      ia=l;
-	      break;
-	    }
-	  }
-	  
-	  if(ia==-1)
-	    continue;
-	  
-	  for(l=0;l<inp->nTypes;l++)
-	  {
-	    if(!strcmp(buff3,inp->types[l]))
-	    {
-	      ib=l;
-	      break;
-	    }
-	  }
-	  
-	  if(ib==-1)
-	    continue;
-	  
-	  if(ib<ia)
-	  {
-	    inp->bondTypes[i][0]=ib;
-	    inp->bondTypes[i][1]=ia;
-	  }
-	  else
-	  {
-	    inp->bondTypes[i][0]=ia;
-	    inp->bondTypes[i][1]=ib;
-	  }
-	  
-	  inp->bondTypesParm[i][0]=atof(buff4);
-	  inp->bondTypesParm[i][1]=atof(buff5);
-	  
-	  i++;
-	  inp->nBondTypes=i;
-	}
-      }
-      else if(k==2)      
-      {
-	if((buff2!=NULL)&&(buff2[0]!='!'))
-	{
-	  buff3=strtok(NULL," \n\t");
-	  buff4=strtok(NULL," \n\t");
-	  buff5=strtok(NULL," \n\t");
-	  buff6=strtok(NULL," \n\t");
-	  
-	  ia=-1;
-	  ib=-1;
-	  ic=-1;
-	  
-	  for(l=0;l<inp->nTypes;l++)
-	  {
-	    if(!strcmp(buff2,inp->types[l]))
-	    {
-	      ia=l;
-	      break;
-	    }
-	  }
-	  
-	  if(ia==-1)
-	    continue;
-	  
-	  for(l=0;l<inp->nTypes;l++)
-	  {
-	    if(!strcmp(buff3,inp->types[l]))
-	    {
-	      ib=l;
-	      break;
-	    }
-	  }
-	  
-	  if(ib==-1)
-	    continue;
-	  
-	  for(l=0;l<inp->nTypes;l++)
-	  {
-	    if(!strcmp(buff4,inp->types[l]))
-	    {
-	      ic=l;
-	      break;
-	    }
-	  }
-	  
-	  if(ic==-1)
-	    continue;
-	  
-	  if(ic<ia)
-	  {
-	    inp->angTypes[i][0]=ic;
-	    inp->angTypes[i][1]=ib;
-	    inp->angTypes[i][2]=ia;
-	  }
-	  else
-	  {
-	    inp->angTypes[i][0]=ia;
-	    inp->angTypes[i][1]=ib;
-	    inp->angTypes[i][2]=ic;
-	  }
-	  
-	  inp->angTypesParm[i][0]=atof(buff5);
-	  inp->angTypesParm[i][1]=atof(buff6);
-	  
-	  buff2=strtok(NULL," \n\t");
-	  if((buff2!=NULL)&&(buff2[0]!='!'))
-	  {
-	    buff3=strtok(NULL," \n\t");
-	    
-	    inp->ubTypesParm[j][0]=atof(buff2);
-	    inp->ubTypesParm[j][1]=atof(buff3);
-	    
-	    if(ic<ia)
-	    {
-	      inp->ubTypes[j][0]=ic;
-	      inp->ubTypes[j][1]=ib;
-	      inp->ubTypes[j][2]=ia;
-	    }
-	    else
-	    {
-	      inp->ubTypes[j][0]=ia;
-	      inp->ubTypes[j][1]=ib;
-	      inp->ubTypes[j][2]=ic;
-	    }
-	    j++;
-	    inp->nUbTypes=j;
-	  }
-	  i++;
-	  inp->nAngTypes=i;
-	}
-      }
-      else if(k==3)      
-      {
-	int itype,index,i0,i1,i2,i3;
-	
-	if((buff2!=NULL)&&(buff2[0]!='!'))
-	{
-	  buff3=strtok(NULL," \n\t");
-	  buff4=strtok(NULL," \n\t");
-	  buff5=strtok(NULL," \n\t");
-	  
-	  ia=-1;
-	  ib=-1;
-	  ic=-1;
-	  id=-1;
-	  
-	  if(!strcmp(buff2,"X"))
-	  {
-	    ia=inp->nTypes;
-	  }
-	  else
-	  {
-	    for(l=0;l<inp->nTypes;l++)
-	    {
-	      if(!strcmp(buff2,inp->types[l]))
-	      {
-		ia=l;
-		break;
-	      }
-	    }
-	  }
-	  
-	  if(ia==-1)
-	    continue;
-	  
-	  for(l=0;l<inp->nTypes;l++)
-	  {
-	    if(!strcmp(buff3,inp->types[l]))
-	    {
-	      ib=l;
-	      break;
-	    }
-	  }
-	  
-	  if(ib==-1)
-	    continue;
-	  
-	  for(l=0;l<inp->nTypes;l++)
-	  {
-	    if(!strcmp(buff4,inp->types[l]))
-	    {
-	      ic=l;
-	      break;
-	    }
-	  }
-	  
-	  if(ic==-1)
-	    continue;
-	  
-	  if(!strcmp(buff5,"X"))
-	  {
-	    id=inp->nTypes;
-	  }
-	  else 
-	  {
-	    for(l=0;l<inp->nTypes;l++)
-	    {
-	      if(!strcmp(buff5,inp->types[l]))
-	      {
-		id=l;
-		break;
-	      }
-	    }
-	  }
-	  
-	  if(id==-1)
-	    continue;
-	  
-	  if(id<ia)
-	  {
-	    i0=id;
-	    i1=ic;
-	    i2=ib;
-	    i3=ia;
-	  }
-	  else if(ia<id)
-	  {
-	    i0=ia;
-	    i1=ib;
-	    i2=ic;
-	    i3=id;
-	  }
-	  else if(ic<ib)
-	  {
-	    i0=id;
-	    i1=ic;
-	    i2=ib;
-	    i3=ia;
-	  }
-	  else
-	  {
-	    i0=ia;
-	    i1=ib;
-	    i2=ic;
-	    i3=id;
-	  }
-	  
-	  itype=i;
-	  for(l=0;l<inp->nDiheTypes;l++)
-	  {
-	    if( (i0==inp->diheTypes[l][0]) && (i1==inp->diheTypes[l][1]) && (i2==inp->diheTypes[l][2]) && (i3==inp->diheTypes[l][3]) )
-	    {
-	      itype=l;
-	      break;
-	    }
-	  }
-	  
-	  buff3=strtok(NULL," \n\t");
-	  buff4=strtok(NULL," \n\t");
-	  buff5=strtok(NULL," \n\t");
-	  
-	  if(itype==i)
-	  {
-	    inp->diheTypes[l][0]=i0;
-	    inp->diheTypes[l][1]=i1;
-	    inp->diheTypes[l][2]=i2;
-	    inp->diheTypes[l][3]=i3;
-	    
-	    inp->diheTypesParm[i][0]=atof(buff3);
-	    inp->diheTypesParm[i][1]=atof(buff4);
-	    inp->diheTypesParm[i][2]=atof(buff5);
-	    
-	    i++;
-	    inp->nDiheTypes=i;
-	    
-	  }
-	  else
-	  {
-	    inp->nDiheTypesParm[itype]++;
-	    inp->diheTypesParm[itype]=(double*)realloc(inp->diheTypesParm[itype],
-	      inp->nDiheTypesParm[itype]*3*sizeof(*(inp->diheTypesParm)));
-	    
-	    index=0+3*(inp->nDiheTypesParm[itype]-1);
-	    
-	    inp->diheTypesParm[itype][index]=atof(buff3);
-	    inp->diheTypesParm[itype][index+1]=atof(buff4);
-	    inp->diheTypesParm[itype][index+2]=atof(buff5);
-	    
-	  }
-	}
-      }
-      else if(k==4)      
-      {
-	if((buff2!=NULL)&&(buff2[0]!='!'))
-	{
-	  buff3=strtok(NULL," \n\t");
-	  buff4=strtok(NULL," \n\t");
-	  buff5=strtok(NULL," \n\t");
-	  
-	  ia=-1;
-	  ib=-1;
-	  ic=-1;
-	  id=-1;
-	  
-	  if(!strcmp(buff2,"X"))
-	  {
-	    ia=inp->nTypes;
-	  }
-	  else
-	  {
-	    for(l=0;l<inp->nTypes;l++)
-	    {
-	      if(!strcmp(buff2,inp->types[l]))
-	      {
-		ia=l;
-		break;
-	      }
-	    }
-	  }
-	  
-	  if(ia==-1)
-	    continue;
-	  
-	  if(!strcmp(buff3,"X"))
-	  {
-	    ib=inp->nTypes;
-	  }
-	  else
-	  {
-	    for(l=0;l<inp->nTypes;l++)
-	    {
-	      if(!strcmp(buff3,inp->types[l]))
-	      {
-		ib=l;
-		break;
-	      }
-	    }
-	  }
-	  
-	  if(ib==-1)
-	    continue;
-	  
-	  if(!strcmp(buff4,"X"))
-	  {
-	    ic=inp->nTypes;
-	  }
-	  else
-	  {
-	    for(l=0;l<inp->nTypes;l++)
-	    {
-	      if(!strcmp(buff4,inp->types[l]))
-	      {
-		ic=l;
-		break;
-	      }
-	    }
-	  }
-	  
-	  if(ic==-1)
-	    continue;
-	  
-	  if(!strcmp(buff5,"X"))
-	  {
-	    id=inp->nTypes;
-	  }
-	  else 
-	  {
-	    for(l=0;l<inp->nTypes;l++)
-	    {
-	      if(!strcmp(buff5,inp->types[l]))
-	      {
-		id=l;
-		break;
-	      }
-	    }
-	  }
-	  
-	  if(id==-1)
-	    continue;
-	  
-	  if(id<ia)
-	  {
-	    inp->imprTypes[i][0]=id;
-	    inp->imprTypes[i][1]=ic;
-	    inp->imprTypes[i][2]=ib;
-	    inp->imprTypes[i][3]=ia;
-	  }
-	  else if(ia<id)
-	  {
-	    inp->imprTypes[i][0]=ia;
-	    inp->imprTypes[i][1]=ib;
-	    inp->imprTypes[i][2]=ic;
-	    inp->imprTypes[i][3]=id;
-	  }
-	  else if(ic<ib)
-	  {
-	    inp->imprTypes[i][0]=id;
-	    inp->imprTypes[i][1]=ic;
-	    inp->imprTypes[i][2]=ib;
-	    inp->imprTypes[i][3]=ia;
-	  }
-	  else
-	  {
-	    inp->imprTypes[i][0]=ia;
-	    inp->imprTypes[i][1]=ib;
-	    inp->imprTypes[i][2]=ic;
-	    inp->imprTypes[i][3]=id;
-	  }
-	  
-	  buff3=strtok(NULL," \n\t");
-	  buff4=strtok(NULL," \n\t");
-	  buff5=strtok(NULL," \n\t");
-	
-	  inp->imprTypesParm[i][0]=atof(buff3);
-	  inp->imprTypesParm[i][1]=atof(buff4);
-	  inp->imprTypesParm[i][2]=atof(buff5);
-	  
-	  i++;
-	  inp->nImprTypes=i;
-	}
-      }
-      else if(k==5)      
-      {
-	if((buff2!=NULL)&&(buff2[0]!='!'))
-	{
-	  buff3=strtok(NULL," \n\t");
-	  buff4=strtok(NULL," \n\t");
-	  buff5=strtok(NULL," \n\t");
-	  
-	  ii=-1;
-	  for(l=0;l<inp->nTypes;l++)
-	  {
-	    if(!strcmp(buff2,inp->types[l]))
-	    {
-	      ii=l;
-	      break;
-	    }
-	  }
-	  
-	  if(ii==-1)
-	    continue;
-	
-	  inp->nonBondedTypesParm[ii][0]=atof(buff3);
-	  inp->nonBondedTypesParm[ii][1]=atof(buff4);
-	  inp->nonBondedTypesParm[ii][2]=atof(buff5);
-	  
-	  buff3=strtok(NULL," \n\t");
-	  if((buff3!=NULL)&&(buff3[0]!='!'))
-	  {
-	    buff4=strtok(NULL," \n\t");
-	    buff5=strtok(NULL," \n\t");
-	    
-	    inp->nonBondedTypesParm[ii][3]=atof(buff3);
-	    inp->nonBondedTypesParm[ii][4]=atof(buff4);
-	    inp->nonBondedTypesParm[ii][5]=atof(buff5);
-	  }
-	  i++;
-	  inp->nNonBonded=i;
-	}
-      }
-    }
-    fclose(parFile);
-}
-
-void read_CONF(ATOM atom[],SIMULPARAMS *simulCond)
+void read_CONF(IO *inout,PARAM *param,ATOM **atom,double **x,double **y, double **z)
 {
   
   char buff1[1024]="", *buff2=NULL;
 
-    FILE *confFile=NULL;
-    char ren[5],atl[5],sen[5];
-    int i,atn,res,ire,natomCheck;
+    char ren[5]="",atl[5]="",sen[5]="";
+    int i,/*j,*/atn,res,ire;
     double wei,xx,yy,zz;
     
-    confFile=fopen("CONF","r");
+    inout->confFile=fopen(inout->confName,"r");
 
-    if (confFile==NULL)
+    if (inout->confFile==NULL)
     {
-      error(40);
+      my_error(CONF_FILE_ERROR,__FILE__,__LINE__,0);
     }
     
-    while(fgets(buff1,1024,confFile)!=NULL)
+    while(fgets(buff1,1024,inout->confFile)!=NULL)
     {
 
       if(buff1[0]!='*')
@@ -1626,652 +750,495 @@ void read_CONF(ATOM atom[],SIMULPARAMS *simulCond)
     }
     
     buff2=strtok(buff1," \n\t");
-    natomCheck=atof(buff2);
+    param->nAtom=atoi(buff2);
     
-    if(natomCheck!=simulCond->natom)
-      error(41);
+    *atom=(ATOM*)my_malloc(param->nAtom*sizeof(ATOM));
     
-    for(i=0;i<natomCheck;i++)
+    *x=(double*)my_malloc(param->nAtom*sizeof(double));
+    *y=(double*)my_malloc(param->nAtom*sizeof(double));
+    *z=(double*)my_malloc(param->nAtom*sizeof(double));
+    
+    for(i=0;i<param->nAtom;i++)
     {
-      fscanf(confFile,"%d %d %s %s %lf %lf %lf %s %d %lf",&atn,&ire,ren,atl,&xx,&yy,&zz,sen,&res,&wei);
-      atom[i].x=xx;
-      atom[i].y=yy;
-      atom[i].z=zz;
+      fscanf(inout->confFile,"%d %d %4s %4s %lf %lf %lf %4s %d %lf",&atn,&ire,ren,atl,&xx,&yy,&zz,sen,&res,&wei);
       
-      atom[i].ires=ire;
-
+      (*x)[i]=xx;
+      (*y)[i]=yy;
+      (*z)[i]=zz;
+      
+      (*atom)[i].ires=ire;
+      (*atom)[i].resi=res;
+      
+      strcpy((*atom)[i].label,atl);
+      strcpy((*atom)[i].resn,ren);
+      strcpy((*atom)[i].segn,sen);
+      
     }
     
-    fclose(confFile);
+    fclose(inout->confFile);
 }
 
-void setup(INPUTS *inp,ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,CONSTRAINT *constList)
+void read_rest(IO *inout,PARAM *param,ENERGY *ener,BATH *bath,ATOM **atom,
+	       double **x,double **y, double **z,double **vx,double **vy,
+	       double **vz,double **fx,double **fy, double **fz)
 {
-  int i,j,k,ia,ib,ic,id,i0,i1,i2,i3,itype;
   
-  if(ff->nBond>0)
-  {
-    ff->parmBond=(double**)malloc(ff->nBond*sizeof(*(ff->parmBond)));
-    for(i=0;i<ff->nBond;i++)
-      ff->parmBond[i]=(double*)malloc(2*sizeof(**(ff->parmBond)));
-  }
+  size_t ret;
   
-  if(ff->nAngle>0)
-  {
-    ff->parmAngle=(double**)malloc(ff->nAngle*sizeof(*(ff->parmAngle)));
-    for(i=0;i<ff->nAngle;i++)
-      ff->parmAngle[i]=(double*)malloc(3*sizeof(**(ff->parmAngle)));
-  }
+  inout->restFile=fopen(inout->restName,"rb");
   
-  if(ff->nDihedral>0)
-  {
-    simulCond->diheType=(int*)malloc(ff->nDihedral*sizeof(*(simulCond->diheType)));
-    for(i=0;i<ff->nDihedral;i++)
-      simulCond->diheType[i]=0;
-    
-    ff->parmDihe=(double**)malloc(ff->nDihedral*sizeof(*(ff->parmDihe)));
-    
-    ff->nParmDihe=(int*)malloc(ff->nDihedral*sizeof(*(ff->nParmDihe)));
-  }
+  ret=fread(&(param->step),sizeof(int),1,inout->restFile);
+  if(ret!=1)
+    my_error(502,__FILE__,__LINE__,0);
   
-  if(ff->nImproper>0)
-  {
-    simulCond->imprType=(int*)malloc(ff->nImproper*sizeof(*(simulCond->imprType)));
-    for(i=0;i<ff->nImproper;i++)
-      simulCond->imprType[i]=0;
-    
-    ff->parmImpr=(double**)malloc(ff->nImproper*sizeof(*(ff->parmImpr)));
-    for(i=0;i<ff->nImproper;i++)
-      ff->parmImpr[i]=(double*)malloc(3*sizeof(**(ff->parmImpr)));
-  }
+  ret=fread(&(param->nAtom),sizeof(int),1,inout->restFile);
+  if(ret!=1)
+    my_error(502,__FILE__,__LINE__,0);
   
-  ff->parmVdw=(double**)malloc(simulCond->natom*sizeof(*(ff->parmVdw)));
-  for(i=0;i<simulCond->natom;i++)
-    ff->parmVdw[i]=(double*)malloc(6*sizeof(**(ff->parmVdw)));
+  *atom=(ATOM*)my_malloc(param->nAtom*sizeof(ATOM));
   
-  /*fprintf(outFile,"Let's check what there is in atom->atomType\n");
-  for(i=0;i<simulCond->natom;i++)
-  {
-    fprintf(outFile,"%d %d %d\n",simulCond->natom,i,atom[i].type);
-  }
+  *x=(double*)my_malloc(param->nAtom*sizeof(double));
+  *y=(double*)my_malloc(param->nAtom*sizeof(double));
+  *z=(double*)my_malloc(param->nAtom*sizeof(double));
+  
+  *vx=(double*)my_malloc(param->nAtom*sizeof(double));
+  *vy=(double*)my_malloc(param->nAtom*sizeof(double));
+  *vz=(double*)my_malloc(param->nAtom*sizeof(double));
+  
+  *fx=(double*)my_malloc(param->nAtom*sizeof(double));
+  *fy=(double*)my_malloc(param->nAtom*sizeof(double));
+  *fz=(double*)my_malloc(param->nAtom*sizeof(double));
+  
+  ret=fread(*atom,sizeof(ATOM),param->nAtom,inout->restFile);
+  if(ret!=(size_t)param->nAtom)
+    my_error(502,__FILE__,__LINE__,0);
+  
+  ret=fread(*x,sizeof(double),param->nAtom,inout->restFile);
+  if(ret!=(size_t)param->nAtom)
+    my_error(502,__FILE__,__LINE__,0);
+  
+  ret=fread(*y,sizeof(double),param->nAtom,inout->restFile);
+  if(ret!=(size_t)param->nAtom)
+    my_error(502,__FILE__,__LINE__,0);
+  
+  ret=fread(*z,sizeof(double),param->nAtom,inout->restFile);
+  if(ret!=(size_t)param->nAtom)
+    my_error(502,__FILE__,__LINE__,0);
+  
+  ret=fread(*vx,sizeof(double),param->nAtom,inout->restFile);
+  if(ret!=(size_t)param->nAtom)
+    my_error(502,__FILE__,__LINE__,0);
+  
+  ret=fread(*vy,sizeof(double),param->nAtom,inout->restFile);
+  if(ret!=(size_t)param->nAtom)
+    my_error(502,__FILE__,__LINE__,0);
+  
+  ret=fread(*vz,sizeof(double),param->nAtom,inout->restFile);
+  if(ret!=(size_t)param->nAtom)
+    my_error(502,__FILE__,__LINE__,0);
+  
+  ret=fread(*fx,sizeof(double),param->nAtom,inout->restFile);
+  if(ret!=(size_t)param->nAtom)
+    my_error(502,__FILE__,__LINE__,0);
+  
+  ret=fread(*fy,sizeof(double),param->nAtom,inout->restFile);
+  if(ret!=(size_t)param->nAtom)
+    my_error(502,__FILE__,__LINE__,0);
+  
+  ret=fread(*fz,sizeof(double),param->nAtom,inout->restFile);
+  if(ret!=(size_t)param->nAtom)
+    my_error(502,__FILE__,__LINE__,0);
+  
+  ret=fread(ener,sizeof(ENERGY),1,inout->restFile);
+  if(ret!=1)
+    my_error(502,__FILE__,__LINE__,0);
+  
+  ret=fread(&(bath->chiT),sizeof(double),1,inout->restFile);
+  if(ret!=1)
+    my_error(502,__FILE__,__LINE__,0);
+  
+  ret=fread(&(bath->chiP),sizeof(double),1,inout->restFile);
+  if(ret!=1)
+    my_error(502,__FILE__,__LINE__,0);
+  
+  fclose(inout->restFile);
+  
+}
 
-  fprintf(outFile,"Let's check what there is in inp->types\n");
-  for(i=0;i<inp->nTypes;i++)
-  {
-     fprintf(outFile,"%d %d %d %s\n",inp->nTypes,i,inp->typesNum[i],inp->types[i]);
-  }
+void read_FORF(IO *inout,PARAM *param,ATOM atom[],CONSTRAINT **constList,BOND **bond,
+	       ANGLE **angle,DIHE **dihe,DIHE **impr,BOND **ub,double *eps,double *sig,
+	       double *eps14, double *sig14,double *mass,double *q,int *frozen,int *nAtConst)
+{
   
-  fprintf(outFile,"Let's check what there is in iBond\n");
-  for(i=0;i<ff->nBond;i++)
-  {
-     fprintf(outFile,"%d %d %d %d %d\n",ff->nBond,simulCond->iBond[i][0],simulCond->iBond[i][1],atom[simulCond->iBond[i][0]].type,atom[simulCond->iBond[i][1]].type);
-  }
+  char buff1[1024]="", *buff2=NULL, buff3[1024]="", *buff4=NULL;
+  int i,k,ia,ib;
+  int nAtomCheck;
   
-  fprintf(outFile,"Let's check what there is in bondTypes\n");
-  for(j=0;j<inp->nBondTypes;j++)
-  {
-     fprintf(outFile,"%d %d %d\n",inp->nBondTypes,inp->bondTypes[j][0],inp->bondTypes[j][1]);
-  }
-
-  fprintf(outFile,"Let's check what there is in iAngle\n");
-  for(i=0;i<ff->nAngle;i++)
-  {
-     fprintf(outFile,"%d %d %d %d\n",ff->nAngle,simulCond->iAngle[i][0],simulCond->iAngle[i][1],simulCond->iAngle[i][2]);
-  }
+  inout->forfFile=fopen(inout->forfName,"r");
   
-  fprintf(outFile,"Let's check what there is in angTypes\n");
-  for(j=0;j<inp->nAngTypes;j++)
-  {
-     fprintf(outFile,"%d %d %d %d\n",inp->nAngTypes,inp->angTypes[j][0],inp->angTypes[j][1],inp->angTypes[j][2]);
-  }
-
-  fprintf(outFile,"Let's check what there is in iDihedral\n");
-  for(i=0;i<ff->nDihedral;i++)
-  {
-     fprintf(outFile,"%d %d %d %d %d\n",ff->nDihedral,simulCond->iDihedral[i][0],simulCond->iDihedral[i][1],simulCond->iDihedral[i][2],simulCond->iDihedral[i][3]);
-  }
+  param->nBond=0;
+  param->nConst=0;
+  param->nUb=0;
+  param->nAngle=0;
+  param->nDihedral=0;
+  param->nImproper=0;
   
-  fprintf(outFile,"Let's check what there is in diheTypes\n");
-  for(j=0;j<inp->nDiheTypes;j++)
+  while(fgets(buff1,1024,inout->forfFile)!=NULL)
   {
-     fprintf(outFile,"%d %d %d %d %d\n",inp->nDiheTypes,inp->diheTypes[j][0],inp->diheTypes[j][1],inp->diheTypes[j][2],inp->diheTypes[j][3]);
-  }
-  
-  if(simulCond->keyconsth)
-  {
-    fprintf(outFile,"Let's check what there is in constList\n");
-    fprintf(outFile,"pointer adress=%p\n",constList);
-    for(i=0;i<simulCond->nconst;i++)
-    {
-      fprintf(outFile,"%d %d %d\n",simulCond->nconst,constList[i].a,constList[i].b);
-    }
-  }
-
-  fprintf(outFile,"Now if the loop.\n");*/
-
-  for(i=0;i<ff->nBond;i++)
-  {
-    ia=atom[simulCond->iBond[i][0]].type;
-    ib=atom[simulCond->iBond[i][1]].type;
+    nocase(buff1);
     
-    if(ib<ia)
-    {
-      i0=ib;
-      i1=ia;
-    }
-    else
-    {
-      i0=ia;
-      i1=ib;
-    }
-    
-    itype=-1;
-    for(j=0;j<inp->nBondTypes;j++)
-    {
-      if( (i0==inp->bondTypes[j][0]) && (i1==inp->bondTypes[j][1]) )
-      {
-	itype=j;
-	break;
-      }
-    }
-    
-    if(itype==-1)
-      error(71);
-    
-    ff->parmBond[i][0]=inp->bondTypesParm[itype][0]*2.*kcaltoiu;
-    ff->parmBond[i][1]=inp->bondTypesParm[itype][1];
-    
-  }
-  
-  if(simulCond->keyconsth)
-  {
-    for(i=0;i<simulCond->nconst;i++)
-    {
-      ia=atom[constList[i].a].type;
-      ib=atom[constList[i].b].type;
-      
-      if(ib<ia)
-      {
-	i0=ib;
-	i1=ia;
-      }
-      else
-      {
-	i0=ia;
-	i1=ib;
-      }
-      
-      itype=-1;
-      for(j=0;j<inp->nBondTypes;j++)
-      {
-	if( (i0==inp->bondTypes[j][0]) && (i1==inp->bondTypes[j][1]) )
-	{
-	  itype=j;
-	  break;
-	}
-      }
-      
-      if(itype==-1)
-	error(71);
-      
-      constList[i].rc2=X2(inp->bondTypesParm[itype][1]);
-    }
-  }
-  
-  ff->nUb=0;
-  for(i=0;i<ff->nAngle;i++)
-  {
-    ia=atom[simulCond->iAngle[i][0]].type;
-    ib=atom[simulCond->iAngle[i][1]].type;
-    ic=atom[simulCond->iAngle[i][2]].type;
-    
-    if(ic<ia)
-    {
-      i0=ic;
-      i1=ib;
-      i2=ia;
-    }
-    else
-    {
-      i0=ia;
-      i1=ib;
-      i2=ic;
-    }
-    
-    itype=-1;
-    for(j=0;j<inp->nAngTypes;j++)
-    {
-      if( (i0==inp->angTypes[j][0]) && (i1==inp->angTypes[j][1]) && (i2==inp->angTypes[j][2]) )
-      {
-	itype=j;
-	break;
-      }
-    }
-    
-    if(itype==-1)
-      error(72);
-    
-    ff->parmAngle[i][0]=inp->angTypesParm[itype][0]*2.*kcaltoiu;
-    ff->parmAngle[i][1]=inp->angTypesParm[itype][1]*PI/180.;
-    
-    for(j=0;j<inp->nUbTypes;j++)
-    {
-      if( (i0==inp->ubTypes[j][0]) && (i1==inp->ubTypes[j][1]) && (i2==inp->ubTypes[j][2]) )
-      {
-	ff->nUb++;
-	break;
-      }
-    }
-  }
-  
-  if(ff->nUb>0)
-  {
-    ff->parmUb=(double**)malloc(ff->nUb*sizeof(*(ff->parmUb)));
-    for(i=0;i<ff->nUb;i++)
-      ff->parmUb[i]=(double*)malloc(2*sizeof(**(ff->parmUb)));
-    
-    simulCond->iUb=(int**)malloc(ff->nUb*sizeof(*(simulCond->iUb)));
-    for(i=0;i<ff->nUb;i++)
-      simulCond->iUb[i]=(int*)malloc(2*sizeof(**(simulCond->iUb)));
-  }
-  
-  k=0;
-  for(i=0;i<ff->nAngle;i++)
-  {
-    ia=atom[simulCond->iAngle[i][0]].type;
-    ib=atom[simulCond->iAngle[i][1]].type;
-    ic=atom[simulCond->iAngle[i][2]].type;
-    
-    if(ic<ia)
-    {
-      i0=ic;
-      i1=ib;
-      i2=ia;
-    }
-    else
-    {
-      i0=ia;
-      i1=ib;
-      i2=ic;
-    }
-    
-    itype=-1;
-    for(j=0;j<inp->nUbTypes;j++)
-    {
-      if( (i0==inp->ubTypes[j][0]) && (i1==inp->ubTypes[j][1]) && (i2==inp->ubTypes[j][2]) )
-      {
-	itype=j;
-	break;
-      }
-    }
-    
-    if(itype==-1)
+    if(buff1[0]=='#')
       continue;
     
-    simulCond->iUb[k][0]=simulCond->iAngle[i][0];
-    simulCond->iUb[k][1]=simulCond->iAngle[i][2];
-    ff->parmUb[k][0]=inp->ubTypesParm[itype][0]*2.*kcaltoiu;
-    ff->parmUb[k][1]=inp->ubTypesParm[itype][1];
-    k++;
-  }
-  
-  for(i=0;i<ff->nDihedral;i++)
-  {
-    ia=atom[simulCond->iDihedral[i][0]].type;
-    ib=atom[simulCond->iDihedral[i][1]].type;
-    ic=atom[simulCond->iDihedral[i][2]].type;
-    id=atom[simulCond->iDihedral[i][3]].type;
+    buff2=strtok(buff1," \n\t");
     
-    if(id<ia)
-    {
-      i0=id;
-      i1=ic;
-      i2=ib;
-      i3=ia;
-    }
-    else if(ia<id)
-    {
-      i0=ia;
-      i1=ib;
-      i2=ic;
-      i3=id;
-    }
-    else if(ic<ib)
-    {
-      i0=id;
-      i1=ic;
-      i2=ib;
-      i3=ia;
-    }
-    else
-    {
-      i0=ia;
-      i1=ib;
-      i2=ic;
-      i3=id;
-    }
-    
-    itype=-1;
-    for(j=0;j<inp->nDiheTypes;j++)
-    {
-      if( (i0==inp->diheTypes[j][0]) && (i1==inp->diheTypes[j][1]) && (i2==inp->diheTypes[j][2]) && (i3==inp->diheTypes[j][3]) )
-      {
-	itype=j;
-	break;
-      }
-    }
-    
-    if(itype==-1)
-    {
-      if(ic<ib)
-      {
-	i0=inp->nTypes;
-	i1=ic;
-	i2=ib;
-	i3=inp->nTypes;
-      }
-      else
-      {
-	i0=inp->nTypes;
-	i1=ib;
-	i2=ic;
-	i3=inp->nTypes;
-      }
-    
-      for(j=0;j<inp->nDiheTypes;j++)
-      {
-	if( (i0==inp->diheTypes[j][0]) && (i1==inp->diheTypes[j][1]) && (i2==inp->diheTypes[j][2]) && (i3==inp->diheTypes[j][3]) )
-	{
-	  itype=j;
-	  break;
-	}
-      }
-    }
-    
-    if(itype==-1)
-      error(73);
-    
-    ff->nParmDihe[i]=inp->nDiheTypesParm[itype];
-    
-    ff->parmDihe[i]=(double*)malloc(3*inp->nDiheTypesParm[itype]*sizeof(**(ff->parmDihe)));
-    
-    for(j=0;j<ff->nParmDihe[i];j++)
-    {
-      k=3*j;
-      ff->parmDihe[i][k]=inp->diheTypesParm[itype][k]*kcaltoiu;
-      ff->parmDihe[i][k+1]=inp->diheTypesParm[itype][k+1];
-      ff->parmDihe[i][k+2]=inp->diheTypesParm[itype][k+2]*PI/180.;
-    }
-    
-    if(ff->nParmDihe[i]==1&&ff->parmDihe[i][1]<0.5)
-    {
-      ff->parmDihe[i][0]=ff->parmDihe[i][0]*2.;
-      ff->parmDihe[i][1]=ff->parmDihe[i][2];
-      simulCond->diheType[i]=2;
-    }
-    else if(ff->nParmDihe[i]>1&&ff->parmDihe[i][1]<0.5)
-      error(50);
-    else
-      simulCond->diheType[i]=1;
-  }
-  
-  for(i=0;i<ff->nImproper;i++)
-  {
-    ia=atom[simulCond->iImproper[i][0]].type;
-    ib=atom[simulCond->iImproper[i][1]].type;
-    ic=atom[simulCond->iImproper[i][2]].type;
-    id=atom[simulCond->iImproper[i][3]].type;
-    
-    if(id<ia)
-    {
-      i0=id;
-      i1=ic;
-      i2=ib;
-      i3=ia;
-    }
-    else if(ia<id)
-    {
-      i0=ia;
-      i1=ib;
-      i2=ic;
-      i3=id;
-    }
-    else if(ic<ib)
-    {
-      i0=id;
-      i1=ic;
-      i2=ib;
-      i3=ia;
-    }
-    else
-    {
-      i0=ia;
-      i1=ib;
-      i2=ic;
-      i3=id;
-    }
-    
-    itype=-1;
-    for(j=0;j<inp->nImprTypes;j++)
-    {
-      if( (i0==inp->imprTypes[j][0]) && (i1==inp->imprTypes[j][1]) && (i2==inp->imprTypes[j][2]) && (i3==inp->imprTypes[j][3]) )
-      {
-	itype=j;
-	break;
-      }
-    }
-    
-    if(itype==-1)
+    if(!strcmp(buff2,"atoms"))
     {
       
-      i0=id;
-      i1=ic;
-      i2=ib;
-      i3=inp->nTypes;
-	
-      for(j=0;j<inp->nImprTypes;j++)
+      nAtomCheck=atoi(strtok(NULL," \n\t"));
+      if(nAtomCheck!=param->nAtom)
+	my_error(CONF_ATNUM_ERROR,__FILE__,__LINE__,2,&(param->nAtom),&nAtomCheck);
+      
+      k=0;
+      while(k<param->nAtom)
       {
-	if( (i0==inp->imprTypes[j][0]) && (i1==inp->imprTypes[j][1]) && (i2==inp->imprTypes[j][2]) && (i3==inp->imprTypes[j][3]) )
+	if(fgets(buff3,1024,inout->forfFile)!=NULL)
 	{
-	  itype=j;
-	  break;
+	  if(buff3[0]=='#')
+	    continue;
+	  
+	  i=atoi(strtok(buff3," \n\t"))-1;
+	  if(i!=k)
+	    my_error(PSF_FILE_ERROR,__FILE__,__LINE__,0);
+	  
+	  buff4=strtok(NULL," \n\t");
+	  
+	  atom[i].type=atoi(strtok(NULL," \n\t"));
+	  q[i]=atof(strtok(NULL," \n\t"));
+	  mass[i]=atof(strtok(NULL," \n\t"));
+	  frozen[i]=atoi(strtok(NULL," \n\t"));
+	  
+	  nAtConst[i]=0;
+	  
+	  if( ( frozen[i]!=0 ) && ( frozen[i]!=1 ) )
+	    my_error(21,__FILE__,__LINE__,0);
+	  
+	  k++;
 	}
+	else
+	  my_error(PSF_BADLINE_ERROR,__FILE__,__LINE__,0);
       }
     }
-    
-   if(itype==-1)
+    else if(!strcmp(buff2,"bonds"))
+    {
+      param->nBond=atoi(strtok(NULL," \n\t"));
+      
+      if(param->nBond==0)
+	continue;
+      
+      *bond=(BOND*)my_malloc(param->nBond*sizeof(BOND));
+      
+      k=0;
+      while(k<param->nBond)
+      {
+	if(fgets(buff3,1024,inout->forfFile)!=NULL)
+	{
+	  if(buff3[0]=='#')
+	    continue;
+	  
+	  (*bond)[k].a=atoi(strtok(buff3," \n\t"))-1;
+	  (*bond)[k].b=atoi(strtok(NULL," \n\t"))-1;
+	  
+	  (*bond)[k].type=atoi(strtok(NULL," \n\t"));
+	  
+	  (*bond)[k].k=atof(strtok(NULL," \n\t"))*kcaltoiu;
+	  (*bond)[k].r0=atof(strtok(NULL," \n\t"));
+	  (*bond)[k].beta=atof(strtok(NULL," \n\t"));
+	  
+	  k++;
+	  
+	}
+	else
+	  my_error(PSF_BOND_SEQ_ERROR,__FILE__,__LINE__,0);
+      }
+      
+    }
+    else if(!strcmp(buff2,"constraints"))
     {
       
-      i0=ia;
-      i1=ib;
-      i2=ic;
-      i3=inp->nTypes;
-	
-      for(j=0;j<inp->nImprTypes;j++)
+      param->nConst=atoi(strtok(NULL," \n\t"));
+      
+      if(param->nConst==0)
+	continue;
+      
+      *constList=(CONSTRAINT*)malloc(param->nConst*sizeof(CONSTRAINT));
+      
+      k=0;
+      while(k<param->nConst)
       {
-	if( (i0==inp->imprTypes[j][0]) && (i1==inp->imprTypes[j][1]) && (i2==inp->imprTypes[j][2]) && (i3==inp->imprTypes[j][3]) )
+	if(fgets(buff3,1024,inout->forfFile)!=NULL)
 	{
-	  itype=j;
-	  break;
+	  if(buff3[0]=='#')
+	    continue;
+	  
+	  ia=atoi(strtok(buff3," \n\t"))-1;
+	  ib=atoi(strtok(NULL," \n\t"))-1;
+	  
+	  (*constList)[k].a=ia;
+	  (*constList)[k].b=ib;
+	  
+	  buff4=strtok(NULL," \n\t");
+	  (*constList)[k].rc2=X2(atof(buff4));
+	  
+	  nAtConst[ia]++;
+	  nAtConst[ib]++;
+	  
+	  k++;
+	    
 	}
+	else
+	  my_error(27,__FILE__,__LINE__,0);
       }
+      
     }
-    
-    if(itype==-1)
+    else if(!strcmp(buff2,"urey-bradley"))
     {
-      if(ic<ib)
+      param->nUb=atoi(strtok(NULL," \n\t"));
+      
+      if(param->nUb==0)
+	continue;
+      
+      *ub=(BOND*)my_malloc(param->nUb*sizeof(BOND));
+      
+      k=0;
+      while(k<param->nUb)
       {
-	i0=inp->nTypes;
-	i1=ic;
-	i2=ib;
-	i3=inp->nTypes;
-      }
-      else
-      {
-	i0=inp->nTypes;
-	i1=ib;
-	i2=ic;
-	i3=inp->nTypes;
-      }
-    
-      for(j=0;j<inp->nImprTypes;j++)
-      {
-	if( (i0==inp->imprTypes[j][0]) && (i1==inp->imprTypes[j][1]) && (i2==inp->imprTypes[j][2]) && (i3==inp->imprTypes[j][3]) )
+	if(fgets(buff3,1024,inout->forfFile)!=NULL)
 	{
-	  itype=j;
-	  break;
+	  if(buff3[0]=='#')
+	    continue;
+	  
+	  (*ub)[k].a=atoi(strtok(buff3," \n\t"))-1;
+	  (*ub)[k].b=atoi(strtok(NULL," \n\t"))-1;
+	  
+	  (*ub)[k].type=0;
+	  
+	  (*ub)[k].k=atof(strtok(NULL," \n\t"))*kcaltoiu;
+	  (*ub)[k].r0=atof(strtok(NULL," \n\t"));
+	  (*ub)[k].beta=atof(strtok(NULL," \n\t"));
+	  
+	  k++;
+	  
 	}
+	else
+	  my_error(28,__FILE__,__LINE__,0);
       }
+      
     }
-    
-    if(itype==-1)
+    else if(!strcmp(buff2,"angles"))
     {
-      if(id<ia)
+      param->nAngle=atoi(strtok(NULL," \n\t"));
+      
+      if(param->nAngle==0)
+	continue;
+      
+      *angle=(ANGLE*)my_malloc(param->nAngle*sizeof(ANGLE));
+      
+      k=0;
+      while(k<param->nAngle)
       {
-	i0=id;
-	i1=inp->nTypes;
-	i2=inp->nTypes;
-	i3=ia;
-      }
-      else
-      {
-	i0=ia;
-	i1=inp->nTypes;
-	i2=inp->nTypes;
-	i3=id;
-      }
-    
-      for(j=0;j<inp->nImprTypes;j++)
-      {
-	if( (i0==inp->imprTypes[j][0]) && (i1==inp->imprTypes[j][1]) && (i2==inp->imprTypes[j][2]) && (i3==inp->imprTypes[j][3]) )
+	if(fgets(buff3,1024,inout->forfFile)!=NULL)
 	{
-	  itype=j;
-	  break;
+	  if(buff3[0]=='#')
+	    continue;
+	  
+	  (*angle)[k].a=atoi(strtok(buff3," \n\t"))-1;
+	  (*angle)[k].b=atoi(strtok(NULL," \n\t"))-1;
+	  (*angle)[k].c=atoi(strtok(NULL," \n\t"))-1;
+	  
+	  (*angle)[k].type=atoi(strtok(NULL," \n\t"));
+	  
+	  (*angle)[k].k=atof(strtok(NULL," \n\t"))*kcaltoiu;
+	  (*angle)[k].theta0=atof(strtok(NULL," \n\t"))*PI/180.;
+	  
+	  k++;
+	  
 	}
+	else
+	  my_error(PSF_ANGL_SEQ_ERROR,__FILE__,__LINE__,0);
       }
+      
     }
-    
-    if(itype==-1)
+    else if(!strcmp(buff2,"dihedrals"))
+    {
+      param->nDihedral=atoi(strtok(NULL," \n\t"));
+      
+      if(param->nDihedral==0)
+	continue;
+      
+      *dihe=(DIHE*)my_malloc(param->nDihedral*sizeof(DIHE));
+      
+      k=0;
+      while(k<param->nDihedral)
+      {
+	if(fgets(buff3,1024,inout->forfFile)!=NULL)
+	{
+	  if(buff3[0]=='#')
+	    continue;
+	  
+	  (*dihe)[k].a=atoi(strtok(buff3," \n\t"))-1;
+	  (*dihe)[k].b=atoi(strtok(NULL," \n\t"))-1;
+	  (*dihe)[k].c=atoi(strtok(NULL," \n\t"))-1;
+	  (*dihe)[k].d=atoi(strtok(NULL," \n\t"))-1;
+	  
+	  (*dihe)[k].type=atoi(strtok(NULL," \n\t"));
+	  (*dihe)[k].order=atoi(strtok(NULL," \n\t"));
+	  
+	  (*dihe)[k].k=atof(strtok(NULL," \n\t"))*kcaltoiu;
+	  (*dihe)[k].phi0=atof(strtok(NULL," \n\t"))*PI/180.;
+	  (*dihe)[k].mult=atof(strtok(NULL," \n\t"));
+	  
+	  k++;
+	  
+	}
+	else
+	  my_error(PSF_DIHE_SEQ_ERROR,__FILE__,__LINE__,0);
+      }
+      
+    }
+    else if(!strcmp(buff2,"impropers"))
+    {
+      param->nImproper=atoi(strtok(NULL," \n\t"));
+      
+      if(param->nImproper==0)
+	continue;
+      
+      *impr=(DIHE*)my_malloc(param->nImproper*sizeof(DIHE));
+      
+      k=0;
+      while(k<param->nImproper)
+      {
+	if(fgets(buff3,1024,inout->forfFile)!=NULL)
+	{
+	  if(buff3[0]=='#')
+	    continue;
+	  
+	  (*impr)[k].a=atoi(strtok(buff3," \n\t"))-1;
+	  (*impr)[k].b=atoi(strtok(NULL," \n\t"))-1;
+	  (*impr)[k].c=atoi(strtok(NULL," \n\t"))-1;
+	  (*impr)[k].d=atoi(strtok(NULL," \n\t"))-1;
+	  
+	  (*impr)[k].type=atoi(strtok(NULL," \n\t"));
+	  (*impr)[k].order=atoi(strtok(NULL," \n\t"));
+	  
+	  (*impr)[k].k=atof(strtok(NULL," \n\t"))*kcaltoiu;
+	  (*impr)[k].phi0=atof(strtok(NULL," \n\t"))*PI/180.;
+	  (*impr)[k].mult=atof(strtok(NULL," \n\t"));
+	  
+	  k++;
+	  
+	}
+	else
+	  my_error(PSF_IMPR_SEQ_ERROR,__FILE__,__LINE__,0);
+      }
+      
+    }
+    else if(!strcmp(buff2,"vdw"))
     {
       
-      i0=id;
-      i1=ic;
-      i2=inp->nTypes;
-      i3=inp->nTypes;
-	
-      for(j=0;j<inp->nImprTypes;j++)
-      {
-	if( (i0==inp->imprTypes[j][0]) && (i1==inp->imprTypes[j][1]) && (i2==inp->imprTypes[j][2]) && (i3==inp->imprTypes[j][3]) )
-	{
-	  itype=j;
-	  break;
-	}
-      }
-    }
-    
-   if(itype==-1)
-    {
+      nAtomCheck=atoi(strtok(NULL," \n\t"));
+      if(nAtomCheck!=param->nAtom)
+	my_error(CONF_ATNUM_ERROR,__FILE__,__LINE__,2,&(param->nAtom),&nAtomCheck);
       
-      i0=ia;
-      i1=ib;
-      i2=inp->nTypes;
-      i3=inp->nTypes;
-	
-      for(j=0;j<inp->nImprTypes;j++)
+      int type;
+      double bet;
+      
+      k=0;
+      while(k<param->nAtom)
       {
-	if( (i0==inp->imprTypes[j][0]) && (i1==inp->imprTypes[j][1]) && (i2==inp->imprTypes[j][2]) && (i3==inp->imprTypes[j][3]) )
+	if(fgets(buff3,1024,inout->forfFile)!=NULL)
 	{
-	  itype=j;
-	  break;
+	  if(buff3[0]=='#')
+	    continue;
+	  
+	  i=atoi(strtok(buff3," \n\t"))-1;
+	  if(i!=k)
+	    my_error(PSF_FILE_ERROR,__FILE__,__LINE__,0);
+	  
+	  type=atoi(strtok(NULL," \n\t"));
+	  
+	  eps[i]=sqrt(atof(strtok(NULL," \n\t"))*kcaltoiu);
+	  sig[i]=atof(strtok(NULL," \n\t"));
+	  bet=atof(strtok(NULL," \n\t"));
+	  
+	  eps14[i]=sqrt(atof(strtok(NULL," \n\t"))*kcaltoiu);
+	  sig14[i]=atof(strtok(NULL," \n\t"));
+	  bet=atof(strtok(NULL," \n\t"));
+	  
+	  k++;
 	}
+	else
+	  my_error(PSF_BADLINE_ERROR,__FILE__,__LINE__,0);
       }
     }
-    
-    if(itype==-1)
-      error(74);
-    
-    ff->parmImpr[i][0]=inp->imprTypesParm[itype][0]*kcaltoiu;
-    ff->parmImpr[i][1]=inp->imprTypesParm[itype][1];
-    ff->parmImpr[i][2]=inp->imprTypesParm[itype][2]*PI/180.;
-    
-    if(ff->parmImpr[i][1]<0.5)
+    else if(!strcmp(buff2,"end"))
     {
-      ff->parmImpr[i][0]=ff->parmImpr[i][0]*2.;
-      ff->parmImpr[i][1]=ff->parmImpr[i][2];
-      simulCond->imprType[i]=2;
+      break;
     }
     else
-      simulCond->imprType[i]=1;
-  }
-  
-  for(i=0;i<simulCond->natom;i++)
-  {
-    
-    ff->parmVdw[i][0]=sqrt(-kcaltoiu*inp->nonBondedTypesParm[atom[i].type][1]);
-    ff->parmVdw[i][1]=inp->nonBondedTypesParm[atom[i].type][2]/sq6rt2;
-    ff->parmVdw[i][2]=inp->nonBondedTypesParm[atom[i].type][0];
-    
-    if(inp->nonBondedTypesParm[atom[i].type][5]>=0.)
     {
-      ff->parmVdw[i][3]=sqrt(-kcaltoiu*inp->nonBondedTypesParm[atom[i].type][4]);
-      ff->parmVdw[i][4]=inp->nonBondedTypesParm[atom[i].type][5]/sq6rt2;
-      ff->parmVdw[i][5]=inp->nonBondedTypesParm[atom[i].type][3];
-    }
-    else
-    {
-      ff->parmVdw[i][3]=ff->parmVdw[i][0];
-      ff->parmVdw[i][4]=ff->parmVdw[i][1];
-      ff->parmVdw[i][5]=ff->parmVdw[i][2];
+      my_error(29,__FILE__,__LINE__,0);
     }
   }
   
+  fclose(inout->forfFile);
 }
 
-void write_CONF(ATOM atom[],SIMULPARAMS *simulCond)
+void write_CONF(IO *inout,PARAM *param,ATOM atom[],double *x,double *y, double *z)
 {
   
-  FILE *confFile=NULL;
   int i;
   double wei=0.;
 
-  confFile=fopen("RESCONF","w");
+  inout->rconFile=fopen(inout->rconName,"w");
 
-  if (confFile==NULL)
+  if (inout->rconFile==NULL)
   {
-    error(47);
+    my_error(RESCONF_FILE_ERROR,__FILE__,__LINE__,0);
   }
 
-  fprintf(confFile,"*Restart Configuration\n");
-  fprintf(confFile,"* Written by MDBas\n");
-  fprintf(confFile,"*\n");
-  fprintf(confFile,"%5d\n",simulCond->natom);
+  fprintf(inout->rconFile,"*Restart Configuration\n");
+  fprintf(inout->rconFile,"* Written by MDBas\n");
+  fprintf(inout->rconFile,"*\n");
+  fprintf(inout->rconFile,"%5d\n",param->nAtom);
   
-  for(i=0;i<simulCond->natom;i++)
+  for(i=0;i<param->nAtom;i++)
   {
-    fprintf(confFile,"%5d %4d %-4s %-4s%10.5lf%10.5lf%10.5lf %-4s %-4d%10.5lf\n",
-	    i+1,atom[i].ires,atom[i].resn,atom[i].label,atom[i].x,atom[i].y,
-	    atom[i].z,atom[i].segn,atom[i].resi,wei);
+    fprintf(inout->rconFile,"%5d%5d %-4s %-4s%10.5lf%10.5lf%10.5lf %-4s %-4d%10.5lf\n",
+	    i+1,atom[i].ires,atom[i].resn,atom[i].label,x[i],y[i],
+	    z[i],atom[i].segn,atom[i].resi,wei);
     
   }
 
-  fclose(confFile);
+  fclose(inout->rconFile);
 }
 
-void write_prop(SIMULPARAMS *simulCond,ENERGY *ener,PBC *box)
+void write_prop(IO *inout,PARAM *param,ENERGY *ener,PBC *box)
 {
-  FILE *propFile=fopen("PROP","ab");
   
-  double buffer[29];
+  double buffer[29]={0.};
   double temp,press;
   
-  temp=2.*ener->kin/((double)simulCond->degfree*rboltzui);
+  inout->propFile=fopen(inout->propName,"ab");
+  
+  temp=2.*ener->kin/((double)param->nDegFree*rboltzui);
   if(box->type>0)
     press=(2.*ener->kin-ener->virtot)/(3.*box->vol*bartoiu);
   else
     press=0.;
 
-  buffer[0]=(double)simulCond->step;
-  buffer[1]=(double)simulCond->step*simulCond->timeStep;
+  buffer[0]=(double)param->step;
+  buffer[1]=(double)param->step*param->timeStep;
   buffer[2]=temp;
   buffer[3]=press;
   buffer[4]=box->vol;
@@ -2296,302 +1263,180 @@ void write_prop(SIMULPARAMS *simulCond,ENERGY *ener,PBC *box)
   
   box_to_lattice(box,&(buffer[23]));
   
-  fwrite(buffer,sizeof(double),29,propFile);
+  fwrite(buffer,sizeof(double),29,inout->propFile);
   
-  fclose(propFile);
+  fclose(inout->propFile);
   
 }
 
-void write_rest(SIMULPARAMS *simulCond,ENERGY *ener,ATOM *atom)
+void write_rest(IO *inout,PARAM *param,ENERGY *ener,BATH *bath,ATOM atom[],
+	        double *x,double *y, double *z,double *vx,double *vy,double *vz,
+	        double *fx,double *fy, double *fz)
 {
-  FILE *restFile=fopen("RESTART","wb");
-  
-  /*/double buffer[20];
-  
-  fwrite(&(simulCond->step),sizeof(int),1,restFile);
-
-  buffer[0]=ener->tot;
-  buffer[1]=ener->kin;
-  buffer[2]=ener->pot;
-  buffer[3]=ener->elec;
-  buffer[4]=ener->vdw;
-  buffer[5]=ener->bond;
-  buffer[6]=ener->ang;
-  buffer[7]=ener->ub;
-  buffer[8]=ener->dihe;
-  buffer[9]=ener->impr;
-  buffer[10]=ener->virtot;
-  buffer[11]=ener->virpot;
-  buffer[12]=ener->virelec;
-  buffer[13]=ener->virvdw;
-  buffer[14]=ener->virbond;
-  buffer[15]=ener->virub;
-  buffer[16]=ener->virshake;
-  buffer[17]=ener->conint;
-  buffer[18]=simulCond->lambdat;
-  buffer[19]=simulCond->lambdat;
-  
-  fwrite(buffer,sizeof(double),20,propFile);
-  
-  int i;
-  double *x,*y,*z;
-  double *vx,*vy,*vz;
-  double *fx,*fy,*fz;
-  
-  
-  
-  for(i=0;i<simulCond;i++)
-  {
-    x[i]=
-  }*/
   
   size_t ret;
+//   int i;
   
-  ret=fwrite(&(simulCond->step),sizeof(int),1,restFile);
+  inout->restFile=fopen(inout->restName,"wb");
+  
+  ret=fwrite(&(param->step),sizeof(int),1,inout->restFile);
   if(ret!=1)
-    error(501);
+    my_error(501,__FILE__,__LINE__,0);
   
-  ret=fwrite(&(simulCond->natom),sizeof(double),1,restFile);
+  ret=fwrite(&(param->nAtom),sizeof(int),1,inout->restFile);
   if(ret!=1)
-    error(501);
+    my_error(501,__FILE__,__LINE__,0);
   
-  ret=fwrite(atom,sizeof(ATOM),simulCond->natom,restFile);
-  if(ret!=simulCond->natom)
-    error(501);
+  ret=fwrite(atom,sizeof(ATOM),param->nAtom,inout->restFile);
+  if(ret!=(size_t)param->nAtom)
+    my_error(501,__FILE__,__LINE__,0);
+    
+  ret=fwrite(x,sizeof(double),param->nAtom,inout->restFile);
+  if(ret!=(size_t)param->nAtom)
+    my_error(501,__FILE__,__LINE__,0);
   
-  ret=fwrite(ener,sizeof(ENERGY),1,restFile);
+  ret=fwrite(y,sizeof(double),param->nAtom,inout->restFile);
+  if(ret!=(size_t)param->nAtom)
+    my_error(501,__FILE__,__LINE__,0);
+  
+  ret=fwrite(z,sizeof(double),param->nAtom,inout->restFile);
+  if(ret!=(size_t)param->nAtom)
+    my_error(501,__FILE__,__LINE__,0);
+  
+  ret=fwrite(vx,sizeof(double),param->nAtom,inout->restFile);
+  if(ret!=(size_t)param->nAtom)
+    my_error(501,__FILE__,__LINE__,0);
+  
+  ret=fwrite(vy,sizeof(double),param->nAtom,inout->restFile);
+  if(ret!=(size_t)param->nAtom)
+    my_error(501,__FILE__,__LINE__,0);
+  
+  ret=fwrite(vz,sizeof(double),param->nAtom,inout->restFile);
+  if(ret!=(size_t)param->nAtom)
+    my_error(501,__FILE__,__LINE__,0);
+  
+  ret=fwrite(fx,sizeof(double),param->nAtom,inout->restFile);
+  if(ret!=(size_t)param->nAtom)
+    my_error(501,__FILE__,__LINE__,0);
+  
+  ret=fwrite(fy,sizeof(double),param->nAtom,inout->restFile);
+  if(ret!=(size_t)param->nAtom)
+    my_error(501,__FILE__,__LINE__,0);
+  
+  ret=fwrite(fz,sizeof(double),param->nAtom,inout->restFile);
+  if(ret!=(size_t)param->nAtom)
+    my_error(501,__FILE__,__LINE__,0);
+  
+  ret=fwrite(ener,sizeof(ENERGY),1,inout->restFile);
   if(ret!=1)
-    error(501);
+    my_error(501,__FILE__,__LINE__,0);
   
-  ret=fwrite(&(simulCond->lambdat),sizeof(double),1,restFile);
+  ret=fwrite(&(bath->chiT),sizeof(double),1,inout->restFile);
   if(ret!=1)
-    error(501);
+    my_error(501,__FILE__,__LINE__,0);
   
-  ret=fwrite(&(simulCond->gammap),sizeof(double),1,restFile);
+  ret=fwrite(&(bath->chiP),sizeof(double),1,inout->restFile);
   if(ret!=1)
-    error(501);
+    my_error(501,__FILE__,__LINE__,0);
   
-  fclose(restFile);
+  fclose(inout->restFile);
   
 }
 
-void read_rest(SIMULPARAMS *simulCond,ENERGY *ener,ATOM *atom)
+void write_DCD_header(IO *inout,CTRL *ctrl,PARAM *param,PBC *box,int frozen[])
 {
-  FILE *restFile=fopen("RESTART","rb");
-  
-  size_t ret;
-  
-  ret=fread(&(simulCond->step),sizeof(int),1,restFile);
-  if(ret!=1)
-    error(502);
-  
-  ret=fread(&(simulCond->natom),sizeof(double),1,restFile);
-  if(ret!=1)
-    error(502);
-  
-  ret=fread(atom,sizeof(ATOM),simulCond->natom,restFile);
-  if(ret!=simulCond->natom)
-    error(502);
-  
-  ret=fread(ener,sizeof(ENERGY),1,restFile);
-  if(ret!=1)
-    error(502);
-  
-  ret=fread(&(simulCond->lambdat),sizeof(double),1,restFile);
-  if(ret!=1)
-    error(502);
-  
-  ret=fread(&(simulCond->gammap),sizeof(double),1,restFile);
-  if(ret!=1)
-    error(502);
-  
-  fclose(restFile);
-  
-}
-
-void write_FORF(INPUTS *inp,ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond)
-{
-  FILE *forfFile;
-  int i,j,k,l,ia,ib,ic,id,nd;
-  double kf,r0,ncos;
-  
-  forfFile=fopen("FORF","w");
-  
-  fprintf(forfFile,"ATOMS %d\n",simulCond->natom);
-  
-  for(i=0;i<simulCond->natom;i++)
-  {
-    k=atom[i].type;
-    fprintf(forfFile,"%s %lf %lf 1\n",inp->types[k],atom[i].m,atom[i].q);
-  }
-  
-  fprintf(forfFile,"BONDS %d\n",ff->nBond+ff->nUb);
-  
-  for(i=0;i<ff->nBond;i++)
-  {
-    ia=simulCond->iBond[i][0]+1;
-    ib=simulCond->iBond[i][1]+1;
-    kf=ff->parmBond[i][0]/kcaltoiu;
-    r0=ff->parmBond[i][1];
-    
-    fprintf(forfFile,"harm %d %d %lf %lf\n",ia,ib,kf,r0);
-       
-  }
-  
-  for(i=0;i<ff->nUb;i++)
-  {
-    ia=simulCond->iUb[i][0]+1;
-    ib=simulCond->iUb[i][1]+1;
-    kf=ff->parmUb[i][0]/kcaltoiu;
-    r0=ff->parmUb[i][1];
-    
-    fprintf(forfFile,"harm %d %d %lf %lf\n",ia,ib,kf,r0);
-       
-  }
-  
-  fprintf(forfFile,"ANGLES %d\n",ff->nAngle);
-  
-  for(i=0;i<ff->nAngle;i++)
-  {
-    ia=simulCond->iAngle[i][0]+1;
-    ib=simulCond->iAngle[i][1]+1;
-    ic=simulCond->iAngle[i][2]+1;
-    kf=ff->parmAngle[i][0]/kcaltoiu;
-    r0=ff->parmAngle[i][1]*180./PI;
-    
-    fprintf(forfFile,"harm %d %d %d %lf %lf\n",ia,ib,ic,kf,r0);
-  }
-  
-  nd=0;
-  for(i=0;i<ff->nDihedral;i++)
-  {
-    for(j=0;j<ff->nParmDihe[i];j++)
-    {
-      nd++;
-    }
-  }
-  
-  fprintf(forfFile,"DIHEDRALS %d\n",nd+ff->nImproper);
-  
-  for(i=0;i<ff->nDihedral;i++)
-  {
-    ia=simulCond->iDihedral[i][0]+1;
-    ib=simulCond->iDihedral[i][1]+1;
-    ic=simulCond->iDihedral[i][2]+1;
-    id=simulCond->iDihedral[i][3]+1;
-    
-    if(simulCond->diheType[i]==1)
-    {
-      for(j=0;j<ff->nParmDihe[i];j++)
-      {
-	k=3*j;
-	kf=ff->parmDihe[i][k]/kcaltoiu;
-	ncos=ff->parmDihe[i][k+1];
-	r0=ff->parmDihe[i][k+2]*180./PI;
-	
-	fprintf(forfFile,"cos %d %d %d %d %lf %lf %lf\n",ia,ib,ic,id,kf,r0,ncos);
-      }
-    }
-    else if(simulCond->diheType[i]==2)
-    {
-      kf=ff->parmDihe[i][0]/kcaltoiu;
-      r0=ff->parmDihe[i][1]*180./PI;
-      
-      fprintf(forfFile,"harm %d %d %d %d %lf %lf\n",ia,ib,ic,id,kf,r0);
-    }
-    
-  }
-  
-  for(i=0;i<ff->nImproper;i++)
-  {
-    ia=simulCond->iImproper[i][0]+1;
-    ib=simulCond->iImproper[i][1]+1;
-    ic=simulCond->iImproper[i][2]+1;
-    id=simulCond->iImproper[i][3]+1;
-    
-    kf=ff->parmDihe[i][0]/kcaltoiu;
-    r0=ff->parmDihe[i][1]*180./PI;
-    
-    fprintf(forfFile,"harm %d %d %d %d %lf %lf\n",ia,ib,ic,id,kf,r0);
-  }
-  
-  nd=simulCond->natom*(simulCond->natom+1)/2;
-  fprintf(forfFile,"VDW %d\n",nd);
-  
-  for(i=0;i<simulCond->natom;i++)
-  {
-    for(j=i;j<simulCond->natom;j++)
-    {
-      k=atom[i].type;
-      l=atom[j].type;
-      kf=ff->parmVdw[i][0]*ff->parmVdw[j][0]/kcaltoiu;
-      r0=ff->parmVdw[i][1]+ff->parmVdw[j][1];
-      
-      fprintf(forfFile,"%s %s %lf %lf 1\n",inp->types[k],inp->types[l],kf,r0);
-    }
-  }
-  
-  fclose(forfFile);
-}
-
-void write_DCD_header(SIMULPARAMS *simulCond, PBC *box)
-{
-    FILE *dcdf=fopen("TRAJ","wb");
+    inout->trajFile=fopen(inout->trajName,"wb");
     
     char HDR[4]={'C','O','R','D'};
     
     int ICNTRL[20]={0};
-    ICNTRL[0]= simulCond->nsteps/simulCond->printtr;
-    ICNTRL[1]= simulCond->printtr;
-    ICNTRL[2]= simulCond->printtr;
-    ICNTRL[3]= simulCond->nsteps;
-    ICNTRL[7]= simulCond->degfree;
-    ICNTRL[8]= 0; //no frozen atom
+    ICNTRL[0]= param->nSteps/ctrl->printTraj;
+    ICNTRL[1]= ctrl->printTraj;
+    ICNTRL[2]= ctrl->printTraj;
+    ICNTRL[3]= param->nSteps;
+    ICNTRL[7]= param->nDegFree;
+    ICNTRL[8]= param->nFrozen;
     //ICNTRL[9]= timestep in akma but in 32 bits mode
     ICNTRL[10]= (box->type == NOBOX)?0:1;
     ICNTRL[19]= 37;
     
-    int NATOM=simulCond->natom;
+    int NATOM=param->nAtom;
+    int LNFREAT=NATOM-param->nFrozen;
     
-    int NTITLE=1;
-    char TITLE[80]="";
-    
+    int NTITLE=3;
+    char TITLE1[80]="";
+    char TITLE2[80]="";
+    char TITLE3[80]="";
+    char tmp[4096]="";
     time_t rawtime;
     struct tm *timeinfo;
 
     time(&rawtime);
     timeinfo = localtime(&rawtime);
-  
-    sprintf(TITLE,"* DCD writing time : %s",asctime(timeinfo));
+    char *user=NULL , *host=NULL , *pwd=NULL;
+    user=getenv("USER");
+    host=getenv("HOSTNAME");
+    pwd=getenv("PWD");
+    
+    sprintf(tmp,"* CREATION DATE : %s",asctime(timeinfo));
+    strncat(TITLE1,tmp,79);
+    sprintf(tmp,"* USER : %s HOSTNAME : %s",(user!=NULL)?user:"UNKNOWN",(host!=NULL)?host:"UNKNOWN");
+    strncat(TITLE2,tmp,79);
+    sprintf(tmp,"* PWD : %s",(pwd!=NULL)?pwd:"UNKNOWN");
+    strncat(TITLE3,tmp,79);
     
     unsigned int size;
     
     // first : HDR + ICNTRL
     size = 4*sizeof(char)+20*sizeof(int);
-    fwrite(&size,sizeof(unsigned int),1,dcdf);
-    fwrite(HDR,sizeof(char),4,dcdf);
-    fwrite(ICNTRL,sizeof(int),20,dcdf);
-    fwrite(&size,sizeof(unsigned int),1,dcdf);
+    fwrite(&size,sizeof(unsigned int),1,inout->trajFile);
+    fwrite(HDR,sizeof(char),4,inout->trajFile);
+    fwrite(ICNTRL,sizeof(int),20,inout->trajFile);
+    fwrite(&size,sizeof(unsigned int),1,inout->trajFile);
     
     // second : NTITLE + TITLE
-    size = sizeof(int) + 80*sizeof(char);
-    fwrite(&size,sizeof(unsigned int),1,dcdf);
-    fwrite(&NTITLE,sizeof(int),1,dcdf);
-    fwrite(TITLE,sizeof(char),80,dcdf);
-    fwrite(&size,sizeof(unsigned int),1,dcdf);
+    size = sizeof(int) + NTITLE*80*sizeof(char);
+    fwrite(&size,sizeof(unsigned int),1,inout->trajFile);
+    fwrite(&NTITLE,sizeof(int),1,inout->trajFile);
+    fwrite(TITLE1,sizeof(char),80,inout->trajFile);
+    fwrite(TITLE2,sizeof(char),80,inout->trajFile);
+    fwrite(TITLE3,sizeof(char),80,inout->trajFile);
+    fwrite(&size,sizeof(unsigned int),1,inout->trajFile);
     
-    // third : natom
+    // third : NATOM
     size = sizeof(int);
-    fwrite(&size,sizeof(unsigned int),1,dcdf);
-    fwrite(&NATOM,sizeof(int),1,dcdf);
-    fwrite(&size,sizeof(unsigned int),1,dcdf);
+    fwrite(&size,sizeof(unsigned int),1,inout->trajFile);
+    fwrite(&NATOM,sizeof(int),1,inout->trajFile);
+    fwrite(&size,sizeof(unsigned int),1,inout->trajFile);
     
-    fclose(dcdf);
+    // fourth : if some atoms are frozen, write here the list of free atoms
+    if(NATOM != LNFREAT)
+    {
+      int * freeat=NULL;
+      freeat=(int*)my_malloc(LNFREAT*sizeof(int));
+      
+      int i=0,j=0;
+      for(i=0;i<NATOM;i++)
+      {
+        if (frozen[i]) 
+          continue;
+        else
+          freeat[j++]=i;
+      }
+      size=LNFREAT*sizeof(int);
+      fwrite(&size,sizeof(unsigned int),1,inout->trajFile);
+      fwrite(freeat,sizeof(int),LNFREAT,inout->trajFile);
+      fwrite(&size,sizeof(unsigned int),1,inout->trajFile);
+      
+      free(freeat);
+    }
+    
+    fclose(inout->trajFile);
 }
 
-void write_DCD_traj(ATOM atom[], SIMULPARAMS *simulCond, PBC *box)
+void write_DCD_traj(IO *inout,PARAM *param,PBC *box,double x[],double y[], double z[],int frozen[])
 {
-    FILE *dcdf=fopen("TRAJ","ab");
+    inout->trajFile=fopen(inout->trajName,"ab");
     
     unsigned int size;
     
@@ -2602,213 +1447,50 @@ void write_DCD_traj(ATOM atom[], SIMULPARAMS *simulCond, PBC *box)
         box_to_crystal(box,box_matrix);
         
         size = 6*sizeof(double);
-        fwrite(&size,sizeof(unsigned int),1,dcdf);
-        fwrite(box_matrix,sizeof(double),6,dcdf);
-        fwrite(&size,sizeof(unsigned int),1,dcdf);
+        fwrite(&size,sizeof(unsigned int),1,inout->trajFile);
+        fwrite(box_matrix,sizeof(double),6,inout->trajFile);
+        fwrite(&size,sizeof(unsigned int),1,inout->trajFile);
     }
+    
+    int siz = (first) ? (param->nAtom) : (param->nAtom - param->nFrozen);
     
     // alloc of crdinates array + loading of coordinates ; but in float mode !
-    float *X = (float*)malloc(simulCond->natom*sizeof(float));
-    float *Y = (float*)malloc(simulCond->natom*sizeof(float));
-    float *Z = (float*)malloc(simulCond->natom*sizeof(float));
+    float *X = (float*)my_malloc(siz*sizeof(float));
+    float *Y = (float*)my_malloc(siz*sizeof(float));
+    float *Z = (float*)my_malloc(siz*sizeof(float));
     
-    int i;
-    for(i=0;i<simulCond->natom;i++)
+    int i=0,j=0;
+    for(i=0;i<param->nAtom;i++)
     {
-        X[i] = (float) atom[i].x;
-        Y[i] = (float) atom[i].y;
-        Z[i] = (float) atom[i].z;
+      if (frozen[i] && !first)
+        continue;
+      else
+      {
+        X[j] = (float) x[i];
+        Y[j] = (float) y[i];
+        Z[j] = (float) z[i];
+        j++;
+      }
     }
     
-    size = simulCond->natom*sizeof(float);
+    size = siz*sizeof(float);
     
     // writing X coordinates
-    fwrite(&size,sizeof(unsigned int),1,dcdf);
-    fwrite(X,sizeof(float),simulCond->natom,dcdf);
-    fwrite(&size,sizeof(unsigned int),1,dcdf);
+    fwrite(&size,sizeof(unsigned int),1,inout->trajFile);
+    fwrite(X,sizeof(float),siz,inout->trajFile);
+    fwrite(&size,sizeof(unsigned int),1,inout->trajFile);
     
     // writing Y coordinates
-    fwrite(&size,sizeof(unsigned int),1,dcdf);
-    fwrite(Y,sizeof(float),simulCond->natom,dcdf);
-    fwrite(&size,sizeof(unsigned int),1,dcdf);
+    fwrite(&size,sizeof(unsigned int),1,inout->trajFile);
+    fwrite(Y,sizeof(float),siz,inout->trajFile);
+    fwrite(&size,sizeof(unsigned int),1,inout->trajFile);
     
     // writing Z coordinates
-    fwrite(&size,sizeof(unsigned int),1,dcdf);
-    fwrite(Z,sizeof(float),simulCond->natom,dcdf);
-    fwrite(&size,sizeof(unsigned int),1,dcdf);
+    fwrite(&size,sizeof(unsigned int),1,inout->trajFile);
+    fwrite(Z,sizeof(float),siz,inout->trajFile);
+    fwrite(&size,sizeof(unsigned int),1,inout->trajFile);
     
-    fclose(dcdf);
-}
-
-void free_temp_array(INPUTS *inp)
-{
-  free(inp->typesNum);
-  free(inp->nDiheTypesParm);
-  free_2D(inp->nBondTypes,inp->bondTypes,inp->bondTypesParm,NULL);
-  free_2D(inp->nAngTypes,inp->angTypes,inp->angTypesParm,NULL);
-  free_2D(inp->nUbTypes,inp->ubTypes,inp->ubTypesParm,NULL);
-  free_2D(inp->nDiheTypes,inp->diheTypes,inp->diheTypesParm,NULL);
-  free_2D(inp->nImprTypes,inp->imprTypes,inp->imprTypesParm,NULL);
-  free_2D(inp->nTypes,inp->nonBondedTypesParm,NULL);
-}
-
-void error(int errorNumber)
-{
-  fprintf(outFile,"MDBas failed due to error number: %d\n",errorNumber);
-  switch (errorNumber)
-  {
-  case 10:
-    fprintf(outFile,"MDBas cannot find or open topology file TOP.\n");
-    fprintf(outFile,"Most likely, it is not properly named. Please check.\n");
-    break;
-  case 20:
-    fprintf(outFile,"MDBas cannot find or open structure file PSF.\n");
-    fprintf(outFile,"Most likely, it is not properly named. Please check.\n");
-    break;
-  case 22:
-    fprintf(outFile,"MDBas encountered a problem while reading atomic properties\n");
-    fprintf(outFile,"in the PSF file. There is an unexpected line there. Please\n");
-    fprintf(outFile,"consult the manual for further details about PSF file\n");
-    break;
-  case 23:
-    fprintf(outFile,"There is problem in bonds sequence in the PSF file. Please\n");
-    fprintf(outFile,"consult the manual for further details about PSF file\n");
-    break;
-  case 24:
-    fprintf(outFile,"There is problem in angles sequence in the PSF file. Please\n");
-    fprintf(outFile,"consult the manual for further details about PSF file\n");
-    break;
-  case 25:
-    fprintf(outFile,"There is problem in dihedrals sequence in the PSF file. Please\n");
-    fprintf(outFile,"consult the manual for further details about PSF file\n");
-    break;
-  case 26:
-    fprintf(outFile,"There is problem in improper angles sequence in the PSF file.\n");
-    fprintf(outFile,"Please consult the manual for further details about PSF file\n");
-    break;
-  case 30:
-    fprintf(outFile,"MDBas cannot find or open parameter file PAR.\n");
-    fprintf(outFile,"Most likely, it is not properly named. Please check.\n");
-    break;
-  case 40:
-    fprintf(outFile,"MDBas cannot find or open configuration file CONF.\n");
-    fprintf(outFile,"Most likely, it is not properly named. Please check.\n");
-    break;
-  case 41:
-    fprintf(outFile,"MDBas found a different number of atoms in CONF file and\n");
-    fprintf(outFile,"in PSF file. Structure does not match configuration.\n");
-    fprintf(outFile,"Check carefully these files.\n");
-    break;
-  case 47:
-    fprintf(outFile,"MDBas cannot open configuration file RESCONF.\n");
-    break;
-  case 50:
-    fprintf(outFile,"A dihedral angle is specified as a Fourier series but\n");
-    fprintf(outFile,"with one of the component being an harmonic potential.\n");
-    fprintf(outFile,"Check in PAR file.\n");
-    break;
-  case 60:
-    fprintf(outFile,"MDBas cannot find or open simulation file SIMU.\n");
-    fprintf(outFile,"Most likely, it is not properly named. Please check.\n");
-    break;
-  case 61:
-    fprintf(outFile,"MDBas does not recognise a keyword specified in SIMU.\n");
-    fprintf(outFile,"Please check SIMU file and the manual for the list of\n");
-    fprintf(outFile,"allowed keywords.\n");
-    break;
-  case 62:
-    fprintf(outFile,"MDBas does not recognise a parameter specified in SIMU.\n");
-    fprintf(outFile,"Please check SIMU file and the manual for the list of\n");
-    fprintf(outFile,"allowed keywords and their associated parameters.\n");
-    break;
-  case 63:
-    fprintf(outFile,"MDBas does not find a required parameter in SIMU.\n");
-    fprintf(outFile,"Please check SIMU file and the manual for the list of\n");
-    fprintf(outFile,"allowed keywords and their associated parameters.\n");
-    break;
-  case 71:
-    fprintf(outFile,"There is an undefined bond in the PSF. Most likely,\n");
-    fprintf(outFile,"there are missing parameters in the PAR file. Please check\n");
-    break;
-  case 72:
-    fprintf(outFile,"There is an undefined angle in the PSF. Most likely,\n");
-    fprintf(outFile,"there are missing parameters in the PAR file. Please check\n");
-    break;
-  case 73:
-    fprintf(outFile,"There is an undefined dihedral angle in the PSF. Most likely,\n");
-    fprintf(outFile,"there are missing parameters in the PAR file. Please check\n");
-    break;
-  case 74:
-    fprintf(outFile,"There is an undefined improper angle in the PSF. Most likely,\n");
-    fprintf(outFile,"there are missing parameters in the PAR file. Please check\n");
-    break;
-  case 110:
-    fprintf(outFile,"MDBas found a too many non-parameterised dihedral angles:\n");
-    fprintf(outFile,"4*nDihedrals. nDihedrals comes from the value specified\n");
-    fprintf(outFile,"in PSF file. Please check in PAR file. If such a number is\n");
-    fprintf(outFile,"normal for your simulation, you have to enter list.c to\n");
-    fprintf(outFile,"increase the size of the 1-4 pairs array from 5*nDihedrals to\n");
-    fprintf(outFile,"the size you really need. Then recompile MDBas.\n");
-    break;
-  case 111:
-    fprintf(outFile,"MDBas encountered a problem while setting the excluded atoms\n");
-    fprintf(outFile,"list. The last atom has exclusion which should not happen. This\n");
-    fprintf(outFile,"a bit annoying for there is no simple explanation for this.\n");
-    fprintf(outFile,"Maybe an error in one of the input files which is not detected\n");
-    fprintf(outFile,"by MDBas. Sorry for the trouble.\n");
-    break;
-  case 112:
-    fprintf(outFile,"MDBas encountered a problem while setting the excluded atoms\n");
-    fprintf(outFile,"list. The total excluded atoms does not match of the sum of\n");
-    fprintf(outFile,"excluded atoms for each atom. This a bit annoying for there is\n");
-    fprintf(outFile,"no simple explanation for this. Maybe an error in one of the\n");
-    fprintf(outFile,"input files which is not detected by MDBas. Sorry for the trouble.\n");
-    break;
-  case 120:
-    fprintf(outFile,"The number of neighbours around an atom is larger than the\n");
-    fprintf(outFile,"maximum allocated memory in the verList array (default 2048).\n");
-    fprintf(outFile,"This can occur fo very large cutoffs or in very heterogeneous\n");
-    fprintf(outFile,"systems. This can be fixed by changing the variable MAXLIST in\n");
-    fprintf(outFile,"global.h and recompilation of MDBas. An easy way to achieve this\n");
-    fprintf(outFile,"without editing the header file, is to add the compilation option\n");
-    fprintf(outFile,"-DMAXLIST=X, X being the new size of the array, for example 3072.\n");
-    break;
-  case 201:
-    fprintf(outFile,"Unknown electrostatic potential. This is most likely due to an\n");
-    fprintf(outFile,"error in the SIMU file. Please check this file and the manual\n");
-    fprintf(outFile,"for the list of keywords and available potentials.\n");
-    break;
-  case 202:
-    fprintf(outFile,"Unknown van der Waals potential. This is most likely due to an\n");
-    fprintf(outFile,"error in the SIMU file. Please check this file and the manual\n");
-    fprintf(outFile,"for the list of keywords and available potentials.\n");
-    break;
-  case 310:
-    fprintf(outFile,"Velocities quenching convergence failure, most likely due a non suitable\n");
-    fprintf(outFile,"initial configuration. If not, you can try increasing the number of cycles or\n");
-    fprintf(outFile,"make Shake convergence criterion more tolerant. Please check the manual.\n");
-    break;
-  case 311:
-    fprintf(outFile,"Shake convergence failure, most likely due a non suitable initial\n");
-    fprintf(outFile,"configuration. If not, you can try increasing the number of cycles or\n");
-    fprintf(outFile,"make Shake convergence criterion more tolerant. Please check the manual.\n");
-    break;
-  case 411:
-    fprintf(outFile,"Too large ratio of the cutoff for the link cell is asked. Maximum is 5.\n");
-    break;
-  case 412:
-    fprintf(outFile,"Too few link cells are created compared to the required ratio of the\n");
-    fprintf(outFile,"cutoff. Please check first that you cutoff is smaller than half of the\n");
-    fprintf(outFile,"smallest lattice parameter of your simulation. Alternatively, you can\n");
-    fprintf(outFile,"change the ratio or force the use of the standard neighbour list algorithm.\n");
-    break;
-  default:
-    fprintf(outFile,"MDBas failed due to unknown error number: %d\n",errorNumber);
-    fprintf(outFile,"Reading the manual will not help you. You are by yourself.\n");
-    fprintf(outFile,"Errare humanum est.\n");
-    break;
-  }
-  
-  exit(errorNumber);
+    if(first) first=0;
     
+    fclose(inout->trajFile);
 }

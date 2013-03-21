@@ -11,7 +11,9 @@
 #include "global.h"
 #include "energy.h"
 
-void numforce(ATOM atom[],DELTA *nForce,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box,int npoints,double h)
+void numforce(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,NEIGH *neigh,
+	      BOND bond[],BOND ub[],ANGLE angle[],DIHE dihe[],DIHE impr[],
+	      DELTA nForce[],double x[],double y[],double z[],int npoints,double h)
 {
   int i;
   double coord;
@@ -21,54 +23,54 @@ void numforce(ATOM atom[],DELTA *nForce,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS 
     
     double a,b;
     
-    for(i=0;i<simulCond->natom;i++)
+    for(i=0;i<param->nAtom;i++)
     {
       
-      coord=atom[i].x;
+      coord=x[i];
       
-      atom[i].x=coord-h;
-      energy(atom,ff,ener,simulCond,box);
+      x[i]=coord-h;
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       a=ener->pot;
       
-      atom[i].x=coord+h;
-      energy(atom,ff,ener,simulCond,box);
+      x[i]=coord+h;
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       b=ener->pot;
       
       nForce[i].x=-(b-a)/(2.*h);
       
-      atom[i].x=coord;
+      x[i]=coord;
       
       /***************************************************/
       
-      coord=atom[i].y;
+      coord=y[i];
       
-      atom[i].y=coord-h;
-      energy(atom,ff,ener,simulCond,box);
+      y[i]=coord-h;
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       a=ener->pot;
       
-      atom[i].y=coord+h;
-      energy(atom,ff,ener,simulCond,box);
+      y[i]=coord+h;
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       b=ener->pot;
       
       nForce[i].y=-(b-a)/(2.*h);
       
-      atom[i].y=coord;
+      y[i]=coord;
       
       /***************************************************/
       
-      coord=atom[i].z;
+      coord=z[i];
       
-      atom[i].z=coord-h;
-      energy(atom,ff,ener,simulCond,box);
+      z[i]=coord-h;
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       a=ener->pot;
       
-      atom[i].z=coord+h;
-      energy(atom,ff,ener,simulCond,box);
+      z[i]=coord+h;
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       b=ener->pot;
       
       nForce[i].z=-(b-a)/(2.*h);
       
-      atom[i].z=coord;
+      z[i]=coord;
     }
   }
   else if(npoints==4)
@@ -76,78 +78,78 @@ void numforce(ATOM atom[],DELTA *nForce,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS 
     
     double a,b,c,d;
     
-    for(i=0;i<simulCond->natom;i++)
+    for(i=0;i<param->nAtom;i++)
     {
       
-      coord=atom[i].x;
+      coord=x[i];
       
-      atom[i].x=coord-(2.*h);
-      energy(atom,ff,ener,simulCond,box);
+      x[i]=coord-(2.*h);
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       a=ener->pot;
       
-      atom[i].x=coord-h;
-      energy(atom,ff,ener,simulCond,box);
+      x[i]=coord-h;
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       b=ener->pot;
       
-      atom[i].x=coord+h;
-      energy(atom,ff,ener,simulCond,box);
+      x[i]=coord+h;
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       c=ener->pot;
       
-      atom[i].x=coord+(2.*h);
-      energy(atom,ff,ener,simulCond,box);
+      x[i]=coord+(2.*h);
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       d=ener->pot;
       
       nForce[i].x=-(8.*(c-b)-(d-a))/(12.*h);
       
-      atom[i].x=coord;
+      x[i]=coord;
       
       /***************************************************/
       
-      coord=atom[i].y;
+      coord=y[i];
       
-      atom[i].y=coord-(2.*h);
-      energy(atom,ff,ener,simulCond,box);
+      y[i]=coord-(2.*h);
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       a=ener->pot;
       
-      atom[i].y=coord-h;
-      energy(atom,ff,ener,simulCond,box);
+      y[i]=coord-h;
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       b=ener->pot;
       
-      atom[i].y=coord+h;
-      energy(atom,ff,ener,simulCond,box);
+      y[i]=coord+h;
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       c=ener->pot;
       
-      atom[i].y=coord+(2.*h);
-      energy(atom,ff,ener,simulCond,box);
+      y[i]=coord+(2.*h);
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       d=ener->pot;
       
       nForce[i].y=-(8.*(c-b)-(d-a))/(12.*h);
       
-      atom[i].y=coord;
+      y[i]=coord;
       
       /***************************************************/
       
-      coord=atom[i].z;
+      coord=z[i];
       
-      atom[i].z=coord-(2.*h);
-      energy(atom,ff,ener,simulCond,box);
+      z[i]=coord-(2.*h);
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       a=ener->pot;
       
-      atom[i].z=coord-h;
-      energy(atom,ff,ener,simulCond,box);
+      z[i]=coord-h;
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       b=ener->pot;
       
-      atom[i].z=coord+h;
-      energy(atom,ff,ener,simulCond,box);
+      z[i]=coord+h;
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       c=ener->pot;
       
-      atom[i].z=coord+(2.*h);
-      energy(atom,ff,ener,simulCond,box);
+      z[i]=coord+(2.*h);
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       d=ener->pot;
       
       nForce[i].z=-(8.*(c-b)-(d-a))/(12.*h);
       
-      atom[i].z=coord;
+      z[i]=coord;
       
     }
   }
@@ -156,102 +158,102 @@ void numforce(ATOM atom[],DELTA *nForce,FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS 
     
     double a,b,c,d,e,f;
     
-    for(i=0;i<simulCond->natom;i++)
+    for(i=0;i<param->nAtom;i++)
     {
       
-      coord=atom[i].x;
+      coord=x[i];
       
-      atom[i].x=coord-(3.*h);
-      energy(atom,ff,ener,simulCond,box);
+      x[i]=coord-(3.*h);
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       a=ener->pot;
       
-      atom[i].x=coord-(2.*h);
-      energy(atom,ff,ener,simulCond,box);
+      x[i]=coord-(2.*h);
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       b=ener->pot;
       
-      atom[i].x=coord-h;
-      energy(atom,ff,ener,simulCond,box);
+      x[i]=coord-h;
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       c=ener->pot;
       
-      atom[i].x=coord+h;
-      energy(atom,ff,ener,simulCond,box);
+      x[i]=coord+h;
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       d=ener->pot;
       
-      atom[i].x=coord+(2.*h);
-      energy(atom,ff,ener,simulCond,box);
+      x[i]=coord+(2.*h);
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       e=ener->pot;
       
-      atom[i].x=coord+(3.*h);
-      energy(atom,ff,ener,simulCond,box);
+      x[i]=coord+(3.*h);
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       f=ener->pot;
       
       nForce[i].x=-(45.*(d-c)-9.*(e-b)+(f-a))/(60.*h);
       
-      atom[i].x=coord;
+      x[i]=coord;
       
       /***************************************************/
       
-      coord=atom[i].y;
+      coord=y[i];
       
-      atom[i].y=coord-(3.*h);
-      energy(atom,ff,ener,simulCond,box);
+      y[i]=coord-(3.*h);
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       a=ener->pot;
       
-      atom[i].y=coord-(2.*h);
-      energy(atom,ff,ener,simulCond,box);
+      y[i]=coord-(2.*h);
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       b=ener->pot;
       
-      atom[i].y=coord-h;
-      energy(atom,ff,ener,simulCond,box);
+      y[i]=coord-h;
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       c=ener->pot;
       
-      atom[i].y=coord+h;
-      energy(atom,ff,ener,simulCond,box);
+      y[i]=coord+h;
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       d=ener->pot;
       
-      atom[i].y=coord+(2.*h);
-      energy(atom,ff,ener,simulCond,box);
+      y[i]=coord+(2.*h);
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       e=ener->pot;
       
-      atom[i].y=coord+(3.*h);
-      energy(atom,ff,ener,simulCond,box);
+      y[i]=coord+(3.*h);
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       f=ener->pot;
       
       nForce[i].y=-(45.*(d-c)-9.*(e-b)+(f-a))/(60.*h);
       
-      atom[i].y=coord;
+      y[i]=coord;
       
       /***************************************************/
       
-      coord=atom[i].z;
+      coord=z[i];
       
-      atom[i].z=coord-(3.*h);
-      energy(atom,ff,ener,simulCond,box);
+      z[i]=coord-(3.*h);
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       a=ener->pot;
       
-      atom[i].z=coord-(2.*h);
-      energy(atom,ff,ener,simulCond,box);
+      z[i]=coord-(2.*h);
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       b=ener->pot;
       
-      atom[i].z=coord-h;
-      energy(atom,ff,ener,simulCond,box);
+      z[i]=coord-h;
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       c=ener->pot;
       
-      atom[i].z=coord+h;
-      energy(atom,ff,ener,simulCond,box);
+      z[i]=coord+h;
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       d=ener->pot;
       
-      atom[i].z=coord+(2.*h);
-      energy(atom,ff,ener,simulCond,box);
+      z[i]=coord+(2.*h);
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       e=ener->pot;
       
-      atom[i].z=coord+(3.*h);
-      energy(atom,ff,ener,simulCond,box);
+      z[i]=coord+(3.*h);
+      //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
       f=ener->pot;
       
       nForce[i].z=-(45.*(d-c)-9.*(e-b)+(f-a))/(60.*h);
       
-      atom[i].z=coord;
+      z[i]=coord;
     }
   }
   

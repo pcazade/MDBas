@@ -15,101 +15,129 @@
 #include "memory.h"
 #include "io.h"
 #include "list.h"
+#include "errors.h"
+
+#if (defined TIMING && defined __unix__ && !defined __STRICT_ANSI__)
+#define TIMER
+#include "timing.h"
+#endif
+
 
 /** Pointer to the output file. **/
 extern FILE *outFile;
 
-void makelist(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *constList,PBC *box)
+void makelist(CTRL *ctrl,PARAM *param,PBC *box,NEIGH *neigh,CONSTRAINT constList[],
+	      BOND bond[],ANGLE angle[],DIHE dihe[],DIHE impr[],double x[], double y[],
+	      double z[],int frozen[],int **neighList,int **neighPair,int **neighOrder,
+	      int **neighList14,int ***exclList,int **exclPair)
 {
   int nlcx,nlcy,nlcz;
   double cutnb;
   
-  if(simulCond->firstener==1)
+  if(ctrl->newjob==1)
   {
     
-    simulCond->linkRatio=MIN(MAX(simulCond->linkRatio,1),5);
+    neigh->linkRatio=MIN(MAX(neigh->linkRatio,1),5);
     
-    cutnb=simulCond->cutoff+simulCond->delr;
+    cutnb=param->cutOff+param->delr;
     
-    simulCond->keylink=1;
+    ctrl->keyLink=1;
     
-    nlcx = (int) (box->pa*(double)simulCond->linkRatio/cutnb);
-    nlcy = (int) (box->pb*(double)simulCond->linkRatio/cutnb);
-    nlcz = (int) (box->pc*(double)simulCond->linkRatio/cutnb);
+    nlcx = (int) (box->pa*(double)neigh->linkRatio/cutnb);
+    nlcy = (int) (box->pb*(double)neigh->linkRatio/cutnb);
+    nlcz = (int) (box->pc*(double)neigh->linkRatio/cutnb);
     
     if( (nlcx<3) || (nlcy<3) || (nlcz<3) )
-      simulCond->keylink=0;
+      ctrl->keyLink=0;
     
     if( (nlcx*nlcy*nlcz)<=27 )
-      simulCond->keylink=0;
+      ctrl->keyLink=0;
     
-    if(simulCond->nolink)
-      simulCond->keylink=0;
-    
-    if(simulCond->keylink)
+    if(ctrl->noLink)
+      ctrl->keyLink=0;
+
+    if(ctrl->keyLink)
     {
-      link_cell_exclude_list(simulCond,atom,ff,constList);     
-      link_cell_verlet_list(simulCond,atom,ff,box);
+#ifdef TIMER
+      create_new_timer(TIMER_LNKCEL_BUILD);
+      create_new_timer(TIMER_LNKCEL_UPDATE);
+#endif
+      link_cell_exclude_list(ctrl,param,neigh,constList,bond,angle,dihe,impr,
+			     neighList14,exclList,exclPair);
+      
+      link_cell_verlet_list(param,box,neigh,x,y,z,frozen,neighList,neighPair,
+			    neighOrder,*exclList,*exclPair);
     }
     else
     {
-      exclude_list(simulCond,atom,ff,constList);
-      verlet_list(simulCond,atom,ff,box);
+#ifdef TIMER
+      create_new_timer(TIMER_VERLET_BUILD);
+      create_new_timer(TIMER_VERLET_UPDATE);
+#endif
+      exclude_list(ctrl,param,neigh,constList,bond,angle,dihe,impr,
+		   neighList14,exclList,exclPair);
+      
+      verlet_list(param,box,neigh,x,y,z,frozen,neighList,neighPair,
+		  neighOrder,*exclList,*exclPair);
     }
     
-    simulCond->firstener=0;
+    ctrl->newjob=0;
     
   }
-  else if( (simulCond->step%simulCond->listupdate==0 ) )
+  else if( (param->step%neigh->update==0 ) )
   {
     
-    if(simulCond->keylink)
+    if(ctrl->keyLink)
     {
-      fprintf(outFile,"\nCalling link_cell_verlet_list_update at step %d\n",simulCond->step);
-      link_cell_verlet_list_update(simulCond,atom,ff,box);
-      fprintf(outFile,"List update done.\n\n");
+//       fprintf(outFile,"\nCalling link_cell_verlet_list_update at step %d\n",param->step);
+      link_cell_verlet_list_update(param,box,neigh,x,y,z,frozen,neighList,*neighPair,
+				   *neighOrder,*exclList,*exclPair);
+//       fprintf(outFile,"List update done.\n\n");
     }
     else
     {
-      fprintf(outFile,"\nCalling verlet_list_update at step %d\n",simulCond->step);
-      verlet_list_update(simulCond,atom,ff,box);
-      fprintf(outFile,"List update done.\n\n");
+//       fprintf(outFile,"\nCalling verlet_list_update at step %d\n",param->step);
+      verlet_list_update(param,box,neigh,x,y,z,frozen,neighList,*neighPair,
+			 *exclList,*exclPair);
+//       fprintf(outFile,"List update done.\n\n");
     }
     
   }
 }
 
-void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *constList)
+void exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT constList[],
+		  BOND bond[],ANGLE angle[],DIHE dihe[],DIHE impr[],
+		  int **neighList14,int ***exclList,int **exclPair)
 {
   int i,j,k,l,ii,jj,kk,ia,ib,ic,id,exclude;
   int **tempAtom=NULL,**tempVer14=NULL,**tempConnect=NULL,*tempConnectNum=NULL;
   int nAlloc=16,nIncr=16,nConnect=16;
   
-  simulCond->excludeNum=(int*)malloc(simulCond->natom*sizeof(*(simulCond->excludeNum)));
-  for(i=0;i<simulCond->natom;i++)
-    simulCond->excludeNum[i]=0;
+  *exclPair=(int*)my_malloc(param->nAtom*sizeof(**exclPair));
+  for(i=0;i<param->nAtom;i++)
+    (*exclPair)[i]=0;
     
-  tempAtom=(int**)malloc(simulCond->natom*sizeof(*(tempAtom)));
-  for(i=0;i<simulCond->natom;i++)
-    tempAtom[i]=(int*)malloc(nAlloc*sizeof(**(tempAtom)));
+  tempAtom=(int**)my_malloc(param->nAtom*sizeof(*(tempAtom)));
+  for(i=0;i<param->nAtom;i++)
+    tempAtom[i]=(int*)my_malloc(nAlloc*sizeof(**(tempAtom)));
   
-/* The following temporary arrays are designed for chechking the
+/** The following temporary arrays are designed for chechking the
  * connectivity of system and make sure that all existing but not
  * parameterised angles and dihedrals are properly excluded. */
   
-  tempConnectNum=(int*)malloc(simulCond->natom*sizeof(*tempConnectNum));
-  for(i=0;i<simulCond->natom;i++)
+  tempConnectNum=(int*)my_malloc(param->nAtom*sizeof(*tempConnectNum));
+  for(i=0;i<param->nAtom;i++)
     tempConnectNum[i]=0;
   
-  tempConnect=(int**)malloc(simulCond->natom*sizeof(*tempConnect));
-  for(i=0;i<simulCond->natom;i++)
-    tempConnect[i]=(int*)malloc(nConnect*sizeof(**tempConnect));
+  tempConnect=(int**)my_malloc(param->nAtom*sizeof(*tempConnect));
+  for(i=0;i<param->nAtom;i++)
+    tempConnect[i]=(int*)my_malloc(nConnect*sizeof(**tempConnect));
   
     
-  for(i=0;i<ff->nBond;i++)
+  for(i=0;i<param->nBond;i++)
   {
-    ia=simulCond->iBond[i][0];
-    ib=simulCond->iBond[i][1];
+    ia=bond[i].a;
+    ib=bond[i].b;
     
     if(ib<ia)
     {
@@ -122,17 +150,17 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
       jj=ib;
     }
   
-    if(simulCond->excludeNum[ii]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     if(tempConnectNum[ii]>=nConnect||tempConnectNum[jj]>=nConnect)
     {
       nConnect+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempConnect[j]=(int*)realloc(tempConnect[j],nConnect*sizeof(**tempConnect));
     }
     
@@ -141,13 +169,13 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
     tempConnectNum[ii]++;
     tempConnectNum[jj]++;
     
-    tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-    simulCond->excludeNum[ii]++;      
+    tempAtom[ii][(*exclPair)[ii]]=jj;
+    (*exclPair)[ii]++;      
   }
   
-  if(simulCond->keyconsth)
+  if(ctrl->keyConstH)
   {
-    for(i=0;i<simulCond->nconst;i++)
+    for(i=0;i<param->nConst;i++)
     {
       ia=constList[i].a;
       ib=constList[i].b;
@@ -163,17 +191,17 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
 	jj=ib;
       }
     
-      if(simulCond->excludeNum[ii]>=nAlloc)
+      if((*exclPair)[ii]>=nAlloc)
       {
 	nAlloc+=nIncr;
-	for(j=0;j<simulCond->natom;j++)
+	for(j=0;j<param->nAtom;j++)
 	  tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
       }
       
       if(tempConnectNum[ii]>=nConnect||tempConnectNum[jj]>=nConnect)
       {
 	nConnect+=nIncr;
-	for(j=0;j<simulCond->natom;j++)
+	for(j=0;j<param->nAtom;j++)
 	  tempConnect[j]=(int*)realloc(tempConnect[j],nConnect*sizeof(**tempConnect));
       }
       
@@ -182,16 +210,16 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
       tempConnectNum[ii]++;
       tempConnectNum[jj]++;
       
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      simulCond->excludeNum[ii]++;      
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      (*exclPair)[ii]++;      
     }
   }
   
-  for(i=0;i<ff->nAngle;i++)
+  for(i=0;i<param->nAngle;i++)
   {
-    ia=simulCond->iAngle[i][0];
-    ib=simulCond->iAngle[i][1];
-    ic=simulCond->iAngle[i][2];
+    ia=angle[i].a;
+    ib=angle[i].b;
+    ic=angle[i].c;
     
     if(ib<ia)
     {
@@ -204,15 +232,15 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
       jj=ib;
     }
   
-    if(simulCond->excludeNum[ii]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -223,8 +251,8 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      simulCond->excludeNum[ii]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      (*exclPair)[ii]++;
     }
     
     if(ic<ia)
@@ -238,15 +266,15 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
       jj=ic;
     }
   
-    if(simulCond->excludeNum[ii]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -257,8 +285,8 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      simulCond->excludeNum[ii]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      (*exclPair)[ii]++;
     }
     
     if(ic<ib)
@@ -272,15 +300,15 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
       jj=ic;
     }
   
-    if(simulCond->excludeNum[ii]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -291,24 +319,24 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      simulCond->excludeNum[ii]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      (*exclPair)[ii]++;
     }
        
   }
   
-  tempVer14=(int**)malloc(5*ff->nDihedral*sizeof(*tempVer14));
-  for(i=0;i<5*ff->nDihedral;i++)
-    tempVer14[i]=(int*)malloc(2*sizeof(**tempVer14));
+  tempVer14=(int**)my_malloc(5*param->nDihedral*sizeof(*tempVer14));
+  for(i=0;i<5*param->nDihedral;i++)
+    tempVer14[i]=(int*)my_malloc(2*sizeof(**tempVer14));
   
-  ff->npr14=0;
+  neigh->nPair14=0;
   
-  for(i=0;i<ff->nDihedral;i++)
+  for(i=0;i<param->nDihedral;i++)
   {
-    ia=simulCond->iDihedral[i][0];
-    ib=simulCond->iDihedral[i][1];
-    ic=simulCond->iDihedral[i][2];
-    id=simulCond->iDihedral[i][3];
+    ia=dihe[i].a;
+    ib=dihe[i].b;
+    ic=dihe[i].c;
+    id=dihe[i].d;
     
     if(ib<ia)
     {
@@ -321,15 +349,15 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
       jj=ib;
     }
   
-    if(simulCond->excludeNum[ii]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -340,8 +368,8 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      simulCond->excludeNum[ii]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      (*exclPair)[ii]++;
     }
     
     if(ic<ia)
@@ -355,15 +383,15 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
       jj=ic;
     }
   
-    if(simulCond->excludeNum[ii]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -374,8 +402,8 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      simulCond->excludeNum[ii]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      (*exclPair)[ii]++;
     }
     
     if(id<ia)
@@ -389,15 +417,15 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
       jj=id;
     }
   
-    if(simulCond->excludeNum[ii]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -408,12 +436,12 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
     
     if(exclude)
     {
-      tempVer14[ff->npr14][0]=ia;
-      tempVer14[ff->npr14][1]=id;
-      ff->npr14++;
+      tempVer14[neigh->nPair14][0]=ia;
+      tempVer14[neigh->nPair14][1]=id;
+      neigh->nPair14++;
       
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      simulCond->excludeNum[ii]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      (*exclPair)[ii]++;
     }
     
     if(ic<ib)
@@ -427,15 +455,15 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
       jj=ic;
     }
   
-    if(simulCond->excludeNum[ii]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -446,8 +474,8 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      simulCond->excludeNum[ii]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      (*exclPair)[ii]++;
     }
     
     if(id<ib)
@@ -461,15 +489,15 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
       jj=id;
     }
   
-    if(simulCond->excludeNum[ii]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -480,8 +508,8 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      simulCond->excludeNum[ii]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      (*exclPair)[ii]++;
     }
     
     if(id<ic)
@@ -495,15 +523,15 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
       jj=id;
     }
   
-    if(simulCond->excludeNum[ii]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -514,18 +542,18 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      simulCond->excludeNum[ii]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      (*exclPair)[ii]++;
     }
        
   }  
     
-  for(i=0;i<ff->nImproper;i++)
+  for(i=0;i<param->nImproper;i++)
   {
-    ia=simulCond->iImproper[i][0];
-    ib=simulCond->iImproper[i][1];
-    ic=simulCond->iImproper[i][2];
-    id=simulCond->iImproper[i][3];
+    ia=impr[i].a;
+    ib=impr[i].b;
+    ic=impr[i].c;
+    id=impr[i].d;
     
     if(ib<ia)
     {
@@ -538,15 +566,15 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
       jj=ib;
     }
   
-    if(simulCond->excludeNum[ii]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -557,8 +585,8 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      simulCond->excludeNum[ii]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      (*exclPair)[ii]++;
     }
     
     if(ic<ia)
@@ -572,15 +600,15 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
       jj=ic;
     }
   
-    if(simulCond->excludeNum[ii]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -591,8 +619,8 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      simulCond->excludeNum[ii]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      (*exclPair)[ii]++;
     }
     
     if(id<ia)
@@ -606,15 +634,15 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
       jj=id;
     }
   
-    if(simulCond->excludeNum[ii]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -625,8 +653,8 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      simulCond->excludeNum[ii]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      (*exclPair)[ii]++;
     }
     
     if(ic<ib)
@@ -640,15 +668,15 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
       jj=ic;
     }
   
-    if(simulCond->excludeNum[ii]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -659,8 +687,8 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      simulCond->excludeNum[ii]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      (*exclPair)[ii]++;
     }
     
     if(id<ib)
@@ -674,15 +702,15 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
       jj=id;
     }
   
-    if(simulCond->excludeNum[ii]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -693,8 +721,8 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      simulCond->excludeNum[ii]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      (*exclPair)[ii]++;
     }
     
     if(id<ic)
@@ -708,15 +736,15 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
       jj=id;
     }
   
-    if(simulCond->excludeNum[ii]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -727,13 +755,13 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      simulCond->excludeNum[ii]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      (*exclPair)[ii]++;
     }
        
   }
   
-  for(ia=0;ia<simulCond->natom;ia++)
+  for(ia=0;ia<param->nAtom;ia++)
   {
     for(j=0;j<tempConnectNum[ia];j++)
     {
@@ -756,15 +784,15 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
 	  jj=ic;
 	}
       
-	if(simulCond->excludeNum[ii]>=nAlloc)
+	if((*exclPair)[ii]>=nAlloc)
 	{
 	  nAlloc+=nIncr;
-	  for(kk=0;kk<simulCond->natom;kk++)
+	  for(kk=0;kk<param->nAtom;kk++)
 	    tempAtom[kk]=(int*)realloc(tempAtom[kk],nAlloc*sizeof(**(tempAtom)));
 	}
 	
 	exclude=1;
-	for(kk=0;kk<simulCond->excludeNum[ii];kk++)
+	for(kk=0;kk<(*exclPair)[ii];kk++)
 	{
 	  if(tempAtom[ii][kk]==jj)
 	  {
@@ -775,8 +803,8 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
 	
 	if(exclude)
 	{
-	  tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-	  simulCond->excludeNum[ii]++;
+	  tempAtom[ii][(*exclPair)[ii]]=jj;
+	  (*exclPair)[ii]++;
 	}
 	
 	for(l=0;l<tempConnectNum[ic];l++)
@@ -797,18 +825,18 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
 	    jj=id;
 	  }
 	
-	  if(simulCond->excludeNum[ii]>=nAlloc)
+	  if((*exclPair)[ii]>=nAlloc)
 	  {
 	    nAlloc+=nIncr;
-	    for(kk=0;kk<simulCond->natom;kk++)
+	    for(kk=0;kk<param->nAtom;kk++)
 	      tempAtom[kk]=(int*)realloc(tempAtom[kk],nAlloc*sizeof(**(tempAtom)));
 	  }
 	  
-	  if(ff->npr14>=5*ff->nDihedral)
-	    error(110);
+	  if(neigh->nPair14>=5*param->nDihedral)
+	    my_error(DIHE_NONPARAM_ERROR,__FILE__,__LINE__,0);
 	  
 	  exclude=1;
-	  for(kk=0;kk<simulCond->excludeNum[ii];kk++)
+	  for(kk=0;kk<(*exclPair)[ii];kk++)
 	  {
 	    if(tempAtom[ii][kk]==jj)
 	    {
@@ -820,12 +848,12 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
 	  if(exclude)
 	  {
 	    
-	    tempVer14[ff->npr14][0]=ia;
-	    tempVer14[ff->npr14][1]=id;
-	    ff->npr14++;
+	    tempVer14[neigh->nPair14][0]=ia;
+	    tempVer14[neigh->nPair14][1]=id;
+	    neigh->nPair14++;
 	    
-	    tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-	    simulCond->excludeNum[ii]++;
+	    tempAtom[ii][(*exclPair)[ii]]=jj;
+	    (*exclPair)[ii]++;
 	  }
 	  
 	}
@@ -833,136 +861,252 @@ void exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *
     }
   }
   
-  ff->ver14=(int**)malloc(ff->npr14*sizeof(*(ff->ver14)));
-  for(i=0;i<ff->npr14;i++)
-    ff->ver14[i]=(int*)malloc(2*sizeof(**(ff->ver14)));
+  *neighList14=(int*)my_malloc(2*neigh->nPair14*sizeof(**neighList14));
   
-  for(i=0;i<ff->npr14;i++)
+  for(i=0;i<neigh->nPair14;i++)
   {
-    ff->ver14[i][0]=tempVer14[i][0];
-    ff->ver14[i][1]=tempVer14[i][1];
+    (*neighList14)[2*i]=tempVer14[i][0];
+    (*neighList14)[2*i+1]=tempVer14[i][1];
   }
   
-  free_2D(5*ff->nDihedral,tempVer14,NULL);
+  free_2D(5*param->nDihedral,tempVer14,NULL);
   
-  free_2D(simulCond->natom,tempConnect,NULL);
+  free_2D(param->nAtom,tempConnect,NULL);
   free(tempConnectNum);
   
-  if(simulCond->excludeNum[simulCond->natom-1]!=0)
-    error(111);
+  if((*exclPair)[param->nAtom-1]!=0)
+    my_error(EXCLLIST_LASTATOM_ERROR,__FILE__,__LINE__,0);
   
-  simulCond->excludeAtom=(int**)malloc((simulCond->natom-1)*sizeof(*(simulCond->excludeAtom)));
-  for(i=0;i<simulCond->natom-1;i++)
-    simulCond->excludeAtom[i]=(int*)malloc(simulCond->excludeNum[i]*sizeof(**(simulCond->excludeAtom)));
+  /** Brode-Ahlrichs sorted exclude list **/
   
-  for(i=0;i<simulCond->natom-1;i++)
+  *exclList=(int**)my_malloc((param->nAtom-1)*sizeof(**exclList));
+  
+  for(i=0;i<param->nAtom-1;i++)
   {
-    for(j=0;j<simulCond->excludeNum[i];j++)
-      simulCond->excludeAtom[i][j]=tempAtom[i][j];
+    (*exclList)[i]=(int*)my_malloc((*exclPair)[i]*sizeof(***exclList));
+    
+    for(j=0;j<(*exclPair)[i];j++)
+      (*exclList)[i][j]=tempAtom[i][j];
   }
   
-  free_2D(simulCond->natom,tempAtom,NULL);
+  free_2D(param->nAtom,tempAtom,NULL);
 
 }
 
-void verlet_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,PBC *box)
+void verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
+		 int frozen[],int **neighList,int **neighPair,int **neighOrder,
+		 int **exclList,int exclPair[])
 {
-  int i,j,k,exclude,nalloc;/*,incr;*/
-  double r,cutnb,delta[3];
+  int i,j,k,offset,exclude;
+  double r2,cutnb2,delta[3];
   
-  cutnb=simulCond->cutoff+simulCond->delr;
+  cutnb2=param->cutOff+param->delr;
+  cutnb2=X2(cutnb2);
   
-  nalloc = (int) ( 1.5*simulCond->natom*4./3.*PI*X3(cutnb)/box->vol );
-  nalloc = MIN(nalloc,MAXLIST);
-  /*incr=nalloc*/;
+  neigh->sizeList=0;
   
-  ff->verPair=(int*)malloc((simulCond->natom)*sizeof(*(ff->verPair)));
+#ifdef TIMER
+  update_timer_begin(TIMER_VERLET_BUILD,__func__);
+#endif
   
-  for(i=0;i<simulCond->natom;i++)
-    ff->verPair[i]=0;
-
-  ff->verList=(int**)malloc((simulCond->natom-1)*sizeof(*(ff->verList)));
-  
-  for(i=0;i<simulCond->natom-1;i++)
-    ff->verList[i]=(int*)malloc(nalloc*sizeof(**(ff->verList)));
-  
-  for(i=0;i<simulCond->natom-1;i++)
+  for(i=0;i<param->nAtom-1;i++)
   {
-    for(j=i+1;j<simulCond->natom;j++)
+    for(j=i+1;j<param->nAtom;j++)
     {
-      r=distance(i,j,atom,delta,simulCond,box);
-      if(r<=cutnb)
+      
+      delta[0]=x[j]-x[i];
+      delta[1]=y[j]-y[i];
+      delta[2]=z[j]-z[i];
+      
+      r2=dist(box,delta);
+      
+      if(r2<=cutnb2)
       {
 	exclude=0;
-	for (k=0;k<simulCond->excludeNum[i];k++)
+	
+	if( (frozen[i]*frozen[j]) )
 	{
-	  if(simulCond->excludeAtom[i][k]==j)
-	  {
-	    exclude=1;
-	    break;
-	  }
+	  exclude=1;
 	}
-	if(!exclude)
+	else
 	{
-	  
-	  if(ff->verPair[i]>=nalloc)
-	    error(120);
-	  
-	  ff->verList[i][ff->verPair[i]]=j;
-	  ff->verPair[i]++;
-	  
-	}
-      }
-    }
-    ff->verList[i]=(int*)realloc(ff->verList[i],ff->verPair[i]*sizeof(**(ff->verList)));
-  }
-
-}
-
-void verlet_list_update(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,PBC *box)
-{
-  int i,j,k,exclude,nalloc;/*,incr;*/
-  double r,cutnb,delta[3];
-  
-  cutnb=simulCond->cutoff+simulCond->delr;
- 
-  nalloc = (int) ( 1.5*simulCond->natom*4./3.*PI*X3(cutnb)/box->vol );
-  nalloc = MIN(nalloc,MAXLIST);
-  /*incr=nalloc;*/
-  
-  for(i=0;i<simulCond->natom-1;i++)
-    ff->verList[i]=(int*)realloc(ff->verList[i],nalloc*sizeof(**(ff->verList)));
-  
-  #ifdef _OPENMP
-  #pragma omp parallel default(none) shared(simulCond,atom,ff,box,cutnb,nalloc) private(i,j,k,r,delta,exclude)
-  {
-    #pragma omp for schedule(dynamic) nowait
-  #endif
-    for(i=0;i<simulCond->natom-1;i++)
-    {
-      ff->verPair[i]=0;
-      for(j=i+1;j<simulCond->natom;j++)
-      {
-	r=distance(i,j,atom,delta,simulCond,box);
-	if(r<=cutnb)
-	{
-	  exclude=0;
-	  for (k=0;k<simulCond->excludeNum[i];k++)
+	  for (k=0;k<exclPair[i];k++)
 	  {
-	    if(simulCond->excludeAtom[i][k]==j)
+	    if(exclList[i][k]==j)
 	    {
 	      exclude=1;
 	      break;
 	    }
 	  }
+	}
+	
+	if(!exclude)
+	{
+	  
+	  neigh->sizeList++;
+	  
+	}
+      }
+    }
+  }
+  
+  neigh->sizeList=(int)(neigh->sizeList*(1.+2.*TOLLIST))+1;
+  
+  *neighPair=(int*)my_malloc(param->nAtom*sizeof(**neighPair));
+  
+  for(i=0;i<param->nAtom;i++)
+    (*neighPair)[i]=0;
+  
+  *neighOrder=(int*)my_malloc(param->nAtom*sizeof(**neighOrder));
+  for(i=0;i<param->nAtom;i++)
+    (*neighOrder)[i]=i;
+
+  *neighList=(int*)my_malloc(neigh->sizeList*sizeof(**neighList));
+  
+  offset=0;
+  
+  for(i=0;i<param->nAtom-1;i++)
+  {
+    
+    for(j=i+1;j<param->nAtom;j++)
+    {
+      
+      delta[0]=x[j]-x[i];
+      delta[1]=y[j]-y[i];
+      delta[2]=z[j]-z[i];
+      
+      r2=dist(box,delta);
+      
+      if(r2<=cutnb2)
+      {
+	exclude=0;
+	
+	if( (frozen[i]*frozen[j]) )
+	{
+	  exclude=1;
+	}
+	else
+	{
+	  for (k=0;k<exclPair[i];k++)
+	  {
+	    if(exclList[i][k]==j)
+	    {
+	      exclude=1;
+	      break;
+	    }
+	  }
+	}
+	
+	if(!exclude)
+	{
+	  
+	  if(offset>=neigh->sizeList)
+	  {
+	    fprintf(outFile,"WARNING: List larger than estimated. Size increased from %d",neigh->sizeList);
+	    neigh->sizeList=(int)(neigh->sizeList*(1.+TOLLIST))+1;
+	    fprintf(outFile," to %d.\n",neigh->sizeList);
+	    
+	    *neighList=(int*)realloc(*neighList,neigh->sizeList*sizeof(**neighList));
+	  }
+	  
+	  (*neighList)[offset]=j;
+	  (*neighPair)[i]++;
+	  offset++;
+	  
+	}
+      }
+    }
+  }
+  
+#ifdef TIMER
+  update_timer_end(TIMER_VERLET_BUILD,__func__);
+#endif
+  
+  /*printf("%d %d\n",offset,neigh->sizeList);
+  FILE *toto=fopen("list.new","wt");
+  for(i=0;i<offset;i++)
+  {
+    fprintf(toto,"%d\n",(*neighList)[i]);
+  }
+  fflush(toto);*/
+  /*printf("%d %d\n",offset,neigh->sizeList);
+  FILE *toto=fopen("list.con","wt");
+  for(i=0;i<param->nAtom;i++)
+  {
+    fprintf(toto,"%d %d\n",(*neighPair)[i],(*neighOrder)[i]);
+  }
+  fflush(toto);*/
+  
+}
+
+void verlet_list_update(PARAM *param,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
+			int frozen[],int **neighList,int neighPair[],int **exclList,
+			int exclPair[])
+{
+  int i,j,k,exclude,offset;
+  double r2,cutnb2,delta[3];
+  
+  cutnb2=param->cutOff+param->delr;
+  cutnb2=X2(cutnb2);
+  
+  offset=0;
+  
+#ifdef TIMER
+  update_timer_begin(TIMER_VERLET_UPDATE,__func__);
+#endif
+  
+  #ifdef _OPENMP
+  #pragma omp parallel default(none) shared(param,neigh,atom,box,cutnb2,neigh->sizeList) private(i,j,k,r,delta,exclude)
+  {
+  #pragma omp for schedule(dynamic,1000) nowait
+  #endif
+    for(i=0;i<param->nAtom-1;i++)
+    { 
+      neighPair[i]=0;
+      for(j=i+1;j<param->nAtom;j++)
+      {
+	
+	delta[0]=x[j]-x[i];
+	delta[1]=y[j]-y[i];
+	delta[2]=z[j]-z[i];
+      
+	r2=dist(box,delta);
+	
+	if(r2<=cutnb2)
+	{
+	  exclude=0;
+	  
+	  if( (frozen[i]*frozen[j]) )
+	  {
+	    exclude=1;
+	  }
+	  else
+	  {
+	    for (k=0;k<exclPair[i];k++)
+	    {
+	      if(exclList[i][k]==j)
+	      {
+		exclude=1;
+		break;
+	      }
+	    }
+	  }
+	  
 	  if(!exclude)
 	  {
-
-	    if(ff->verPair[i]>=nalloc)
-	      error(120);
 	    
-	    ff->verList[i][ff->verPair[i]]=j;
-	    ff->verPair[i]++;
+	    if(offset>=neigh->sizeList)
+	    {
+	      fprintf(outFile,"WARNING: List larger than estimated. Size increased from %d",neigh->sizeList);
+	      neigh->sizeList=(int)(neigh->sizeList*(1.+TOLLIST))+1;
+	      fprintf(outFile," to %d.\n",neigh->sizeList);
+	      
+	      *neighList=(int*)realloc(*neighList,neigh->sizeList*sizeof(**neighList));
+	    }
+	    
+	    (*neighList)[offset]=j;
+	    neighPair[i]++;
+	    offset++;
 	    
 	  }
 	}
@@ -972,57 +1116,60 @@ void verlet_list_update(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,PBC *b
   } // END OF parallel zone
   #endif
   
-  for(i=0;i<simulCond->natom-1;i++)
-    ff->verList[i]=(int*)realloc(ff->verList[i],ff->verPair[i]*sizeof(**(ff->verList)));
+#ifdef TIMER
+  update_timer_end(TIMER_VERLET_UPDATE,__func__);
+#endif
 
 }
 
-void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CONSTRAINT *constList)
+void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT constList[],
+			    BOND bond[],ANGLE angle[],DIHE dihe[],DIHE impr[],
+			    int **neighList14,int ***exclList,int **exclPair)
 {
   int i,j,k,l,kk,ii,jj,ia,ib,ic,id,exclude;
   int **tempAtom=NULL,**tempVer14=NULL,**tempConnect=NULL,*tempConnectNum=NULL;
   int nAlloc=32,nIncr=16,nConnect=16;
   
-  simulCond->excludeNum=(int*)malloc(simulCond->natom*sizeof(*(simulCond->excludeNum)));
-  for(i=0;i<simulCond->natom;i++)
-    simulCond->excludeNum[i]=0;
+  *exclPair=(int*)my_malloc(param->nAtom*sizeof(**exclPair));
+  for(i=0;i<param->nAtom;i++)
+    (*exclPair)[i]=0;
     
-  tempAtom=(int**)malloc(simulCond->natom*sizeof(*(tempAtom)));
-  for(i=0;i<simulCond->natom;i++)
-    tempAtom[i]=(int*)malloc(nAlloc*sizeof(**(tempAtom)));
+  tempAtom=(int**)my_malloc(param->nAtom*sizeof(*(tempAtom)));
+  for(i=0;i<param->nAtom;i++)
+    tempAtom[i]=(int*)my_malloc(nAlloc*sizeof(**(tempAtom)));
   
 /* The following temporary arrays are designed for chechking the
  * connectivity of system and make sure that all existing but not
  * parameterised angles and dihedrals are properly excluded. */
   
-  tempConnectNum=(int*)malloc(simulCond->natom*sizeof(*tempConnectNum));
-  for(i=0;i<simulCond->natom;i++)
+  tempConnectNum=(int*)my_malloc(param->nAtom*sizeof(*tempConnectNum));
+  for(i=0;i<param->nAtom;i++)
     tempConnectNum[i]=0;
   
-  tempConnect=(int**)malloc(simulCond->natom*sizeof(*tempConnect));
-  for(i=0;i<simulCond->natom;i++)
-    tempConnect[i]=(int*)malloc(nConnect*sizeof(**tempConnect));
+  tempConnect=(int**)my_malloc(param->nAtom*sizeof(*tempConnect));
+  for(i=0;i<param->nAtom;i++)
+    tempConnect[i]=(int*)my_malloc(nConnect*sizeof(**tempConnect));
   
     
-  for(i=0;i<ff->nBond;i++)
+  for(i=0;i<param->nBond;i++)
   {
-    ia=simulCond->iBond[i][0];
-    ib=simulCond->iBond[i][1];
+    ia=bond[i].a;
+    ib=bond[i].b;
     
     ii=ia;
     jj=ib;
 
-    if(simulCond->excludeNum[ii]>=nAlloc||simulCond->excludeNum[jj]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     if(tempConnectNum[ii]>=nConnect||tempConnectNum[jj]>=nConnect)
     {
       nConnect+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempConnect[j]=(int*)realloc(tempConnect[j],nConnect*sizeof(**tempConnect));
     }
     
@@ -1031,15 +1178,15 @@ void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CO
     tempConnectNum[ii]++;
     tempConnectNum[jj]++;
     
-    tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-    tempAtom[jj][simulCond->excludeNum[jj]]=ii;
-    simulCond->excludeNum[ii]++;
-    simulCond->excludeNum[jj]++;
+    tempAtom[ii][(*exclPair)[ii]]=jj;
+    tempAtom[jj][(*exclPair)[jj]]=ii;
+    (*exclPair)[ii]++;
+    (*exclPair)[jj]++;
   }
   
-  if(simulCond->keyconsth)
+  if(ctrl->keyConstH)
   {
-    for(i=0;i<simulCond->nconst;i++)
+    for(i=0;i<param->nConst;i++)
     {
       ia=constList[i].a;
       ib=constList[i].b;
@@ -1047,17 +1194,17 @@ void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CO
       ii=ia;
       jj=ib;
       
-      if(simulCond->excludeNum[ii]>=nAlloc||simulCond->excludeNum[jj]>=nAlloc)
+      if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
       {
 	nAlloc+=nIncr;
-	for(j=0;j<simulCond->natom;j++)
+	for(j=0;j<param->nAtom;j++)
 	  tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
       }
       
       if(tempConnectNum[ii]>=nConnect||tempConnectNum[jj]>=nConnect)
       {
 	nConnect+=nIncr;
-	for(j=0;j<simulCond->natom;j++)
+	for(j=0;j<param->nAtom;j++)
 	  tempConnect[j]=(int*)realloc(tempConnect[j],nConnect*sizeof(**tempConnect));
       }
       
@@ -1066,31 +1213,31 @@ void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CO
       tempConnectNum[ii]++;
       tempConnectNum[jj]++;
       
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      tempAtom[jj][simulCond->excludeNum[jj]]=ii;
-      simulCond->excludeNum[ii]++;
-      simulCond->excludeNum[jj]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      tempAtom[jj][(*exclPair)[jj]]=ii;
+      (*exclPair)[ii]++;
+      (*exclPair)[jj]++;
     }
   }
   
-  for(i=0;i<ff->nAngle;i++)
+  for(i=0;i<param->nAngle;i++)
   {
-    ia=simulCond->iAngle[i][0];
-    ib=simulCond->iAngle[i][1];
-    ic=simulCond->iAngle[i][2];
+    ia=angle[i].a;
+    ib=angle[i].b;
+    ic=angle[i].c;
     
     ii=ia;
     jj=ib;
       
-    if(simulCond->excludeNum[ii]>=nAlloc||simulCond->excludeNum[jj]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1101,24 +1248,24 @@ void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CO
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      tempAtom[jj][simulCond->excludeNum[jj]]=ii;
-      simulCond->excludeNum[ii]++;
-      simulCond->excludeNum[jj]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      tempAtom[jj][(*exclPair)[jj]]=ii;
+      (*exclPair)[ii]++;
+      (*exclPair)[jj]++;
     }
     
     ii=ia;
     jj=ic;
     
-    if(simulCond->excludeNum[ii]>=nAlloc||simulCond->excludeNum[jj]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1129,24 +1276,24 @@ void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CO
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      tempAtom[jj][simulCond->excludeNum[jj]]=ii;
-      simulCond->excludeNum[ii]++;
-      simulCond->excludeNum[jj]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      tempAtom[jj][(*exclPair)[jj]]=ii;
+      (*exclPair)[ii]++;
+      (*exclPair)[jj]++;
     }
     
     ii=ib;
     jj=ic;
     
-    if(simulCond->excludeNum[ii]>=nAlloc||simulCond->excludeNum[jj]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1157,39 +1304,39 @@ void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CO
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      tempAtom[jj][simulCond->excludeNum[jj]]=ii;
-      simulCond->excludeNum[ii]++;
-      simulCond->excludeNum[jj]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      tempAtom[jj][(*exclPair)[jj]]=ii;
+      (*exclPair)[ii]++;
+      (*exclPair)[jj]++;
     }
        
   }
   
-  tempVer14=(int**)malloc(5*ff->nDihedral*sizeof(*tempVer14));
-  for(i=0;i<5*ff->nDihedral;i++)
-    tempVer14[i]=(int*)malloc(2*sizeof(**tempVer14));
+  tempVer14=(int**)my_malloc(5*param->nDihedral*sizeof(*tempVer14));
+  for(i=0;i<5*param->nDihedral;i++)
+    tempVer14[i]=(int*)my_malloc(2*sizeof(**tempVer14));
   
-  ff->npr14=0;
+  neigh->nPair14=0;
   
-  for(i=0;i<ff->nDihedral;i++)
+  for(i=0;i<param->nDihedral;i++)
   {
-    ia=simulCond->iDihedral[i][0];
-    ib=simulCond->iDihedral[i][1];
-    ic=simulCond->iDihedral[i][2];
-    id=simulCond->iDihedral[i][3];
+    ia=dihe[i].a;
+    ib=dihe[i].b;
+    ic=dihe[i].c;
+    id=dihe[i].d;
     
     ii=ia;
     jj=ib;
     
-    if(simulCond->excludeNum[ii]>=nAlloc||simulCond->excludeNum[jj]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1200,24 +1347,24 @@ void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CO
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      tempAtom[jj][simulCond->excludeNum[jj]]=ii;
-      simulCond->excludeNum[ii]++;
-      simulCond->excludeNum[jj]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      tempAtom[jj][(*exclPair)[jj]]=ii;
+      (*exclPair)[ii]++;
+      (*exclPair)[jj]++;
     }
     
     ii=ia;
     jj=ic;
     
-    if(simulCond->excludeNum[ii]>=nAlloc||simulCond->excludeNum[jj]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1228,24 +1375,24 @@ void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CO
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      tempAtom[jj][simulCond->excludeNum[jj]]=ii;
-      simulCond->excludeNum[ii]++;
-      simulCond->excludeNum[jj]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      tempAtom[jj][(*exclPair)[jj]]=ii;
+      (*exclPair)[ii]++;
+      (*exclPair)[jj]++;
     }
     
     ii=ia;
     jj=id;
     
-    if(simulCond->excludeNum[ii]>=nAlloc||simulCond->excludeNum[jj]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1256,28 +1403,28 @@ void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CO
     
     if(exclude)
     {
-      tempVer14[ff->npr14][0]=ia;
-      tempVer14[ff->npr14][1]=id;
-      ff->npr14++;
+      tempVer14[neigh->nPair14][0]=ia;
+      tempVer14[neigh->nPair14][1]=id;
+      neigh->nPair14++;
       
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      tempAtom[jj][simulCond->excludeNum[jj]]=ii;
-      simulCond->excludeNum[ii]++;
-      simulCond->excludeNum[jj]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      tempAtom[jj][(*exclPair)[jj]]=ii;
+      (*exclPair)[ii]++;
+      (*exclPair)[jj]++;
     }
     
     ii=ib;
     jj=ic;
     
-    if(simulCond->excludeNum[ii]>=nAlloc||simulCond->excludeNum[jj]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1288,24 +1435,24 @@ void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CO
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      tempAtom[jj][simulCond->excludeNum[jj]]=ii;
-      simulCond->excludeNum[ii]++;
-      simulCond->excludeNum[jj]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      tempAtom[jj][(*exclPair)[jj]]=ii;
+      (*exclPair)[ii]++;
+      (*exclPair)[jj]++;
     }
     
     ii=ib;
     jj=id;
     
-    if(simulCond->excludeNum[ii]>=nAlloc||simulCond->excludeNum[jj]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1316,24 +1463,24 @@ void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CO
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      tempAtom[jj][simulCond->excludeNum[jj]]=ii;
-      simulCond->excludeNum[ii]++;
-      simulCond->excludeNum[jj]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      tempAtom[jj][(*exclPair)[jj]]=ii;
+      (*exclPair)[ii]++;
+      (*exclPair)[jj]++;
     }
     
     ii=ic;
     jj=id;
     
-    if(simulCond->excludeNum[ii]>=nAlloc||simulCond->excludeNum[jj]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1344,33 +1491,33 @@ void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CO
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      tempAtom[jj][simulCond->excludeNum[jj]]=ii;
-      simulCond->excludeNum[ii]++;
-      simulCond->excludeNum[jj]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      tempAtom[jj][(*exclPair)[jj]]=ii;
+      (*exclPair)[ii]++;
+      (*exclPair)[jj]++;
     }
     
   }  
     
-  for(i=0;i<ff->nImproper;i++)
+  for(i=0;i<param->nImproper;i++)
   {
-    ia=simulCond->iImproper[i][0];
-    ib=simulCond->iImproper[i][1];
-    ic=simulCond->iImproper[i][2];
-    id=simulCond->iImproper[i][3];
+    ia=impr[i].a;
+    ib=impr[i].b;
+    ic=impr[i].c;
+    id=impr[i].d;
     
     ii=ia;
     jj=ib;
     
-    if(simulCond->excludeNum[ii]>=nAlloc||simulCond->excludeNum[jj]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1381,24 +1528,24 @@ void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CO
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      tempAtom[jj][simulCond->excludeNum[jj]]=ii;
-      simulCond->excludeNum[ii]++;
-      simulCond->excludeNum[jj]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      tempAtom[jj][(*exclPair)[jj]]=ii;
+      (*exclPair)[ii]++;
+      (*exclPair)[jj]++;
     }
     
     ii=ia;
     jj=ic;
     
-    if(simulCond->excludeNum[ii]>=nAlloc||simulCond->excludeNum[jj]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1409,24 +1556,24 @@ void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CO
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      tempAtom[jj][simulCond->excludeNum[jj]]=ii;
-      simulCond->excludeNum[ii]++;
-      simulCond->excludeNum[jj]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      tempAtom[jj][(*exclPair)[jj]]=ii;
+      (*exclPair)[ii]++;
+      (*exclPair)[jj]++;
     }
     
     ii=ia;
     jj=id;
     
-    if(simulCond->excludeNum[ii]>=nAlloc||simulCond->excludeNum[jj]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1437,24 +1584,24 @@ void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CO
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      tempAtom[jj][simulCond->excludeNum[jj]]=ii;
-      simulCond->excludeNum[ii]++;
-      simulCond->excludeNum[jj]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      tempAtom[jj][(*exclPair)[jj]]=ii;
+      (*exclPair)[ii]++;
+      (*exclPair)[jj]++;
     }
     
     ii=ib;
     jj=ic;
     
-    if(simulCond->excludeNum[ii]>=nAlloc||simulCond->excludeNum[jj]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1465,24 +1612,24 @@ void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CO
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      tempAtom[jj][simulCond->excludeNum[jj]]=ii;
-      simulCond->excludeNum[ii]++;
-      simulCond->excludeNum[jj]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      tempAtom[jj][(*exclPair)[jj]]=ii;
+      (*exclPair)[ii]++;
+      (*exclPair)[jj]++;
     }
     
     ii=ib;
     jj=id;
     
-    if(simulCond->excludeNum[ii]>=nAlloc||simulCond->excludeNum[jj]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1493,24 +1640,24 @@ void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CO
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      tempAtom[jj][simulCond->excludeNum[jj]]=ii;
-      simulCond->excludeNum[ii]++;
-      simulCond->excludeNum[jj]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      tempAtom[jj][(*exclPair)[jj]]=ii;
+      (*exclPair)[ii]++;
+      (*exclPair)[jj]++;
     }
     
     ii=ic;
     jj=id;
     
-    if(simulCond->excludeNum[ii]>=nAlloc||simulCond->excludeNum[jj]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
-      for(j=0;j<simulCond->natom;j++)
+      for(j=0;j<param->nAtom;j++)
 	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
     }
     
     exclude=1;
-    for(j=0;j<simulCond->excludeNum[ii];j++)
+    for(j=0;j<(*exclPair)[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1521,15 +1668,15 @@ void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CO
     
     if(exclude)
     {
-      tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-      tempAtom[jj][simulCond->excludeNum[jj]]=ii;
-      simulCond->excludeNum[ii]++;
-      simulCond->excludeNum[jj]++;
+      tempAtom[ii][(*exclPair)[ii]]=jj;
+      tempAtom[jj][(*exclPair)[jj]]=ii;
+      (*exclPair)[ii]++;
+      (*exclPair)[jj]++;
     }
        
   }
   
-  for(ia=0;ia<simulCond->natom;ia++)
+  for(ia=0;ia<param->nAtom;ia++)
   {
     for(j=0;j<tempConnectNum[ia];j++)
     {
@@ -1544,15 +1691,15 @@ void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CO
 	ii=ia;
 	jj=ic;
 	
-	if(simulCond->excludeNum[ii]>=nAlloc||simulCond->excludeNum[jj]>=nAlloc)
+	if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
 	{
 	  nAlloc+=nIncr;
-	  for(kk=0;kk<simulCond->natom;kk++)
+	  for(kk=0;kk<param->nAtom;kk++)
 	    tempAtom[kk]=(int*)realloc(tempAtom[kk],nAlloc*sizeof(**(tempAtom)));
 	}
 	
 	exclude=1;
-	for(kk=0;kk<simulCond->excludeNum[ii];kk++)
+	for(kk=0;kk<(*exclPair)[ii];kk++)
 	{
 	  if(tempAtom[ii][kk]==jj)
 	  {
@@ -1563,10 +1710,10 @@ void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CO
 	
 	if(exclude)
 	{
-	  tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-	  tempAtom[jj][simulCond->excludeNum[jj]]=ii;
-	  simulCond->excludeNum[ii]++;
-	  simulCond->excludeNum[jj]++;
+	  tempAtom[ii][(*exclPair)[ii]]=jj;
+	  tempAtom[jj][(*exclPair)[jj]]=ii;
+	  (*exclPair)[ii]++;
+	  (*exclPair)[jj]++;
 	}
 	
 	for(l=0;l<tempConnectNum[ic];l++)
@@ -1579,18 +1726,18 @@ void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CO
 	  ii=ia;
 	  jj=id;
 	  
-	  if(simulCond->excludeNum[ii]>=nAlloc||simulCond->excludeNum[jj]>=nAlloc)
+	  if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
 	  {
 	    nAlloc+=nIncr;
-	    for(kk=0;kk<simulCond->natom;kk++)
+	    for(kk=0;kk<param->nAtom;kk++)
 	      tempAtom[kk]=(int*)realloc(tempAtom[kk],nAlloc*sizeof(**(tempAtom)));
 	  }
 	  
-	  if(ff->npr14>=5*ff->nDihedral)
-	    error(110);
+	  if(neigh->nPair14>=5*param->nDihedral)
+	    my_error(DIHE_NONPARAM_ERROR,__FILE__,__LINE__,0);
 	  
 	  exclude=1;
-	  for(kk=0;kk<simulCond->excludeNum[ii];kk++)
+	  for(kk=0;kk<(*exclPair)[ii];kk++)
 	  {
 	    if(tempAtom[ii][kk]==jj)
 	    {
@@ -1601,14 +1748,14 @@ void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CO
 	  
 	  if(exclude)
 	  {
-	    tempVer14[ff->npr14][0]=ia;
-	    tempVer14[ff->npr14][1]=id;
-	    ff->npr14++;
+	    tempVer14[neigh->nPair14][0]=ia;
+	    tempVer14[neigh->nPair14][1]=id;
+	    neigh->nPair14++;
 	    
-	    tempAtom[ii][simulCond->excludeNum[ii]]=jj;
-	    tempAtom[jj][simulCond->excludeNum[jj]]=ii;
-	    simulCond->excludeNum[ii]++;
-	    simulCond->excludeNum[jj]++;
+	    tempAtom[ii][(*exclPair)[ii]]=jj;
+	    tempAtom[jj][(*exclPair)[jj]]=ii;
+	    (*exclPair)[ii]++;
+	    (*exclPair)[jj]++;
 	  }
 	  
 	}
@@ -1616,36 +1763,36 @@ void link_cell_exclude_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,CO
     }
   }
   
-  ff->ver14=(int**)malloc(ff->npr14*sizeof(*(ff->ver14)));
-  for(i=0;i<ff->npr14;i++)
-    ff->ver14[i]=(int*)malloc(2*sizeof(**(ff->ver14)));
+  *neighList14=(int*)my_malloc(2*neigh->nPair14*sizeof(**neighList14));
   
-  for(i=0;i<ff->npr14;i++)
+  for(i=0;i<neigh->nPair14;i++)
   {
-    ff->ver14[i][0]=tempVer14[i][0];
-    ff->ver14[i][1]=tempVer14[i][1];
+    (*neighList14)[2*i]=tempVer14[i][0];
+    (*neighList14)[2*i+1]=tempVer14[i][1];
   }
   
-  free_2D(5*ff->nDihedral,tempVer14,NULL);
+  free_2D(5*param->nDihedral,tempVer14,NULL);
   
-  free_2D(simulCond->natom,tempConnect,NULL);
+  free_2D(param->nAtom,tempConnect,NULL);
   free(tempConnectNum);
   
-  simulCond->excludeAtom=(int**)malloc(simulCond->natom*sizeof(*(simulCond->excludeAtom)));
-  for(i=0;i<simulCond->natom;i++)
-    simulCond->excludeAtom[i]=(int*)malloc(simulCond->excludeNum[i]*sizeof(**(simulCond->excludeAtom)));
+  *exclList=(int**)my_malloc(param->nAtom*sizeof(**exclList));
+  for(i=0;i<param->nAtom;i++)
+    (*exclList)[i]=(int*)my_malloc((*exclPair)[i]*sizeof(***exclList));
   
-  for(i=0;i<simulCond->natom;i++)
+  for(i=0;i<param->nAtom;i++)
   {
-    for(j=0;j<simulCond->excludeNum[i];j++)
-      simulCond->excludeAtom[i][j]=tempAtom[i][j];
+    for(j=0;j<(*exclPair)[i];j++)
+      (*exclList)[i][j]=tempAtom[i][j];
   }
   
-  free_2D(simulCond->natom,tempAtom,NULL);
+  free_2D(param->nAtom,tempAtom,NULL);
 
 }
 
-void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,PBC *box)
+void link_cell_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
+			   int frozen[],int **neighList,int **neighPair,int **neighOrder,
+			   int **exclList,int exclPair[])
 {
   
   int transx[508]={0,1,0,0,-1,1,0,-1,1,0,-1,1,-1,1,2,0,0,-2,2,-1,1,0,-2,2,0,
@@ -1708,105 +1855,91 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,PBC
     2,2,2,2,3,3,3,3,3,3,3,3,5,5,5,5,5,5,5,5,3,3,3,3,3,3,3,3,5,5,5,5};
     
   int cellCheck,enoughLinkCells,nlcx,nlcy,nlcz;
-  int i,j,k,l,ll,ii,kk,icell,exclude,nalloc;/*,incr;*/
+  int i,j,k,l,kk,ll,icell,exclude,offset,iorder;
   int ix,iy,iz,jx,jy,jz;
-  double r,cutnb,dnlcx,dnlcy,dnlcz;
+  double r2,cutnb,cutnb2,dnlcx,dnlcy,dnlcz;
   double cx,cy,cz,xt,yt,zt,xd,yd,zd,*xu,*yu,*zu;
   
-  xu=(double*)malloc(simulCond->natom*sizeof(*xu));
-  yu=(double*)malloc(simulCond->natom*sizeof(*yu));
-  zu=(double*)malloc(simulCond->natom*sizeof(*zu));
+#ifdef TIMER
+  update_timer_begin(TIMER_LNKCEL_BUILD,__func__);
+#endif
   
-  cutnb=simulCond->cutoff+simulCond->delr;
+  xu=(double*)my_malloc(param->nAtom*sizeof(*xu));
+  yu=(double*)my_malloc(param->nAtom*sizeof(*yu));
+  zu=(double*)my_malloc(param->nAtom*sizeof(*zu));
   
-  nalloc = (int) ( 1.5*simulCond->natom*4./3.*PI*X3(cutnb)/box->vol );
-  nalloc = MIN(nalloc,MAXLIST);
-  /*incr=nalloc;*/
+  cutnb=param->cutOff+param->delr;
+  cutnb2=X2(cutnb);
   
-  ff->verPair=(int*)malloc(simulCond->natom*sizeof(*(ff->verPair)));
-
-  ff->verList=(int**)malloc(simulCond->natom*sizeof(*(ff->verList)));
+  neigh->linkRatio=MIN(MAX(neigh->linkRatio,1),5);
   
-  #ifdef _OPENMP
-  #pragma omp parallel for default(none) shared(simulCond,ff,nalloc) private(i)
-  #endif
-  for(i=0;i<simulCond->natom;i++)
-  {
-    ff->verList[i]=(int*)malloc(nalloc*sizeof(**(ff->verList)));
-    ff->verPair[i]=0;
-  }
-  
-  simulCond->linkRatio=MIN(MAX(simulCond->linkRatio,1),5);
-  
-  if(simulCond->linkRatio==1)
+  if(neigh->linkRatio==1)
     cellCheck=14;
-  else if(simulCond->linkRatio==2)
+  else if(neigh->linkRatio==2)
     cellCheck=63;
-  else if(simulCond->linkRatio==3)
+  else if(neigh->linkRatio==3)
     cellCheck=156;
-  else if(simulCond->linkRatio==4)
+  else if(neigh->linkRatio==4)
     cellCheck=307;
-  else if(simulCond->linkRatio==5)
+  else if(neigh->linkRatio==5)
     cellCheck=508;
   else
-    error(411);
+    my_error(LNKCELL_CUTOFF_ERROR,__FILE__,__LINE__,0);
 
-  nlcx=(int)(box->pa*(double)simulCond->linkRatio/cutnb);
-  nlcy=(int)(box->pb*(double)simulCond->linkRatio/cutnb);
-  nlcz=(int)(box->pc*(double)simulCond->linkRatio/cutnb);
+  nlcx=(int)(box->pa*(double)neigh->linkRatio/cutnb);
+  nlcy=(int)(box->pb*(double)neigh->linkRatio/cutnb);
+  nlcz=(int)(box->pc*(double)neigh->linkRatio/cutnb);
   
   dnlcx=(double)nlcx;
   dnlcy=(double)nlcy;
   dnlcz=(double)nlcz;
   
   enoughLinkCells=1;
-  if(nlcx<2*simulCond->linkRatio+1)
+  if(nlcx<2*neigh->linkRatio+1)
     enoughLinkCells=0;
-  if(nlcy<2*simulCond->linkRatio+1)
+  if(nlcy<2*neigh->linkRatio+1)
     enoughLinkCells=0;
-  if(nlcz<2*simulCond->linkRatio+1)
+  if(nlcz<2*neigh->linkRatio+1)
     enoughLinkCells=0;
   if(!enoughLinkCells)
-    error(412);
+    my_error(LNKCELL_NCELLS_ERROR,__FILE__,__LINE__,0);
   
-  ff->ncells=nlcx*nlcy*nlcz;
+  neigh->nCells=nlcx*nlcy*nlcz;
   
-//   if(ff->ncells>simulCond->maxcells)
-//     error(413);
-  
-  int* link=(int*)malloc(simulCond->natom*sizeof(*link));
+  int* link=(int*)my_malloc(param->nAtom*sizeof(*link));
   
   #ifdef _OPENMP
-  #pragma omp parallel for default(none) shared(simulCond,ff,nalloc,link) private(i)
+  #pragma omp parallel for default(none) shared(param,neigh->sizeList,link) private(i)
   #endif
-  for(i=0;i<simulCond->natom;i++)
+  for(i=0;i<param->nAtom;i++)
   {
     link[i]=-1;
   }
   
-  int* head=(int*)malloc(ff->ncells*sizeof(*head));
+  int* head=(int*)my_malloc(neigh->nCells*sizeof(*head));
   
-  for(i=0;i<ff->ncells;i++)
+  for(i=0;i<neigh->nCells;i++)
   {
     head[i]=-1;
   }
   
-  image_update(atom,simulCond,box); //if new job.
+//   image_update(atom,simulCond,box); //if new job.
+  image_update(param,box,x,y,z); //if new job.
   
   #ifdef _OPENMP
-  #pragma omp parallel for default(none) shared(simulCond,atom,box,xu,yu,zu) private(i)
+  #pragma omp parallel for default(none) shared(param,atom,box,xu,yu,zu) private(i)
   #endif
-  for(i=0;i<simulCond->natom;i++)
+  for(i=0;i<param->nAtom;i++)
   {
-    xu[i]=(atom[i].x*box->u1+atom[i].y*box->u2+atom[i].z*box->u3)+0.5;
-    yu[i]=(atom[i].x*box->v1+atom[i].y*box->v2+atom[i].z*box->v3)+0.5;
-    zu[i]=(atom[i].x*box->w1+atom[i].y*box->w2+atom[i].z*box->w3)+0.5;
+    xu[i]=(x[i]*box->u1+y[i]*box->u2+z[i]*box->u3)+0.5;
+    yu[i]=(x[i]*box->v1+y[i]*box->v2+z[i]*box->v3)+0.5;
+    zu[i]=(x[i]*box->w1+y[i]*box->w2+z[i]*box->w3)+0.5;
   }
   
   #ifdef _OPENMP
-  #pragma omp parallel for default(none) shared(simulCond,xu,yu,zu,nlcx,nlcy,nlcz,dnlcx,dnlcy,dnlcz,head,link) private(i,ix,iy,iz,icell,j)
+  #pragma omp parallel for default(none) shared(param,xu,yu,zu,nlcx,nlcy,nlcz,dnlcx,dnlcy,dnlcz,head,link) private(i,ix,iy,iz,icell,j)
   #endif
-  for(i=0;i<simulCond->natom;i++)
+  for(i=0;i<param->nAtom;i++)
   {
     
     ix=(int)dnlcx*xu[i];
@@ -1833,19 +1966,34 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,PBC
     
   }//end for
   
+  *neighOrder=(int*)my_malloc(param->nAtom*sizeof(**neighOrder));
+  
+  iorder=0;
+  for(k=0;k<neigh->nCells;k++)
+  {
+    i=head[k];
+    while(i!=-1)
+    {
+      (*neighOrder)[iorder++]=i;
+      i=link[i];
+    }
+  }
+  
   ix=0;
   iy=0;
   iz=0;
   
-  for(k=0;k<ff->ncells;k++)
+  neigh->sizeList=0;
+  
+  for(k=0;k<neigh->nCells;k++)
   {
-    ii=head[k];
+    i=head[k];
     
-    if(ii>-1)
+    while(i!=-1)
     {
+      
       for(l=0;l<cellCheck;l++)
       {
-	i=ii;
 	
 	cx=0.;
 	cy=0.;
@@ -1891,69 +2039,57 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,PBC
 	ll=jx+nlcx*(jy+nlcy*jz);
 	
 	j=head[ll];
-	
-	if(j>-1)
+	    
+	if(k==ll)j=link[i];
+	    
+	while(j!=-1)
 	{
-	  while(i!=-1)
+	  xt=xu[j]-xu[i]+cx;
+	  yt=yu[j]-yu[i]+cy;
+	  zt=zu[j]-zu[i]+cz;
+	  
+	  xd=xt*box->a1+yt*box->b1+zt*box->c1;
+	  yd=xt*box->a2+yt*box->b2+zt*box->c2;
+	  zd=xt*box->a3+yt*box->b3+zt*box->c3;
+	  
+	  r2=X2(xd)+X2(yd)+X2(zd);
+	  
+	  if(r2<=cutnb2)
 	  {
+	    exclude=0;
 	    
-	    if(k==ll)j=link[i];
-	    
-	    if(j>-1)
+	    if( (frozen[i]*frozen[j]) )
 	    {
-	      while(j!=-1)
+	      exclude=1;
+	    }
+	    else
+	    {
+	      for (kk=0;kk<exclPair[i];kk++)
 	      {
-		xt=xu[j]-xu[i]+cx;
-		yt=yu[j]-yu[i]+cy;
-		zt=zu[j]-zu[i]+cz;
-		
-		xd=xt*box->a1+yt*box->b1+zt*box->c1;
-		yd=xt*box->a2+yt*box->b2+zt*box->c2;
-		zd=xt*box->a3+yt*box->b3+zt*box->c3;
-		
-		r=sqrt(X2(xd)+X2(yd)+X2(zd));
-		
-		if(r<=cutnb)
+		if(exclList[i][kk]==j)
 		{
-		  exclude=0;
-		  for (kk=0;kk<simulCond->excludeNum[i];kk++)
-		  {
-		    if(simulCond->excludeAtom[i][kk]==j)
-		    {
-		      exclude=1;
-		      break;
-		    }
-		  }
-		  
-		  if(!exclude)
-		  {
-		    
-		    /*if(ff->verPair[i]>=nalloc)
-		      ff->verList[i]=(int*)realloc(ff->verList[i],(nalloc+incr)*sizeof(**(ff->verList)));
-		    else if(ff->verPair[i]>=nalloc+incr)
-		      error(120);*/
-		    if(ff->verPair[i]>=nalloc)
-		      error(120);
-		    
-		    ff->verList[i][ff->verPair[i]]=j;
-		    ff->verPair[i]++;
-		    
-		  } //exclude
-		}//cutnb
-		
-		j=link[j];
-	      
-	      }//while j
-	      
-	    }//if j>-1
+		  exclude=1;
+		  break;
+		}
+	      }
+	    }
 	    
-	    j=head[ll];
-	    i=link[i];
-	    
-	  }//while i
-	}//if j>-1
+	    if(!exclude)
+	    {
+	      
+	      neigh->sizeList++;
+	      
+	    } //exclude
+	  }//cutnb
+	  
+	  j=link[j];
+	
+	}//while j
       }//for checkcell
-    }// if ii >-1
+      
+      i=link[i];
+      
+    }// while i
     
     ix=ix+1;
     if(ix>nlcx-1)
@@ -1971,19 +2107,175 @@ void link_cell_verlet_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,PBC
     
   }//for ncells
   
+  neigh->sizeList=(int)((double)neigh->sizeList*(1.+2.*TOLLIST))+1;
+
+  *neighList=(int*)my_malloc(neigh->sizeList*sizeof(**neighList));
+  
+  *neighPair=(int*)my_malloc(param->nAtom*sizeof(**neighPair));
+  
   #ifdef _OPENMP
-  #pragma omp parallel for default(none) shared(simulCond,ff) private(i)
+  #pragma omp parallel for default(none) shared(param,neigh,neigh->sizeList) private(i)
   #endif
-  for(i=0;i<simulCond->natom;i++)
-    ff->verList[i]=(int*)realloc(ff->verList[i],ff->verPair[i]*sizeof(**(ff->verList)));
+  for(i=0;i<param->nAtom;i++)
+  {
+    (*neighPair)[i]=0;
+  }
+  
+  ix=0;
+  iy=0;
+  iz=0;
+  
+  offset=0;
+  
+  for(k=0;k<neigh->nCells;k++)
+  {
+    i=head[k];
+    
+    while(i!=-1)
+    {
+      
+      for(l=0;l<cellCheck;l++)
+      {
+	
+	cx=0.;
+	cy=0.;
+	cz=0.;
+	
+	jx=ix+transx[l];
+	jy=iy+transy[l];
+	jz=iz+transz[l];
+	
+	if(jx>nlcx-1)
+	{
+	  jx=jx-nlcx;
+	  cx=1.;
+	}
+	else if(jx<0)
+	{
+	  jx=jx+nlcx;
+	  cx=-1.;
+	}
+	
+	if(jy>nlcy-1)
+	{
+	  jy=jy-nlcy;
+	  cy=1.;
+	}
+	else if(jy<0)
+	{
+	  jy=jy+nlcy;
+	  cy=-1.;
+	}
+	
+	if(jz>nlcz-1)
+	{
+	  jz=jz-nlcz;
+	  cz=1.;
+	}
+	else if(jz<0)
+	{
+	  jz=jz+nlcz;
+	  cz=-1.;
+	}
+	
+	ll=jx+nlcx*(jy+nlcy*jz);
+	
+	j=head[ll];
+	    
+	if(k==ll)j=link[i];
+	    
+	while(j!=-1)
+	{
+	  xt=xu[j]-xu[i]+cx;
+	  yt=yu[j]-yu[i]+cy;
+	  zt=zu[j]-zu[i]+cz;
+	  
+	  xd=xt*box->a1+yt*box->b1+zt*box->c1;
+	  yd=xt*box->a2+yt*box->b2+zt*box->c2;
+	  zd=xt*box->a3+yt*box->b3+zt*box->c3;
+	  
+	  r2=X2(xd)+X2(yd)+X2(zd);
+	  
+	  if(r2<=cutnb2)
+	  {
+	    exclude=0;
+	    
+	    if( (frozen[i]*frozen[j]) )
+	    {
+	      exclude=1;
+	    }
+	    else
+	    {
+	      for (kk=0;kk<exclPair[i];kk++)
+	      {
+		if(exclList[i][kk]==j)
+		{
+		  exclude=1;
+		  break;
+		}
+	      }
+	    }
+	    
+	    if(!exclude)
+	    {
+	      
+	      if(offset>=neigh->sizeList)
+	      {
+		fprintf(outFile,"WARNING: List larger than estimated. Size increased from %d",neigh->sizeList);
+		neigh->sizeList=(int)((double)neigh->sizeList*(1.+TOLLIST))+1;
+		fprintf(outFile," to %d.\n",neigh->sizeList);
+		
+		*neighList=(int*)realloc(*neighList,neigh->sizeList*sizeof(**neighList));
+	      }
+	      
+	      (*neighList)[offset]=j;
+	      (*neighPair)[i]++;
+	      offset++;
+	      
+	    } //exclude
+	  }//cutnb
+	  
+	  j=link[j];
+	
+	}//while j
+      }//for checkcell
+      
+      i=link[i];
+      
+    }// while i
+    
+    ix=ix+1;
+    if(ix>nlcx-1)
+    {       
+      ix=0;
+      iy=iy+1;
+            
+      if(iy>nlcy-1)
+      {        
+	iy=0;
+	iz=iz+1;
+      }
+      
+    }
+    
+  }//for ncells
   
   free(xu);
   free(yu);
   free(zu);
-
+  
+  free(link);
+  free(head);
+  
+#ifdef TIMER
+  update_timer_end(TIMER_LNKCEL_BUILD,__func__);
+#endif
+  
 }
 
-void link_cell_verlet_list_update(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,PBC *box)
+void link_cell_verlet_list_update(PARAM *param,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
+				  int frozen[],int **neighList,int neighPair[],int neighOrder[],
+				  int **exclList,int exclPair[])
 {
   
   int transx[508]={0,1,0,0,-1,1,0,-1,1,0,-1,1,-1,1,2,0,0,-2,2,-1,1,0,-2,2,0,
@@ -2046,97 +2338,97 @@ void link_cell_verlet_list_update(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD 
     2,2,2,2,3,3,3,3,3,3,3,3,5,5,5,5,5,5,5,5,3,3,3,3,3,3,3,3,5,5,5,5};
     
   int cellCheck,enoughLinkCells,nlcx,nlcy,nlcz;
-  int i,j,k,l,ll,ii,kk,icell,exclude,nalloc;/*,incr;*/
+  int i,j,k,l,ll,kk,icell,exclude,offset,iorder;
   int ix,iy,iz,jx,jy,jz;
-  double r,cutnb,dnlcx,dnlcy,dnlcz;
+  double r2,cutnb,cutnb2,dnlcx,dnlcy,dnlcz;
   double cx,cy,cz,xt,yt,zt,xd,yd,zd,*xu,*yu,*zu;
   
-  xu=(double*)malloc(simulCond->natom*sizeof(*xu));
-  yu=(double*)malloc(simulCond->natom*sizeof(*yu));
-  zu=(double*)malloc(simulCond->natom*sizeof(*zu));
+#ifdef TIMER
+  update_timer_begin(TIMER_LNKCEL_UPDATE,__func__);
+#endif
   
-  cutnb=simulCond->cutoff+simulCond->delr;
+  xu=(double*)my_malloc(param->nAtom*sizeof(*xu));
+  yu=(double*)my_malloc(param->nAtom*sizeof(*yu));
+  zu=(double*)my_malloc(param->nAtom*sizeof(*zu));
   
-  nalloc = (int) ( 1.5*simulCond->natom*4./3.*PI*X3(cutnb)/box->vol );
-  nalloc = MIN(nalloc,MAXLIST);
-  /*incr=nalloc;*/
+  cutnb=param->cutOff+param->delr;
+  cutnb2=X2(cutnb);
   
   #ifdef _OPENMP
-  #pragma omp parallel for default(none) shared(simulCond,ff,nalloc) private(i)
+  #pragma omp parallel for default(none) shared(param,neigh,neigh->sizeList) private(i)
   #endif
-  for(i=0;i<simulCond->natom;i++)
+  for(i=0;i<param->nAtom;i++)
   {
-    ff->verList[i]=(int*)realloc(ff->verList[i],nalloc*sizeof(**(ff->verList)));
-    ff->verPair[i]=0;
+    neighPair[i]=0;
   }
   
-  simulCond->linkRatio=MIN(MAX(simulCond->linkRatio,1),5);
+  neigh->linkRatio=MIN(MAX(neigh->linkRatio,1),5);
   
-  if(simulCond->linkRatio==1)
+  if(neigh->linkRatio==1)
     cellCheck=14;
-  else if(simulCond->linkRatio==2)
+  else if(neigh->linkRatio==2)
     cellCheck=63;
-  else if(simulCond->linkRatio==3)
+  else if(neigh->linkRatio==3)
     cellCheck=156;
-  else if(simulCond->linkRatio==4)
+  else if(neigh->linkRatio==4)
     cellCheck=307;
-  else if(simulCond->linkRatio==5)
+  else if(neigh->linkRatio==5)
     cellCheck=508;
   else
-    error(411);
+     my_error(LNKCELL_CUTOFF_ERROR,__FILE__,__LINE__,0);
 
-  nlcx=(int)(box->pa*(double)simulCond->linkRatio/cutnb);
-  nlcy=(int)(box->pb*(double)simulCond->linkRatio/cutnb);
-  nlcz=(int)(box->pc*(double)simulCond->linkRatio/cutnb);
+  nlcx=(int)(box->pa*(double)neigh->linkRatio/cutnb);
+  nlcy=(int)(box->pb*(double)neigh->linkRatio/cutnb);
+  nlcz=(int)(box->pc*(double)neigh->linkRatio/cutnb);
   
   dnlcx=(double)nlcx;
   dnlcy=(double)nlcy;
   dnlcz=(double)nlcz;
   
   enoughLinkCells=1;
-  if(nlcx<2*simulCond->linkRatio+1)
+  if(nlcx<2*neigh->linkRatio+1)
     enoughLinkCells=0;
-  if(nlcy<2*simulCond->linkRatio+1)
+  if(nlcy<2*neigh->linkRatio+1)
     enoughLinkCells=0;
-  if(nlcz<2*simulCond->linkRatio+1)
+  if(nlcz<2*neigh->linkRatio+1)
     enoughLinkCells=0;
   if(!enoughLinkCells)
-    error(412);
+    my_error(LNKCELL_NCELLS_ERROR,__FILE__,__LINE__,0);
   
-  ff->ncells=nlcx*nlcy*nlcz;
+  neigh->nCells=nlcx*nlcy*nlcz;
   
-  int* link=(int*)malloc(simulCond->natom*sizeof(*link));
+  int* link=(int*)my_malloc(param->nAtom*sizeof(*link));
   
   #ifdef _OPENMP
-  #pragma omp parallel for default(none) shared(simulCond,ff,nalloc,link) private(i)
+  #pragma omp parallel for default(none) shared(param,neigh->sizeList,link) private(i)
   #endif
-  for(i=0;i<simulCond->natom;i++)
+  for(i=0;i<param->nAtom;i++)
   {
     link[i]=-1;
   }
   
-  int* head=(int*)malloc(ff->ncells*sizeof(*head));
+  int* head=(int*)my_malloc(neigh->nCells*sizeof(*head));
   
-  for(i=0;i<ff->ncells;i++)
+  for(i=0;i<neigh->nCells;i++)
   {
     head[i]=-1;
   }
   
   
   #ifdef _OPENMP
-  #pragma omp parallel for default(none) shared(simulCond,atom,box,xu,yu,zu) private(i)
+  #pragma omp parallel for default(none) shared(param,atom,box,xu,yu,zu) private(i)
   #endif
-  for(i=0;i<simulCond->natom;i++)
+  for(i=0;i<param->nAtom;i++)
   {
-    xu[i]=(atom[i].x*box->u1+atom[i].y*box->u2+atom[i].z*box->u3)+0.5;
-    yu[i]=(atom[i].x*box->v1+atom[i].y*box->v2+atom[i].z*box->v3)+0.5;
-    zu[i]=(atom[i].x*box->w1+atom[i].y*box->w2+atom[i].z*box->w3)+0.5;
+    xu[i]=(x[i]*box->u1+y[i]*box->u2+z[i]*box->u3)+0.5;
+    yu[i]=(x[i]*box->v1+y[i]*box->v2+z[i]*box->v3)+0.5;
+    zu[i]=(x[i]*box->w1+y[i]*box->w2+z[i]*box->w3)+0.5;
   }
   
   #ifdef _OPENMP
-  #pragma omp parallel for default(none) shared(simulCond,xu,yu,zu,nlcx,nlcy,nlcz,dnlcx,dnlcy,dnlcz,head,link) private(i,ix,iy,iz,icell,j)
+  #pragma omp parallel for default(none) shared(param,xu,yu,zu,nlcx,nlcy,nlcz,dnlcx,dnlcy,dnlcz,head,link) private(i,ix,iy,iz,icell,j)
   #endif
-  for(i=0;i<simulCond->natom;i++)
+  for(i=0;i<param->nAtom;i++)
   {
     
     ix=(int)dnlcx*xu[i];
@@ -2163,20 +2455,32 @@ void link_cell_verlet_list_update(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD 
 
   } //end for
   
+  iorder=0;
+  for(k=0;k<neigh->nCells;k++)
+  {
+    i=head[k];
+    while(i!=-1)
+    {
+      neighOrder[iorder++]=i;
+      i=link[i];
+    }
+  }
+  
   ix=0;
   iy=0;
   iz=0;
   
-  for(k=0;k<ff->ncells;k++)
+  offset=0;
+  
+  for(k=0;k<neigh->nCells;k++)
   {
-    ii=head[k];
+    i=head[k];
     
-    if(ii>-1)
+    while(i!=-1)
     {
+      
       for(l=0;l<cellCheck;l++)
       {
-	
-	i=ii;
 	
 	cx=0.;
 	cy=0.;
@@ -2220,70 +2524,70 @@ void link_cell_verlet_list_update(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD 
 	}
 	
 	ll=jx+nlcx*(jy+nlcy*jz);
-	j=head[ll];
 	
-	if(j>-1)
+	j=head[ll];
+	    
+	if(k==ll)j=link[i];
+	    
+	while(j!=-1)
 	{
-	  while(i!=-1)
+	  xt=xu[j]-xu[i]+cx;
+	  yt=yu[j]-yu[i]+cy;
+	  zt=zu[j]-zu[i]+cz;
+	  
+	  xd=xt*box->a1+yt*box->b1+zt*box->c1;
+	  yd=xt*box->a2+yt*box->b2+zt*box->c2;
+	  zd=xt*box->a3+yt*box->b3+zt*box->c3;
+	  
+	  r2=X2(xd)+X2(yd)+X2(zd);
+	  
+	  if(r2<=cutnb2)
 	  {
+	    exclude=0;
 	    
-	    if(k==ll)j=link[i];
-	    
-	    if(j>-1)
+	    if( (frozen[i]*frozen[j]) )
 	    {
-	      while(j!=-1)
+	      exclude=1;
+	    }
+	    else
+	    {
+	      for (kk=0;kk<exclPair[i];kk++)
 	      {
-		xt=xu[j]-xu[i]+cx;
-		yt=yu[j]-yu[i]+cy;
-		zt=zu[j]-zu[i]+cz;
-		
-		xd=xt*box->a1+yt*box->b1+zt*box->c1;
-		yd=xt*box->a2+yt*box->b2+zt*box->c2;
-		zd=xt*box->a3+yt*box->b3+zt*box->c3;
-		
-		r=sqrt(X2(xd)+X2(yd)+X2(zd));
-		
-		if(r<=cutnb)
+		if(exclList[i][kk]==j)
 		{
-		  exclude=0;
-		  for (kk=0;kk<simulCond->excludeNum[i];kk++)
-		  {
-		    if(simulCond->excludeAtom[i][kk]==j)
-		    {
-		      exclude=1;
-		      break;
-		    }
-		  }
-		  
-		  if(!exclude)
-		  {
-		    
-		    /*if(ff->verPair[i]>=nalloc)
-		      ff->verList[i]=(int*)realloc(ff->verList[i],(nalloc+incr)*sizeof(**(ff->verList)));
-		    else if(ff->verPair[i]>=nalloc+incr)
-		      error(120);*/
-		    if(ff->verPair[i]>=nalloc)
-		      error(120);
-		    
-		    ff->verList[i][ff->verPair[i]]=j;
-		    ff->verPair[i]++;
-		    
-		  } //exclude
-		}//cutnb
+		  exclude=1;
+		  break;
+		}
+	      }
+	    }
+	    
+	    if(!exclude)
+	    {
+	      
+	      if(offset>=neigh->sizeList)
+	      {
+		fprintf(outFile,"WARNING: List larger than estimated. Size increased from %d",neigh->sizeList);
+		neigh->sizeList=(int)((double)neigh->sizeList*(1.+TOLLIST))+1;
+		fprintf(outFile," to %d.\n",neigh->sizeList);
 		
-		j=link[j];
+		*neighList=(int*)realloc(*neighList,neigh->sizeList*sizeof(**neighList));
+	      }
 	      
-	      }//while j
+	      (*neighList)[offset]=j;
+	      neighPair[i]++;
+	      offset++;
 	      
-	    }//if j>-1
-	    
-	    j=head[ll];
-	    i=link[i];
-	    
-	  }//while i
-	}//if j>-1
+	    } //exclude
+	  }//cutnb
+	  
+	  j=link[j];
+	
+	}//while j
       }//for checkcell
-    }// if ii >-1
+      
+      i=link[i];
+      
+    }// while i
     
     ix=ix+1;
     if(ix>nlcx-1)
@@ -2301,34 +2605,37 @@ void link_cell_verlet_list_update(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD 
     
   }//for ncells
   
-  #ifdef _OPENMP
-  #pragma omp parallel for default(none) shared(simulCond,ff) private(i)
-  #endif
-  for(i=0;i<simulCond->natom;i++)
-    ff->verList[i]=(int*)realloc(ff->verList[i],ff->verPair[i]*sizeof(**(ff->verList)));
-  
   free(xu);
   free(yu);
   free(zu);
+  
+  free(link);
+  free(head);
+  
+#ifdef TIMER
+  update_timer_end(TIMER_LNKCEL_UPDATE,__func__);
+#endif
 
 }
 
-void fast_verlet_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,PBC *box)
+void fast_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
+		      int frozen[],int **neighList,int **neighPair,int **neighOrder,
+		      int **exclList,int exclPair[])
 {
-  /************************************************************
+  /**
    * This routine is derived from the algorithm described
    * by Tim. N. Heinz and Philippe H. Hunenberger
    * J. Comput. Chem., Vol. 25, No. 12, 1474--1486 (2004)
    * DOI: 10.1002/jcc.20071
-   * **********************************************************/
+   */
   
   int i,j,k,kk,m,dm,s,m1,m2,stripes,atpercell;
   int nlcx,nlcy,nlcz;
   int dmx,dmy,dmz,dnx,dny,dnz;
   int t1ny,t2ny,t1nz,t2nz;
-  int exclude,nalloc;
+  int exclude,offset,iorder;
   
-  double r,rlcx,rlcy,rlcz,rlcx2,rlcy2,rlcz2,cutnb,cutnb2;
+  double r2,rlcx,rlcy,rlcz,rlcx2,rlcy2,rlcz2,cutnb,cutnb2;
   double dnlcx,dnlcy,dnlcz;
   
   int ix,iy,iz;
@@ -2338,33 +2645,18 @@ void fast_verlet_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,PBC *box
   int *ptrmask=NULL,*ptrcell=NULL,*cell=NULL,*tempcell=NULL;
   double *xu=NULL,*yu=NULL,*zu=NULL;
   
-  cutnb=simulCond->cutoff+simulCond->delr;
+  xu=(double*)my_malloc(param->nAtom*sizeof(*xu));
+  yu=(double*)my_malloc(param->nAtom*sizeof(*yu));
+  zu=(double*)my_malloc(param->nAtom*sizeof(*zu));;
   
-  nalloc = (int) ( 1.5*simulCond->natom*4./3.*PI*X3(cutnb)/box->vol );
-  nalloc = MIN(nalloc,MAXLIST);
-  
-  ff->verPair=(int*)malloc(simulCond->natom*sizeof(*(ff->verPair)));
-
-  ff->verList=(int**)malloc(simulCond->natom*sizeof(*(ff->verList)));
-  
-  for(i=0;i<simulCond->natom;i++)
-  {
-    ff->verList[i]=(int*)malloc(nalloc*sizeof(**(ff->verList)));
-    ff->verPair[i]=0;
-  }
-  
-  xu=(double*)malloc(simulCond->natom*sizeof(*xu));
-  yu=(double*)malloc(simulCond->natom*sizeof(*yu));
-  zu=(double*)malloc(simulCond->natom*sizeof(*zu));;
-  
-  cutnb=simulCond->cutoff+simulCond->delr;
+  cutnb=param->cutOff+param->delr;
   cutnb2=X2(cutnb);
   
-  nlcx=(int)(box->pa*(double)simulCond->linkRatio/cutnb);
-  nlcy=(int)(box->pb*(double)simulCond->linkRatio/cutnb);
-  nlcz=(int)(box->pc*(double)simulCond->linkRatio/cutnb);
+  nlcx=(int)(box->pa*(double)neigh->linkRatio/cutnb);
+  nlcy=(int)(box->pb*(double)neigh->linkRatio/cutnb);
+  nlcz=(int)(box->pc*(double)neigh->linkRatio/cutnb);
   
-  ff->ncells=nlcx*nlcy*nlcz;
+  neigh->nCells=nlcx*nlcy*nlcz;
   
   dnlcx=(double)nlcx;
   dnlcy=(double)nlcy;
@@ -2379,23 +2671,23 @@ void fast_verlet_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,PBC *box
   rlcz2=X2(rlcz);
   
   stripes=(int)(1.5*PI*cutnb2*dnlcy*dnlcz/(box->pb*box->pc));
-  atpercell=(int)(1.5*simulCond->natom/ff->ncells);
+  atpercell=(int)(1.5*param->nAtom/neigh->nCells);
   
-  ptrmask=(int*)malloc(2*stripes*sizeof(*ptrmask));
+  ptrmask=(int*)my_malloc(2*stripes*sizeof(*ptrmask));
   for(i=0;i<2*stripes;i++)
     ptrmask[i]=-1;
   
-  cell=(int*)malloc(simulCond->natom*sizeof(*cell));
-  tempcell=(int*)malloc(ff->ncells*atpercell*sizeof(*tempcell));
+  cell=(int*)my_malloc(param->nAtom*sizeof(*cell));
+  tempcell=(int*)my_malloc(neigh->nCells*atpercell*sizeof(*tempcell));
   
-  ptrcell=(int*)malloc((ff->ncells+1)*sizeof(*ptrcell));
-  for(i=0;i<ff->ncells+1;i++)
+  ptrcell=(int*)my_malloc((neigh->nCells+1)*sizeof(*ptrcell));
+  for(i=0;i<neigh->nCells+1;i++)
     ptrcell[i]=i*atpercell;
   
-  ptrcell[ff->ncells]=simulCond->natom;
+  ptrcell[neigh->nCells]=param->nAtom;
   
   k=0;
-  for(dm=1;dm<ff->ncells-1;dm++)
+  for(dm=1;dm<neigh->nCells-1;dm++)
   {
     
     dmz=(int)( dm / ( nlcx * nlcy ) ) ;
@@ -2422,9 +2714,9 @@ void fast_verlet_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,PBC *box
       dnz=MIN(t1nz,t2nz);
     }
     
-    r=X2( MAX(dnx,1)-1 )*rlcx2+X2( MAX(dny,1)-1 )*rlcy2+X2( MAX(dnz,1)-1 )*rlcz2;
+    r2=X2( MAX(dnx,1)-1 )*rlcx2+X2( MAX(dny,1)-1 )*rlcy2+X2( MAX(dnz,1)-1 )*rlcz2;
     
-    if(r<=cutnb2)
+    if(r2<=cutnb2)
     {
       
       if(ptrmask[k]==-1)
@@ -2441,14 +2733,14 @@ void fast_verlet_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,PBC *box
     
   }
   
-  for(i=0;i<simulCond->natom;i++)
+  for(i=0;i<param->nAtom;i++)
   {
-    xu[i]=(atom[i].x*box->u1+atom[i].y*box->u2+atom[i].z*box->u3)+0.5;
-    yu[i]=(atom[i].x*box->v1+atom[i].y*box->v2+atom[i].z*box->v3)+0.5;
-    zu[i]=(atom[i].x*box->w1+atom[i].y*box->w2+atom[i].z*box->w3)+0.5;
+    xu[i]=(x[i]*box->u1+y[i]*box->u2+z[i]*box->u3)+0.5;
+    yu[i]=(x[i]*box->v1+y[i]*box->v2+z[i]*box->v3)+0.5;
+    zu[i]=(x[i]*box->w1+y[i]*box->w2+z[i]*box->w3)+0.5;
   }
   
-  for(i=0;i<simulCond->natom;i++)
+  for(i=0;i<param->nAtom;i++)
   {
     
     ix=(int)dnlcx*xu[i];
@@ -2466,13 +2758,13 @@ void fast_verlet_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,PBC *box
     if(ptrcell[m]<(m+1)*atpercell)
       ptrcell[m]++;
     else
-      error(130);
+      my_error(130,__FILE__,__LINE__,0);
     
   }
   
   k=ptrcell[0];
   ptrcell[0]=0;
-  for(m=1;m<ff->ncells;m++)
+  for(m=1;m<neigh->nCells;m++)
   {
     j=ptrcell[m];
     ptrcell[m]=k;
@@ -2483,66 +2775,183 @@ void fast_verlet_list(SIMULPARAMS *simulCond,ATOM atom[],FORCEFIELD *ff,PBC *box
     }
   }
   
-  cell=(int*)realloc(cell,simulCond->natom*sizeof(*cell));
+  cell=(int*)realloc(cell,param->nAtom*sizeof(*cell));
   
-  for(m=0;m<ff->ncells;m++)
+  neigh->sizeList=0;
+  
+  for(m=0;m<neigh->nCells;m++)
   {
     for(i=ptrcell[m];i<ptrcell[m+1];i++)
     {
       for(j=i+1;i<ptrcell[m+1];i++)
       {
-// 	r=distance(i,j,atom,delta,simulCond,box);
-// 	if(r<=cutnb) if rcell<=cutnb as it should be, this test is not necessary.
-// 	{
-	  exclude=0;
-	  for (kk=0;kk<simulCond->excludeNum[i];kk++)
+	exclude=0;
+	
+	if( (frozen[i]*frozen[j]) )
+	{
+	  exclude=1;
+	}
+	else
+	{
+	  for (kk=0;kk<exclPair[i];kk++)
 	  {
-	    if(simulCond->excludeAtom[i][kk]==j)
+	    if(exclList[i][kk]==j)
 	    {
 	      exclude=1;
 	      break;
 	    }
 	  }
-	  
-	  if(!exclude)
-	  {
-	    if(ff->verPair[i]>=nalloc)
-	      error(120);
-	    
-	    ff->verList[i][ff->verPair[i]]=j;
-	    ff->verPair[i]++;
-	  }
-// 	}
+	}
+	
+	if(!exclude)
+	{	  
+	  neigh->sizeList++;
+	}
       }
       
       for(s=0;s<stripes;s++)
       {
 	m1=m+ptrmask[2*s];
-	if(m1<ff->ncells)
+	if(m1<neigh->nCells)
 	{
-	  m2=MIN(m+ptrmask[2*s+1],ff->ncells-1);
+	  m2=MIN(m+ptrmask[2*s+1],neigh->nCells-1);
 	  for(j=ptrcell[m1];j<ptrcell[m2+1];j++)
 	  {
-	    r=distance(i,j,atom,delta,simulCond,box);
-	    if(r<=cutnb)
+	    
+	    delta[0]=x[j]-x[i];
+	    delta[1]=y[j]-y[i];
+	    delta[2]=z[j]-z[i];
+	  
+	    r2=dist(box,delta);
+	    
+	    if(r2<=cutnb2)
 	    {
 	      exclude=0;
-	      for (kk=0;kk<simulCond->excludeNum[i];kk++)
+	      
+	      if( (frozen[i]*frozen[j]) )
 	      {
-		if(simulCond->excludeAtom[i][kk]==j)
+		exclude=1;
+	      }
+	      else
+	      {
+		for (kk=0;kk<exclPair[i];kk++)
 		{
-		  exclude=1;
-		  break;
+		  if(exclList[i][kk]==j)
+		  {
+		    exclude=1;
+		    break;
+		  }
 		}
 	      }
 	      
 	      if(!exclude)
 	      {
-		if(ff->verPair[i]>=nalloc)
-		  error(120);
+		neigh->sizeList++;
+	      }
+	    }
+	  }
+	}
+      }
+    }
+  }
+  
+  *neighList=(int*)my_malloc(neigh->sizeList*sizeof(**neighList));
+  
+  *neighPair=(int*)my_malloc(param->nAtom*sizeof(**neighPair));
+  
+  for(i=0;i<param->nAtom;i++)
+  {
+    (*neighPair)[i]=0;
+  }
+  
+  *neighOrder=(int*)my_malloc(param->nAtom*sizeof(**neighOrder));
+  
+  iorder=0;
+  offset=0;
+  
+  for(m=0;m<neigh->nCells;m++)
+  {
+    for(i=ptrcell[m];i<ptrcell[m+1];i++)
+    {
+      (*neighOrder)[iorder++]=i;
+      
+      for(j=i+1;i<ptrcell[m+1];i++)
+      {
+	exclude=0;
+	
+	if( (frozen[i]*frozen[j]) )
+	{
+	  exclude=1;
+	}
+	else
+	{
+	  for (kk=0;kk<exclPair[i];kk++)
+	  {
+	    if(exclList[i][kk]==j)
+	    {
+	      exclude=1;
+	      break;
+	    }
+	  }
+	}
+	
+	if(!exclude)
+	{ 
+	  (*neighList)[offset]=j;
+	  (*neighPair)[i]++;
+	  offset++;
+	}
+      }
+      
+      for(s=0;s<stripes;s++)
+      {
+	m1=m+ptrmask[2*s];
+	if(m1<neigh->nCells)
+	{
+	  m2=MIN(m+ptrmask[2*s+1],neigh->nCells-1);
+	  for(j=ptrcell[m1];j<ptrcell[m2+1];j++)
+	  {
+	    delta[0]=x[j]-x[i];
+	    delta[1]=y[j]-y[i];
+	    delta[2]=z[j]-z[i];
+	  
+	    r2=dist(box,delta);
+	    
+	    if(r2<=cutnb2)
+	    {
+	      exclude=0;
+	      
+	      if( (frozen[i]*frozen[j]) )
+	      {
+		exclude=1;
+	      }
+	      else
+	      {
+		for (kk=0;kk<exclPair[i];kk++)
+		{
+		  if(exclList[i][kk]==j)
+		  {
+		    exclude=1;
+		    break;
+		  }
+		}
+	      }
+	      
+	      if(!exclude)
+	      {
 		
-		ff->verList[i][ff->verPair[i]]=j;
-		ff->verPair[i]++;
+		if(offset>=neigh->sizeList)
+		{
+		  fprintf(outFile,"WARNING: List larger than estimated. Size increased from %d",neigh->sizeList);
+		  neigh->sizeList=(int)(neigh->sizeList*(1.+TOLLIST))+1;
+		  fprintf(outFile," to %d.\n",neigh->sizeList);
+		  
+		  *neighList=(int*)realloc(*neighList,neigh->sizeList*sizeof(**neighList));
+		}
+		
+		(*neighList)[offset]=j;
+		(*neighPair)[i]++;
+		offset++;
 	      }
 	    }
 	  }

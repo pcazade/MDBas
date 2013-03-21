@@ -1,12 +1,31 @@
 #ifndef VDWH_INCLUDED
 #define VDWH_INCLUDED
 
-double vdw_none(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,int i,int j,double r,double *dvdw);
-void vdw_full(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box);
-double vdw_switch(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,int i,int j,double r,double *dvdw);
+#ifdef	__cplusplus
+extern "C" {
+#endif
 
-double vdw14_none(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,int i,int j,double r,double *dvdw);
-double vdw14_full(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,int i,int j,double r,double *dvdw);
-double vdw14_switch(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCon,PBC *boxd,int i,int j,double r,double *dvdw);
+double vdw_none(const PARAM *param,double *dvdw,const double veps,
+		const double vsig,const double r2, const double rt);
+
+void vdw_full(const PARAM *param, ENERGY *ener, const PBC *box,double *x,
+	      double *y,double *z,double *fx, double *fy, double *fz,double *eps,double *sig,
+	      int **exclList,int *exclPair);
+
+double vdw_switch(const PARAM *param,double *dvdw,const double veps,
+		  const double vsig,const double r2, const double rt);
+
+double vdw14_none(const PARAM *param,double *dvdw,const double veps,
+		  const double vsig,const double r2, const double rt);
+
+double vdw14_full(const PARAM *param,double *dvdw,const double veps,
+		  const double vsig,const double r2, const double rt);
+
+double vdw14_switch(const PARAM *param,double *dvdw,const double veps,
+		    const double vsig,const double r2, const double rt);
+
+#ifdef	__cplusplus
+}
+#endif
 
 #endif

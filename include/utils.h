@@ -1,26 +1,45 @@
 #ifndef UTILSH_INCLUDED
 #define UTILSH_INCLUDED
 
-double distance(int i,int j, ATOM atom[],double delta[3],SIMULPARAMS *simulCond,PBC *box);
-double distance2(int i,int j, ATOM atom[],DELTA *d,SIMULPARAMS *simulCond,PBC *box);
+#ifdef	__cplusplus
+extern "C" {
+#endif
 
-void init_vel(ATOM atom[],SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box);
-void init_constvel(ATOM atom[],SIMULPARAMS *simulCond,CONSTRAINT *constList,PBC *box);
+double dist(const PBC *box, double delta[3]);
 
-void image_update(ATOM atom[],SIMULPARAMS *simulCond,PBC *box);
-void image_array(int size_array,DELTA d[],SIMULPARAMS *simulCond,PBC *box);
-void init_box(PBC *box);
-void scale_box(PBC *box,double scale,double cell0[9]);
-void vv_scale_box(PBC *box,double scale);
-void box_to_lattice(PBC *box,double lattice[6]);
-void box_to_crystal(PBC *box,double crystal[6]);
+double dist2(const PBC *box, double *dx, double *dy,double *dz);
 
-double kinetic(ATOM atom[],SIMULPARAMS *simulCond);
-void stress_kinetic(ATOM atom[],SIMULPARAMS *simulCond,double stress[6]);
-void get_kinfromtemp(ATOM atom[],SIMULPARAMS *simulCond,PBC *box);
-void get_degfree(SIMULPARAMS *simulCond,PBC *box);
+void freeze_atoms(const PARAM *param, double *vx, double *vy,double *vz,
+		  double *fx,double *fy,double *fz,const int *frozen);
+
+void image_update(const PARAM *param, const PBC *box,double x[],double y[],double z[]);
+
+void image_array(const PBC *box, double dx[],double dy[],double dz[],const int size_array);
+
+void scale_box(PBC *box, const double cell0[9], const double scale);
+
+void vv_scale_box(PBC *box, const double scale);
+
+void box_to_lattice(const PBC *box,double lattice[6]);
+
+void box_to_crystal(const PBC *box,double crystal[6]);
+
+double kinetic(const PARAM *param, const double vx[],const double vy[],
+	       const double vz[],const double mass[]);
+
+void stress_kinetic(const PARAM *param,const double vx[],const double vy[],
+		    const double vz[],const double mass[],double stress[6]);
+
+void get_kinfromtemp(PARAM *param, const PBC *box);
+
+void get_degfree(PARAM *param, const PBC *box);
 
 void nocase(char *str);
-int nint(double x);
+
+int nint(const double x);
+
+#ifdef	__cplusplus
+}
+#endif
 
 #endif

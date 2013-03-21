@@ -13,43 +13,76 @@
 #include "global.h"
 #include "utils.h"
 
-void bond_energy(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
+#if (defined TIMING && defined __unix__ && !defined __STRICT_ANSI__)
+#define TIMER
+#include "timing.h"
+#endif
+
+void bond_energy(const PARAM *param,ENERGY *ener,const PBC *box,const BOND bond[],const double *x,
+		 const double *y,const double *z,double *fx,double *fy,double *fz)
 {
   int i,j,ll;
-  double r,fx,fy,fz,dbond,virbond=0.;
-  double delta[3],stress[6]={0.};
+  double morsea,morseb;
+  double r,tfx,tfy,tfz,dbond,virbond=0.;
+  double delta[3]/*,stress[6]={0.}*/;
   
-  for(ll=0;ll<ff->nBond;ll++)
+#ifdef TIMER
+  update_timer_begin(TIMER_ENERGY_BOND,__func__);
+#endif
+  
+  for(ll=0;ll<param->nBond;ll++)
   {
     
-    i=simulCond->iBond[ll][0];
-    j=simulCond->iBond[ll][1];
+    i=bond[ll].a;
+    j=bond[ll].b;
     
-    r=distance(i,j,atom,delta,simulCond,box);
+    delta[0]=x[j]-x[i];
+    delta[1]=y[j]-y[i];
+    delta[2]=z[j]-z[i];
     
-    ener->bond+=0.5*ff->parmBond[ll][0]*X2(r-ff->parmBond[ll][1]);
-    dbond=ff->parmBond[ll][0]*(r-ff->parmBond[ll][1]);
+    r=sqrt(dist(box,delta));
+    
+    switch(bond[ll].type)
+    {
+      case BHARM:
+	ener->bond+=0.5*bond[ll].k*X2(r-bond[ll].r0);
+	dbond=bond[ll].k*(r-bond[ll].r0);
+	break;
+      
+      case BMORSE:
+	morsea=exp(-bond[ll].beta*(r-bond[ll].r0));
+	morseb=X2(morsea);
+	ener->bond+=bond[ll].k*(morseb-2.*morsea)+bond[ll].k;
+	dbond=2.*bond[ll].k*bond[ll].beta*(morsea-morseb);
+	break;
+      
+      default:
+	ener->bond+=0.5*bond[ll].k*X2(r-bond[ll].r0);
+	dbond=bond[ll].k*(r-bond[ll].r0);
+	break;
+      
+    }
     
     virbond+=dbond*r;
     
-    fx=dbond*delta[0]/r;
-    fy=dbond*delta[1]/r;
-    fz=dbond*delta[2]/r;
+    tfx=dbond*delta[0]/r;
+    tfy=dbond*delta[1]/r;
+    tfz=dbond*delta[2]/r;
     
-    atom[i].fx+=fx;
-    atom[i].fy+=fy;
-    atom[i].fz+=fz;
+    fx[i]+=tfx;
+    fy[i]+=tfy;
+    fz[i]+=tfz;
     
-    atom[j].fx+=-fx;
-    atom[j].fy+=-fy;
-    atom[j].fz+=-fz;
+    fx[j]+=-tfx;
+    fy[j]+=-tfy;
+    fz[j]+=-tfz;
     
-    /*stress[0]-=fx*delta[0];
-    stress[1]-=fy*delta[0];
-    stress[2]-=fz*delta[0];
-    stress[3]-=fy*delta[1];
-    stress[4]-=fz*delta[1];
-    stress[5]-=fz*delta[2];*/
+    /*stress[0]-=tfx*delta[0];
+    stress[1]-=tfy*delta[0];
+    stress[2]-=tfz*delta[0];
+    stress[3]-=tfy*delta[1];
+    stress[4]-=tfz*delta[1];
+    stress[5]-=tfz*delta[2];*/
     
   }
   
@@ -65,44 +98,57 @@ void bond_energy(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,
   box->stress8+=stress[4];
   box->stress9+=stress[5];*/
   
+#ifdef TIMER
+  update_timer_end(TIMER_ENERGY_BOND,__func__);
+#endif
+  
 }
 
-void ub_energy(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
+void ub_energy(const PARAM *param,ENERGY *ener,const PBC *box,const BOND ub[],const double *x,
+	       const double *y,const double *z,double *fx,double *fy,double *fz)
 {
   int i,j,ll;
-  double r,fx,fy,fz,dub,virub=0.;
-  double delta[3],stress[6]={0.};
+  double r,tfx,tfy,tfz,dub,virub=0.;
+  double delta[3]/*,stress[6]={0.}*/;
   
-  for(ll=0;ll<ff->nUb;ll++)
+#ifdef TIMER
+  update_timer_begin(TIMER_ENERGY_UB,__func__);
+#endif
+  
+  for(ll=0;ll<param->nUb;ll++)
   {
-    i=simulCond->iUb[ll][0];
-    j=simulCond->iUb[ll][1];
+    i=ub[ll].a;
+    j=ub[ll].b;
     
-    r=distance(i,j,atom,delta,simulCond,box);
+    delta[0]=x[j]-x[i];
+    delta[1]=y[j]-y[i];
+    delta[2]=z[j]-z[i];
     
-    ener->ub+=0.5*ff->parmUb[ll][0]*X2(r-ff->parmUb[ll][1]);
-    dub=ff->parmUb[ll][0]*(r-ff->parmUb[ll][1]);
+    r=sqrt(dist(box,delta));
+    
+    ener->ub+=0.5*ub[ll].k*X2(r-ub[ll].r0);
+    dub=ub[ll].k*(r-ub[ll].r0);
     
     virub+=dub*r;
 
-    fx=dub*delta[0]/r;
-    fy=dub*delta[1]/r;
-    fz=dub*delta[2]/r;
+    tfx=dub*delta[0]/r;
+    tfy=dub*delta[1]/r;
+    tfz=dub*delta[2]/r;
     
-    atom[i].fx+=fx;
-    atom[i].fy+=fy;
-    atom[i].fz+=fz;
+    fx[i]+=tfx;
+    fy[i]+=tfy;
+    fz[i]+=tfz;
     
-    atom[j].fx+=-fx;
-    atom[j].fy+=-fy;
-    atom[j].fz+=-fz;
+    fx[j]+=-tfx;
+    fy[j]+=-tfy;
+    fz[j]+=-tfz;
     
-    /*stress[0]-=fx*delta[0];
-    stress[1]-=fy*delta[0];
-    stress[2]-=fz*delta[0];
-    stress[3]-=fy*delta[1];
-    stress[4]-=fz*delta[1];
-    stress[5]-=fz*delta[2];*/
+    /*stress[0]-=tfx*delta[0];
+    stress[1]-=tfy*delta[0];
+    stress[2]-=tfz*delta[0];
+    stress[3]-=tfy*delta[1];
+    stress[4]-=tfz*delta[1];
+    stress[5]-=tfz*delta[2];*/
     
   }
   
@@ -118,51 +164,71 @@ void ub_energy(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PB
   box->stress8+=stress[4];
   box->stress9+=stress[5];*/
   
+#ifdef TIMER
+  update_timer_end(TIMER_ENERGY_UB,__func__);
+#endif
+  
 }
 
-void angle_energy(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
+void angle_energy(const PARAM *param,ENERGY *ener,const PBC *box,const ANGLE angle[],const double *x,
+		  const double *y,const double *z,double *fx,double *fy,double *fz)
 {
   int i,j,k,ll;
-  double dangle,rab,rbc,cost,sint,theta;
-  double dab[3],dbc[3],stress[6];
+  double dangle,rab,rbc,rabt,rbct,cost,sint,theta;
+  double dab[3],dbc[3]/*,stress[6]*/;
   double fxa,fya,fza,fxc,fyc,fzc;
   
-  for(ll=0;ll<ff->nAngle;ll++)
+#ifdef TIMER
+  update_timer_begin(TIMER_ENERGY_ANGL,__func__);
+#endif
+  
+  for(ll=0;ll<param->nAngle;ll++)
   {
     
-    i=simulCond->iAngle[ll][0];
-    j=simulCond->iAngle[ll][1];
-    k=simulCond->iAngle[ll][2];
+    i=angle[ll].a;
+    j=angle[ll].b;
+    k=angle[ll].c;
     
-    rab=distance(j,i,atom,dab,simulCond,box);
-    rbc=distance(j,k,atom,dbc,simulCond,box);
+    dab[0]=x[i]-x[j];
+    dab[1]=y[i]-y[j];
+    dab[2]=z[i]-z[j];
+    
+    rab=sqrt(dist(box,dab));
+    rabt=1./rab;
+    
+    dbc[0]=x[k]-x[j];
+    dbc[1]=y[k]-y[j];
+    dbc[2]=z[k]-z[j];
+    
+    rbc=sqrt(dist(box,dbc));
+    rbct=1./rbc;
     
     cost=(dab[0]*dbc[0]+dab[1]*dbc[1]+dab[2]*dbc[2])/(rab*rbc);
     sint=MAX(1.e-8,sqrt(1.-(cost*cost)));
     theta=acos(cost);
     
-    ener->ang+=0.5*ff->parmAngle[ll][0]*X2(theta-ff->parmAngle[ll][1]);
-    dangle=ff->parmAngle[ll][0]*(theta-ff->parmAngle[ll][1])/sint;
+    ener->ang+=0.5*angle[ll].k*X2(theta-angle[ll].theta0);
+    dangle=angle[ll].k*(theta-angle[ll].theta0)/sint;
     
-    fxa=dangle*(dbc[0]/rbc-dab[0]*cost/rab)/rab;
-    fya=dangle*(dbc[1]/rbc-dab[1]*cost/rab)/rab;
-    fza=dangle*(dbc[2]/rbc-dab[2]*cost/rab)/rab;
+    fxa=dangle*(dbc[0]*rbct-dab[0]*cost*rabt)*rabt;
+    fya=dangle*(dbc[1]*rbct-dab[1]*cost*rabt)*rabt;
+    fza=dangle*(dbc[2]*rbct-dab[2]*cost*rabt)*rabt;
     
-    fxc=dangle*(dab[0]/rab-dbc[0]*cost/rbc)/rbc;
-    fyc=dangle*(dab[1]/rab-dbc[1]*cost/rbc)/rbc;
-    fzc=dangle*(dab[2]/rab-dbc[2]*cost/rbc)/rbc;
+    fxc=dangle*(dab[0]*rabt-dbc[0]*cost*rbct)*rbct;
+    fyc=dangle*(dab[1]*rabt-dbc[1]*cost*rbct)*rbct;
+    fzc=dangle*(dab[2]*rabt-dbc[2]*cost*rbct)*rbct;
     
-    atom[i].fx+=fxa;
-    atom[i].fy+=fya;
-    atom[i].fz+=fza;
+    fx[i]+=fxa;
+    fy[i]+=fya;
+    fz[i]+=fza;
     
-    atom[j].fx+=-fxa-fxc;
-    atom[j].fy+=-fya-fyc;
-    atom[j].fz+=-fza-fzc;
+    fx[j]+=-fxa-fxc;
+    fy[j]+=-fya-fyc;
+    fz[j]+=-fza-fzc;
     
-    atom[k].fx+=fxc;
-    atom[k].fy+=fyc;
-    atom[k].fz+=fzc;
+    fx[k]+=fxc;
+    fy[k]+=fyc;
+    fz[k]+=fzc;
     
     /*stress[0]=rab*fxa*dab[0]+rbc*fxc*dbc[0];
     stress[1]=rab*fya*dab[0]+rbc*fyc*dbc[0];
@@ -183,35 +249,54 @@ void angle_energy(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond
   box->stress8+=stress[4];
   box->stress9+=stress[5];*/
   
+#ifdef TIMER
+  update_timer_end(TIMER_ENERGY_ANGL,__func__);
+#endif
+  
 }
 
-void dihedral_energy(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
+void dihedral_energy(const PARAM *param,ENERGY *ener,const PBC *box,const DIHE dihe[],const double *x,
+		     const double *y,const double *z,double *fx,double *fy,double *fz)
 {
-  int i,j,k,l,ll,nd,ind;
-  double pi,twopi;
+  int i,j,k,l,ll;
+  double twopi;
   double edihe=0.,ddihe=0.;
   double cosp,sinp,phi;
   double /*rab,*/rbc,/*rcd,*/rpb,rpc,r2pb,r2pc,pbpc;
-  double dab[3],dbc[3],dcd[3],/*dac[3],*/pb[3],pc[3],stress[6]={0.};
+  double dab[3],dbc[3],dcd[3],/*dac[3],*/pb[3],pc[3]/*,stress[6]={0.}*/;
   double fax,fay,faz,fbx,fby,fbz,fcx,fcy,fcz,fdx,fdy,fdz;
   
-  pi=atan(-1.);
-  twopi=2.*pi;
+//   pi=atan(-1.);
+  twopi=2.*PI;
   
-  for(ll=0;ll<ff->nDihedral;ll++)
+#ifdef TIMER
+  update_timer_begin(TIMER_ENERGY_DIHE,__func__);
+#endif
+  
+  for(ll=0;ll<param->nDihedral;ll++)
   {
-    i=simulCond->iDihedral[ll][0];
-    j=simulCond->iDihedral[ll][1];
-    k=simulCond->iDihedral[ll][2];
-    l=simulCond->iDihedral[ll][3];
+    i=dihe[ll].a;
+    j=dihe[ll].b;
+    k=dihe[ll].c;
+    l=dihe[ll].d;
     
-    /*rab=*/distance(j,i,atom,dab,simulCond,box);
-    rbc=distance(k,j,atom,dbc,simulCond,box);
-    /*rcd=*/distance(l,k,atom,dcd,simulCond,box);
+    dab[0]=x[i]-x[j];
+    dab[1]=y[i]-y[j];
+    dab[2]=z[i]-z[j];
     
-    /*dac[0]=dab[0]+dbc[0];
-    dac[1]=dab[1]+dbc[1];
-    dac[2]=dab[2]+dbc[2];*/
+    dist(box,dab);
+    
+    dbc[0]=x[j]-x[k];
+    dbc[1]=y[j]-y[k];
+    dbc[2]=z[j]-z[k];
+    
+    rbc=sqrt(dist(box,dbc));
+    
+    dcd[0]=x[k]-x[l];
+    dcd[1]=y[k]-y[l];
+    dcd[2]=z[k]-z[l];
+    
+    dist(box,dcd);
     
 // construct first dihedral vector
     
@@ -254,35 +339,34 @@ void dihedral_energy(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulC
     
 // calculate potential energy and scalar force term
     
-    if(simulCond->diheType[ll]==COSDIH)
+    switch(dihe[ll].type)
     {
-
-// key=1 for cosine dihedral
-      
-      edihe=0.;
-      ddihe=0.;
-      
-      for(nd=0;nd<ff->nParmDihe[ll];nd++)
-      {
-	ind=3*nd;
-	edihe+=ff->parmDihe[ll][ind]*(1.+cos(ff->parmDihe[ll][ind+1]*phi-ff->parmDihe[ll][ind+2]));
+      case DCOS: // cosine dihedral
 	
-	ddihe+=-ff->parmDihe[ll][ind]*ff->parmDihe[ll][ind+1]*
-	      sin(ff->parmDihe[ll][ind+1]*phi-ff->parmDihe[ll][ind+2])/(rpb*rpc*sinp);
-      }
-    }
-    
-    else if(simulCond->diheType[ll]==HARMDIH)
-    {
+	edihe=dihe[ll].k*(1.+cos(dihe[ll].mult*phi-dihe[ll].phi0));
+	ddihe=-dihe[ll].k*dihe[ll].mult*
+	      sin(dihe[ll].mult*phi-dihe[ll].phi0)/(rpb*rpc*sinp);
+	
+	break;
+	
+      case DHARM: // harmonic dihedral
       
-// key=2 for harmonic improper dihedral
-      
-      phi=phi-ff->parmDihe[ll][1];
-      phi=phi-nint(phi/twopi)*twopi;
-      
-      edihe=0.5*ff->parmDihe[ll][0]*(phi*phi);
-      
-      ddihe=ff->parmDihe[ll][0]*phi/(rpb*rpc*sinp);
+	phi=phi-dihe[ll].phi0;
+	phi=phi-nint(phi/twopi)*twopi;
+	
+	edihe=0.5*dihe[ll].k*(phi*phi);
+	
+	ddihe=dihe[ll].k*phi/(rpb*rpc*sinp);
+	
+	break;
+	
+      default:
+	
+	edihe=dihe[ll].k*(1.+cos(dihe[ll].mult*phi-dihe[ll].phi0));
+	ddihe=-dihe[ll].k*dihe[ll].mult*
+	      sin(dihe[ll].mult*phi-dihe[ll].phi0)/(rpb*rpc*sinp);
+	
+	break;
     }
     
 // calculate potential energy
@@ -305,21 +389,21 @@ void dihedral_energy(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulC
     fdy=ddihe*(( pb[0]*dbc[2]-pb[2]*dbc[0])-pbpc*( pc[0]*dbc[2]-pc[2]*dbc[0])/r2pc);
     fdz=ddihe*((-pb[0]*dbc[1]+pb[1]*dbc[0])-pbpc*(-pc[0]*dbc[1]+pc[1]*dbc[0])/r2pc);
 
-    atom[i].fx+=fax;
-    atom[i].fy+=fay;
-    atom[i].fz+=faz;
+    fx[i]+=fax;
+    fy[i]+=fay;
+    fz[i]+=faz;
 	
-    atom[j].fx+=-fax-fcx+fbx;
-    atom[j].fy+=-fay-fcy+fby;
-    atom[j].fz+=-faz-fcz+fbz;
+    fx[j]+=-fax-fcx+fbx;
+    fy[j]+=-fay-fcy+fby;
+    fz[j]+=-faz-fcz+fbz;
 	
-    atom[k].fx+=fcx-fbx-fdx;
-    atom[k].fy+=fcy-fby-fdy;
-    atom[k].fz+=fcz-fbz-fdz;
+    fx[k]+=fcx-fbx-fdx;
+    fy[k]+=fcy-fby-fdy;
+    fz[k]+=fcz-fbz-fdz;
 	
-    atom[l].fx+=fdx;
-    atom[l].fy+=fdy;
-    atom[l].fz+=fdz;
+    fx[l]+=fdx;
+    fy[l]+=fdy;
+    fz[l]+=fdz;
     
     /*stress[0]+=dab[0]*fax+dbc[0]*(fbx-fcx)-dcd[0]*fdx;
     stress[1]+=dab[1]*fax+dbc[1]*(fbx-fcx)-dcd[1]*fdx; 
@@ -340,35 +424,54 @@ void dihedral_energy(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulC
   box->stress8+=stress[4];
   box->stress9+=stress[5];*/
   
+#ifdef TIMER
+  update_timer_end(TIMER_ENERGY_DIHE,__func__);
+#endif
+  
 }
 
-void improper_energy(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
+void improper_energy(const PARAM *param,ENERGY *ener,const PBC *box,const DIHE impr[],const double *x,
+		     const double *y,const double *z,double *fx,double *fy,double *fz)
 {
   int i,j,k,l,ll;
-  double pi,twopi;
+  double twopi;
   double edihe=0.,ddihe=0.;
   double cosp,sinp,phi;
   double /*rab,*/rbc,/*rcd,*/rpb,rpc,r2pb,r2pc,pbpc;
-  double dab[3],dbc[3],dcd[3],/*dac[3],*/pb[3],pc[3],stress[6]={0.};
+  double dab[3],dbc[3],dcd[3],/*dac[3],*/pb[3],pc[3]/*,stress[6]={0.}*/;
   double fax,fay,faz,fbx,fby,fbz,fcx,fcy,fcz,fdx,fdy,fdz;
   
-  pi=atan(-1.);
-  twopi=2.*pi;
+//   pi=atan(-1.);
+  twopi=2.*PI;
   
-  for(ll=0;ll<ff->nImproper;ll++)
+#ifdef TIMER
+  update_timer_begin(TIMER_ENERGY_UB,__func__);
+#endif
+  
+  for(ll=0;ll<param->nImproper;ll++)
   {
-    i=simulCond->iImproper[ll][0];
-    j=simulCond->iImproper[ll][1];
-    k=simulCond->iImproper[ll][2];
-    l=simulCond->iImproper[ll][3];
+    i=impr[ll].a;
+    j=impr[ll].b;
+    k=impr[ll].c;
+    l=impr[ll].d;
     
-    /*rab=*/distance(j,i,atom,dab,simulCond,box);
-    rbc=distance(k,j,atom,dbc,simulCond,box);
-    /*rcd=*/distance(l,k,atom,dcd,simulCond,box);
+    dab[0]=x[i]-x[j];
+    dab[1]=y[i]-y[j];
+    dab[2]=z[i]-z[j];
     
-    /*dac[0]=dab[0]+dbc[0];
-    dac[1]=dab[1]+dbc[1];
-    dac[2]=dab[2]+dbc[2];*/
+    dist(box,dab);
+    
+    dbc[0]=x[j]-x[k];
+    dbc[1]=y[j]-y[k];
+    dbc[2]=z[j]-z[k];
+    
+    rbc=sqrt(dist(box,dbc));
+    
+    dcd[0]=x[k]-x[l];
+    dcd[1]=y[k]-y[l];
+    dcd[2]=z[k]-z[l];
+    
+    dist(box,dcd);
     
 // construct first dihedral vector
     
@@ -400,7 +503,7 @@ void improper_energy(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulC
     
 // avoid singularity in sinp
     
-    if(sinp>=0)
+    if(sinp>=0.)
     {
       sinp=MAX(DBL_EPSILON,fabs(sinp));
     }
@@ -411,25 +514,32 @@ void improper_energy(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulC
     
 // calculate potential energy and scalar force term
     
-    if(simulCond->imprType[ll]==COSDIH)
+    switch(impr[ll].type)
     {
-
-// key=1 for cosine dihedral
+      case DCOS: // cosine improper dihedral
       
-      edihe=ff->parmImpr[ll][0]*(1.+cos(ff->parmImpr[ll][1]*phi-ff->parmImpr[ll][2]));
-      ddihe=-ff->parmImpr[ll][0]*ff->parmImpr[ll][1]*
-            sin(ff->parmImpr[ll][1]*phi-ff->parmImpr[ll][2])/(rpb*rpc*sinp);  
-    }
-    
-    else if(simulCond->imprType[ll]==HARMDIH)
-    {
+	edihe=impr[ll].k*(1.+cos(impr[ll].mult*phi-impr[ll].phi0));
+	ddihe=-impr[ll].k*impr[ll].mult*
+	      sin(impr[ll].mult*phi-impr[ll].phi0)/(rpb*rpc*sinp);
+	      
+	break;
+	
+      case DHARM: // harmonic improper dihedral
       
-// key=2 for harmonic improper dihedral
-      
-      phi=phi-ff->parmImpr[ll][1];
-      phi=phi-nint(phi/twopi)*twopi;
-      edihe=0.5*ff->parmImpr[ll][0]*(phi*phi);
-      ddihe=ff->parmImpr[ll][0]*phi/(rpb*rpc*sinp);
+	phi=phi-impr[ll].phi0;
+	phi=phi-nint(phi/twopi)*twopi;
+	edihe=0.5*impr[ll].k*(phi*phi);
+	ddihe=impr[ll].k*phi/(rpb*rpc*sinp);
+	
+	break;
+	
+      default:
+	
+	edihe=impr[ll].k*(1.+cos(impr[ll].mult*phi-impr[ll].phi0));
+	ddihe=-impr[ll].k*impr[ll].mult*
+	      sin(impr[ll].mult*phi-impr[ll].phi0)/(rpb*rpc*sinp);
+	      
+	break;
     }
     
 // calculate potential energy
@@ -452,21 +562,21 @@ void improper_energy(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulC
     fdy=ddihe*(( pb[0]*dbc[2]-pb[2]*dbc[0])-pbpc*( pc[0]*dbc[2]-pc[2]*dbc[0])/r2pc);
     fdz=ddihe*((-pb[0]*dbc[1]+pb[1]*dbc[0])-pbpc*(-pc[0]*dbc[1]+pc[1]*dbc[0])/r2pc);
 	
-    atom[i].fx+=fax;
-    atom[i].fy+=fay;
-    atom[i].fz+=faz;
+    fx[i]+=fax;
+    fy[i]+=fay;
+    fz[i]+=faz;
 	
-    atom[j].fx+=-fax-fcx+fbx;
-    atom[j].fy+=-fay-fcy+fby;
-    atom[j].fz+=-faz-fcz+fbz;
+    fx[j]+=-fax-fcx+fbx;
+    fy[j]+=-fay-fcy+fby;
+    fz[j]+=-faz-fcz+fbz;
 	
-    atom[k].fx+=fcx-fbx-fdx;
-    atom[k].fy+=fcy-fby-fdy;
-    atom[k].fz+=fcz-fbz-fdz;
+    fx[k]+=fcx-fbx-fdx;
+    fy[k]+=fcy-fby-fdy;
+    fz[k]+=fcz-fbz-fdz;
 	
-    atom[l].fx+=fdx;
-    atom[l].fy+=fdy;
-    atom[l].fz+=fdz;
+    fx[l]+=fdx;
+    fy[l]+=fdy;
+    fz[l]+=fdz;
     
     /*stress[0]+=dab[0]*fax+dbc[0]*(fbx-fcx)-dcd[0]*fdx;
     stress[1]+=dab[1]*fax+dbc[1]*(fbx-fcx)-dcd[1]*fdx; 
@@ -486,5 +596,9 @@ void improper_energy(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulC
   box->stress7+=stress[2];
   box->stress8+=stress[4];
   box->stress9+=stress[5];*/
+  
+#ifdef TIMER
+  update_timer_end(TIMER_ENERGY_UB,__func__);
+#endif
   
 }

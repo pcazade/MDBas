@@ -3,41 +3,45 @@
 #################################################################
 
 #use : make DEBUG=ON for a debug build
-DEBUG=OFF
-COMP=x86_64-w64-mingw32-gcc
-OMP=OFF
+#DEBUG=OFF
+COMP=gcc
+#OMP=OFF
 
-ifeq ($(COMP),icc)
+#ifeq ($(COMP),icc)
 
-ifeq ($(OMP),ON)
-CC=icc -openmp
-else
-CC=icc
-endif
+#ifeq ($(OMP),ON)
+#CC=icc -openmp
+#else
+#CC=icc
+#endif
 
-else
+#else
 
-ifeq ($(OMP),ON)
-CC=x86_64-w64-mingw32-gcc -fopenmp
-else
-CC=x86_64-w64-mingw32-gcc
-endif
+#ifeq ($(OMP),ON)
+#CC=gcc -fopenmp
+#else
+CC=gcc
+#endif
 
-endif
+#endif
 
 ifeq ($(DEBUG),OFF) 
-CC_OPT=-I"./dSFMT" -I"./include" -std=c99 -Wall -O2 -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937
+#CC_OPT=-I"./dSFMT" -I"./include" -std=gnu99 -Wall -Ofast -mtune=native -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937 -DTIMING # timing
+#CC_OPT=-I"./dSFMT" -I"./include" -std=c99 -Wall -Ofast -mtune=native -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937
+#CC_OPT=-I"./dSFMT" -I"./include" -std=c99 -Wall -O2 -DDSFMT_MEXP=19937
+CC_OPT=-I"./dSFMT" -I"./include" -std=gnu99 -Wall -O2 -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937 -DTIMING
 else
-CC_OPT=-I"./dSFMT" -I"./include" -std=c99 -Wall -Wextra -O0 -g -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937
+CC_OPT=-I"./dSFMT" -I"./include" -std=gnu99 -Wall -Wextra -O0 -g -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937 -DTIMING -DFFTW
 endif
 
-ifeq ($(DEBUG),ADVI)
-CC_OPT=-I"./dSFMT" -I"./include" -std=c99 -Wall -Wextra -O2 -g -fno-inline-functions -ldl -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937
-endif
+#ifeq ($(DEBUG),ADVI)
+#CC_OPT=-I"./dSFMT" -I"./include" -std=c99 -Wall -Wextra -O2 -g -fno-inline-functions -ldl -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937
+#endif
 
 CC_SFMT_OPT=-I"./dSFMT" -std=c99 -O2 -msse2 -fno-strict-aliasing -DHAVE_SSE2 -DDSFMT_MEXP=19937
 
-LD_OPT=-lm 
+#LD_OPT=-lm
+LD_OPT=-lfftw3 -lm -lrt -ldl
 
 MKDIR=mkdir -p ./obj/dSFMT
  

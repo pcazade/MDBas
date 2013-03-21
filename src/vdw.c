@@ -6,6 +6,8 @@
  * \date 2012
  */
 
+#include <math.h>
+
 #include "global.h"
 #include "utils.h"
 
@@ -25,8 +27,8 @@
  *
  * \return On return 0.0 as no energy evaluated.
  */
-double vdw_none(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
-		int i, int j, double r, double *dvdw)
+double vdw_none(const PARAM *param,double *dvdw,const double veps,
+		const double vsig,const double r2, const double rt)
 {
   *dvdw=0.;
   return 0.;
@@ -41,27 +43,29 @@ double vdw_none(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
  *
  * \brief Function called for a full evaluation of the Van der Waals energy and force.
  */
-void vdw_full(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
+void vdw_full(const PARAM *param, ENERGY *ener, const PBC *box,double *x,
+	      double *y,double *z,double *fx, double *fy, double *fz,double *eps,double *sig,
+	      int **exclList,int *exclPair)
 {
     
   int i,j,k,exclude;;
-  double vdw=0.,pvdw,dvdw;
-  double r,fx,fy,fz,fxi,fyi,fzi;
+  double evdw=0.,pvdw,dvdw;
+  double r,r2,rt,fxj,fyj,fzj,fxi,fyi,fzi;
   double delta[3];
   
-  for(i=0;i<simulCond->natom-1;i++)
+  for(i=0;i<param->nAtom-1;i++)
   {
     fxi=0.;
     fyi=0.;
     fzi=0.;
     
-    for(j=i+1;j<simulCond->natom;j++)
+    for(j=i+1;j<param->nAtom;j++)
     {
       
       exclude=0;
-      for (k=0;k<simulCond->excludeNum[i];k++)
+      for (k=0;k<exclPair[i];k++)
       {
-	if(simulCond->excludeAtom[i][k]==j)
+	if(exclList[i][k]==j)
 	{
 	  exclude=1;
 	  break;
@@ -71,36 +75,40 @@ void vdw_full(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC
       if(!exclude)
       {
 	
-	r=distance(i,j,atom,delta,simulCond,box);
+	delta[0]=x[j]-x[i];
+	delta[1]=y[j]-y[i];
+	delta[2]=z[j]-z[i];
 	
-	pvdw=4.*ff->parmVdw[i][0]*ff->parmVdw[j][0]*(X12((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r)-
-	  X6((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r));
+	r2=dist(box,delta);
+	r=sqrt(r2);
+	rt=1./r;
 	
-	dvdw=24.*ff->parmVdw[i][0]*ff->parmVdw[j][0]/r*(X6((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r)-
-	  2.*X12((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r));
+	pvdw=4.*eps[i]*eps[j]*(X12((sig[i]+sig[j])/r)-X6((sig[i]+sig[j])/r));
 	
-	vdw+=pvdw;
+	dvdw=24.*eps[i]*eps[j]/r*(X6((sig[i]+sig[j])/r)-2.*X12((sig[i]+sig[j])/r));
 	
-	fx=dvdw*delta[0]/r;
-	fy=dvdw*delta[1]/r;
-	fz=dvdw*delta[2]/r;
+	evdw+=pvdw;
 	
-	fxi+=fx;
-	fyi+=fy;
-	fzi+=fz;
+	fxj=dvdw*delta[0]/r;
+	fyj=dvdw*delta[1]/r;
+	fzj=dvdw*delta[2]/r;
 	
-	atom[j].fx+=-fx;
-	atom[j].fy+=-fy;
-	atom[j].fz+=-fz;
+	fxi+=fxj;
+	fyi+=fyj;
+	fzi+=fzj;
+	
+	fx[j]+=-fxj;
+	fy[j]+=-fyj;
+	fz[j]+=-fzj;
 	
       }
       
     }
-    atom[i].fx+=fxi;
-    atom[i].fy+=fyi;
-    atom[i].fz+=fzi;
+    fx[i]+=fxi;
+    fy[i]+=fyi;
+    fz[i]+=fzi;
   }
-  ener->vdw+=vdw;
+  ener->vdw+=evdw;
 }
 
 /**
@@ -132,47 +140,46 @@ void vdw_full(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC
  * \f$ dswitchFunc(r)=-12*r*(rc^2-r^2)*(ro^2-r^2)/(rc^2-ro^2)^3 \f$ 
  *
  */
-double vdw_switch(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
-		int i, int j, double r, double *dvdw)
+double vdw_switch(const PARAM *param,double *dvdw,const double veps,
+		  const double vsig,const double r2, const double rt)
 {
-  double vdw=0.,pvdw,dpvdw,switchFunc,dswitchFunc;
+  double evdw=0.,pvdw,dpvdw,switch1,switchFunc,dswitchFunc;
+  double vsig6,vsig12;
   
-  if(r<=simulCond->cuton)
+  vsig6=vsig*rt;
+  vsig6=X6(vsig6);
+  vsig12=X2(vsig6);
+  
+  if(r2<=param->cutOn2)
   {
     
-    pvdw=4.*ff->parmVdw[i][0]*ff->parmVdw[j][0]*(X12((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r)-
-      X6((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r));
+    pvdw=4.*veps*(vsig12-vsig6);
     
-    *dvdw=24.*ff->parmVdw[i][0]*ff->parmVdw[j][0]/r*(X6((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r)-
-      2.*X12((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r));
+    *dvdw=24.*veps*rt*(vsig6-2.*vsig12);
     
-    vdw=pvdw;
+    evdw=pvdw;
     
   }
   else
   {
     
-    switchFunc=X2(X2(simulCond->cutoff)-X2(r))*
-      (X2(simulCond->cutoff)+2.*X2(r)-3.*X2(simulCond->cuton))/
-      X3(X2(simulCond->cutoff)-X2(simulCond->cuton));
+    switch1=param->cutOff2-r2;
+    
+    switchFunc=X2(switch1)*(param->cutOff2+2.*r2-3.*param->cutOn2)*param->switch2;
       
-    dswitchFunc=12.*r*(X2(simulCond->cutoff)-X2(r))*
-      (X2(simulCond->cuton)-X2(r))/
-      X3(X2(simulCond->cutoff)-X2(simulCond->cuton));
+    dswitchFunc=12.*r2*switch1*(param->cutOn2-r2)*param->switch2;
     
-    pvdw=4.*ff->parmVdw[i][0]*ff->parmVdw[j][0]*(X12((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r)-
-      X6((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r));
+    pvdw=4.*veps*(vsig12-vsig6);
     
-    dpvdw=24.*ff->parmVdw[i][0]*ff->parmVdw[j][0]/r*(X6((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r)-
-      2.*X12((ff->parmVdw[i][1]+ff->parmVdw[j][1])/r));
+    dpvdw=24.*veps*(vsig6-2.*vsig12);
     
-    vdw=pvdw*switchFunc;
+    evdw=pvdw*switchFunc;
     
     *dvdw=pvdw*dswitchFunc+dpvdw*switchFunc;
-    
+    *dvdw*=rt;
   }
 
-  return vdw;
+  return evdw;
 }
 
 /**
@@ -191,8 +198,8 @@ double vdw_switch(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
  *
  * \return On return 0.0 as no energy evaluated.
  */
-double vdw14_none(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
-		  int i, int j, double r, double *dvdw)
+double vdw14_none(const PARAM *param,double *dvdw,const double veps,
+		  const double vsig,const double r2, const double rt)
 {
   *dvdw=0;
   return 0.;
@@ -211,19 +218,22 @@ double vdw14_none(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
  *
  * \return On return the electrostatic energy.
  */
-double vdw14_full(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
-		int i, int j, double r, double *dvdw)
+double vdw14_full(const PARAM *param,double *dvdw,const double veps,
+		  const double vsig,const double r2, const double rt)
 {
   
-  double vdw=0.;
+  double evdw=0.;
+  double vsig6,vsig12;
   
-  vdw=4.*ff->scal14*ff->parmVdw[i][3]*ff->parmVdw[j][3]*(X12((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r)-
-    X6((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r));
+  vsig6=vsig*rt;
+  vsig6=X6(vsig6);
+  vsig12=X2(vsig6);
   
-  *dvdw=24.*ff->scal14*ff->parmVdw[i][3]*ff->parmVdw[j][3]/r*(X6((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r)-
-    2.*X12((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r));
+  evdw=4.*param->scal14*veps*(vsig12-vsig6);
   
-  return vdw;
+  *dvdw=24.*param->scal14*veps*rt*(vsig6-2.*vsig12);
+  
+  return evdw;
 }
 
 /**
@@ -255,45 +265,45 @@ double vdw14_full(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
  * \f$ dswitchFunc(r)=-12*r*(rc^2-r^2)*(ro^2-r**2)/(rc^2-ro^2)^3 \f$
  *
  */
-double vdw14_switch(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
-		  int i, int j, double r, double *dvdw)
+double vdw14_switch(const PARAM *param,double *dvdw,const double veps,
+		    const double vsig,const double r2, const double rt)
 {
-  double vdw=0.,pvdw,dpvdw,switchFunc,dswitchFunc;
+  double evdw=0.,pvdw,dpvdw,switch1,switchFunc,dswitchFunc;
+  double vsig6,vsig12;
   
-  if(r<=simulCond->cuton)
+  vsig6=vsig*rt;
+  vsig6=X6(vsig6);
+  vsig12=X2(vsig6);
+  
+  if(r2<=param->cutOn2)
   {
     
-    pvdw=4.*ff->scal14*ff->parmVdw[i][3]*ff->parmVdw[j][3]*(X12((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r)-
-      X6((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r));
+    pvdw=4.*param->scal14*veps*(vsig12-vsig6);
     
-    *dvdw=24.*ff->scal14*ff->parmVdw[i][3]*ff->parmVdw[j][3]/r*(X6((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r)-
-      2.*X12((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r));
+    *dvdw=24.*param->scal14*veps*rt*(vsig6-2.*vsig12);
     
-    vdw=pvdw;
+    evdw=pvdw;
     
   }
-  else if(r<=simulCond->cutoff)
+  else if(r2<=param->cutOff2)
   {
     
-    switchFunc=X2(X2(simulCond->cutoff)-X2(r))*
-      (X2(simulCond->cutoff)+2.*X2(r)-3.*X2(simulCond->cuton))/
-      X3(X2(simulCond->cutoff)-X2(simulCond->cuton));
+    switch1=param->cutOff2-r2;
+    
+    switchFunc=X2(switch1)*(param->cutOff2+2.*r2-3.*param->cutOn2)*param->switch2;
       
-    dswitchFunc=12.*r*(X2(simulCond->cutoff)-X2(r))*
-      (X2(simulCond->cuton)-X2(r))/
-      X3(X2(simulCond->cutoff)-X2(simulCond->cuton));
+    dswitchFunc=12.*r2*switch1*(param->cutOn2-r2)*param->switch2;
     
-    pvdw=4.*ff->scal14*ff->parmVdw[i][3]*ff->parmVdw[j][3]*(X12((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r)-
-      X6((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r));
+    pvdw=4.*param->scal14*veps*(vsig12-vsig6);
     
-    dpvdw=24.*ff->scal14*ff->parmVdw[i][3]*ff->parmVdw[j][3]/r*(X6((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r)-
-      2.*X12((ff->parmVdw[i][4]+ff->parmVdw[j][4])/r));
+    dpvdw=24.*param->scal14*veps*(vsig6-2.*vsig12);
     
-    vdw=pvdw*switchFunc;
+    evdw=pvdw*switchFunc;
     
     *dvdw=pvdw*dswitchFunc+dpvdw*switchFunc;
+    *dvdw*=rt;
     
   }
   
-  return vdw;
+  return evdw;
 }

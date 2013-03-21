@@ -12,6 +12,7 @@
 
 #include "global.h"
 #include "energy.h"
+#include "init.h"
 #include "io.h"
 #include "rand.h"
 #include "utils.h"
@@ -19,12 +20,24 @@
 #include "numderiv.h"
 #include "list.h"
 #include "minim.h"
+#include "memory.h"
+#include "user.h"
 
-#if ( defined __linux__ || defined __FreeBSD__ )
+#if (defined TIMING && defined __unix__ && !defined __STRICT_ANSI__)
+#define TIMER
+#include "timing.h"
+#endif
+
+#ifdef __unix__
+/* Informations about resources usage */
 #include <sys/resource.h>
-#endif /* for some unixes */
+#endif
 
-#define _ENERFORMAT_ "%13d\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\n%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\n%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\n\n"
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
+#define _ENERFORMAT_ "%13d\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\n%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\n%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\n"
 #define _ENERLABELS_ "%13s\t%13s\t%13s\t%13s\t%13s\n%13s\t%13s\t%13s\t%13s\t%13s\n%13s\t%13s\t%13s\t%13s\t%13s\n"
 
 FILE *outFile=NULL;
@@ -37,338 +50,353 @@ FILE *outFile=NULL;
  */
 int main(int argc, char* argv[])
 {
-  FILE *frc=NULL,*numfrc=NULL;
-  INPUTS inp;
-  ATOM *atom=NULL;
-  FORCEFIELD ff;
+  /** Beginning of structures declaration. */
+  
+#ifdef TIMER
+  init_timers();
+  create_new_timer(TIMER_ALL);
+  update_timer_begin(TIMER_ALL,__func__);
+#endif
+  
+  IO inout;
+
+  NEIGH neigh;
+  
+  CTRL ctrl;
+  PARAM param;
+  
   ENERGY ener;
-  SIMULPARAMS simulCond;
-  CONSTRAINT *constList=NULL;
-  DELTA *nForce=NULL;
+  
   PBC box;
+  
+  BATH bath;
+  
+  EWALD ewald;
+  
+  ATOM *atom=NULL;
+  
+  BOND *bond=NULL,*ub=NULL;
+  ANGLE *angle=NULL;
+  DIHE *dihe=NULL,*impr=NULL;
+  
+  CONSTRAINT *constList=NULL;
+  
+  DELTA *nForce=NULL;
+  
+  double *x,*y,*z;
+  double *vx,*vy,*vz;
+  double *fx,*fy,*fz;
+  double *q,*mass,*rmass;
+  double *eps,*sig,*eps14,*sig14;
+  
+  int *frozen,*nAtConst;
+  int *neighOrder,*neighList,*neighPair,*neighList14;
+  int **exclList,*exclPair;
+  
+  /** End of structures declarations. */
+  
+  /** Beginning of variables declaration. */
   
   char enerLabel[15][7]={ {"Step"} , {"Time"} , {"Temp"} , {"Press"} , {"Vol"} ,
 			  {"Etot"} , {"Ekin"}  , {"Epot"} , {"Ecoul"} , {"Evdw"} ,
 			  {"Ebond"} , {"Eangle"} , {"Eub"} , {"Edihe"} , {"Eimpr"} };
-  int i;
+			  
+  char dashes[81]={0};
   
-  init_rand(time(NULL));
-  
-  outFile=fopen("OUTPUT","w");
-  
-  read_SIMU(&simulCond,&ff,&box);
-  
-  fprintf(outFile,"SIMU file read\n");
-  
-  if(simulCond.keyrand)
-    init_rand(simulCond.seed);
-  
-  if(simulCond.mdNature==1)
-    simulCond.chargeConst=chgcharmm*kcaltoiu;
-  else if(simulCond.mdNature==2)
-    simulCond.chargeConst=chgnamd*kcaltoiu;
-  else
-    simulCond.chargeConst=mu0*X2(clight)*X2(elemchg)*NA*0.1/(angstr);
-  
-  read_PSF(&inp,&atom,&ff,&simulCond,&constList);
-  
-  fprintf(outFile,"PSF file read\n");
-  
-  read_TOP(&inp);
-  
-  fprintf(outFile,"TOP file read\n");
-  
-  read_PAR(&inp);
-  
-  fprintf(outFile,"PAR file read\n");
-  
-  if(simulCond.keyrestart)
   {
-    read_rest(&simulCond,&ener,atom);
-    fprintf(outFile,"RESTART file read\n");
-  }
-  else
-  {
-    read_CONF(atom,&simulCond);
-    fprintf(outFile,"CONF file read\n");
-  }
-  
-  setup(&inp,atom,&ff,&simulCond,constList);
-  fprintf(outFile,"Setup done\n");
-  
-  if(simulCond.keyforf)
-    write_FORF(&inp,atom,&ff,&simulCond);
-  
-  free_temp_array(&inp);
-  
-  fprintf(outFile,"Free temp array done\n");
-  
-  get_kinfromtemp(atom,&simulCond,&box);
-  
-  //init_vel(atom,&simulCond,constList,&box);
-  
-  init_box(&box);
-
-  makelist(&simulCond,atom,&ff,constList,&box);
-  
-  if(simulCond.keyminim)
-  {
-    steepestDescent(atom,&ff,&ener,&simulCond,&box);
-    makelist(&simulCond,atom,&ff,constList,&box);
-  }
-  
-  init_energy_ptrs(&simulCond);
-  
-  if(!simulCond.keyrestart)
-  {
-    init_vel(atom,&simulCond,constList,&box);
+    int k;
+    for(k=0;k<80;k++)
+      dashes[k]='-';
     
-    simulCond.lambdat=0.;
-    simulCond.gammap=0.;
-    ener.conint=0.;
+    dashes[80]='\0';
+  }
+  
+  int i,nPrint=0;
+  double temp,press;
+  
+  #ifdef _OPENMP
+  int num_threads=1;
+  #pragma omp parallel
+  {num_threads = omp_get_num_threads();}
+  #endif
+  
+  /** End of variables declaration. */
+  
+  /** Initialization of the simulation starts here. */
+  
+  init_system(argc,argv,&inout,&ctrl,&param,&ener,&bath,&neigh,&ewald,&box,
+	      &atom,&constList,&bond,&angle,&dihe,&impr,&ub,&x,&y,&z,
+	      &vx,&vy,&vz,&fx,&fy,&fz,&mass,&rmass,&q,&eps,&sig,&eps14,
+	      &sig14,&frozen,&nAtConst,&neighList,&neighPair,&neighOrder,
+	      &neighList14,&exclList,&exclPair);
+  
+  #ifdef _OPENMP
+  fprintf(outFile,"Multi-threading enabled : number of threads = %d\n\n",num_threads);
+  #else
+  fprintf(outFile,"Multi-threading disabled.\n\n");
+  #endif
+
+//  UserEnergyPtr userPtr = NULL;
+//  userPtr = loadUserPlugin("user_functions.so","MyEnergyFunction");
+//  userPtr();
+  
+  /** Initialization of the simulation ends here. */
+  
+  /** Minimization procedure starts here. */
+  
+  if(ctrl.keyMinim)
+  {
+    steepestDescent(&ctrl,&param,&ener,&box,&neigh,atom,bond,ub,angle,dihe,impr,x,y,z,fx,fy,fz);
     
-    ener.virshake=0.;
+    makelist(&ctrl,&param,&box,&neigh,constList,bond,angle,dihe,impr,x,y,z,frozen,
+	     &neighList,&neighPair,&neighOrder,&neighList14,&exclList,&exclPair);
+    
+    init_vel(&param,&box,constList,x,y,z,vx,vy,vz,mass,rmass,frozen,nAtConst);
   }
   
-  box.stress1=0.;
-  box.stress2=0.;
-  box.stress3=0.;
-  box.stress4=0.;
-  box.stress5=0.;
-  box.stress6=0.;
-  box.stress7=0.;
-  box.stress8=0.;
-  box.stress9=0.;
+  /** Minimization procedure ends here. */
   
-  if(simulCond.keytraj)
-  {
-//    traj=fopen("traj.xyz","w");
-//    fprintf(traj,"%d\n",simulCond.natom);
-//    fprintf(traj,"initial config (minimised)\n");
-//    for(i=0;i<simulCond.natom;i++)
-//      fprintf(traj,"%s\t%7.3lf\t%7.3lf\t%7.3lf\n",atom[i].label,atom[i].x,atom[i].y,atom[i].z);
-      write_DCD_header(&simulCond,&box);
-  }
+  /** First calculation of the enregy starts here.
+   * 
+   *  Applies if VV integrator is used or if a single energy is required.
+   * 
+   */
   
-  if(simulCond.integrator==1 || !simulCond.keymd)
+  if(ctrl.integrator==VELOCITY || !ctrl.keyMd)
   {
 
-//   Computes kinetic energy at time=0
+   /** Computes kinetic energy at time=0. */
 
-    ener.kin=kinetic(atom,&simulCond);
+    ener.kin=kinetic(&param,vx,vy,vz,mass);
   
-//   Computes potential energies and forces at time=0
-  
-    energy(atom,&ff,&ener,&simulCond,&box);
+  /** Computes potential energies and forces at time=0. */
+    
+    energy(&ctrl,&param,&ener,&ewald,&box,&neigh,bond,ub,angle,dihe,impr,
+	   x,y,z,vx,vy,vz,fx,fy,fz,q,eps,sig,eps14,sig14,frozen,
+	   neighList,neighPair,neighOrder,neighList14,exclList,exclPair);
     
     ener.tot=ener.kin+ener.pot;
     
     ener.virtot=ener.virbond+ener.virub+ener.virelec+ener.virvdw+ener.virshake;
     
-    if( (simulCond.keyprop) && (simulCond.step%simulCond.printpr==0) )
+    if( (ctrl.keyProp) && (param.step%ctrl.printProp==0) )
     {
-      write_prop(&simulCond,&ener,&box);
+      write_prop(&inout,&param,&ener,&box);
     }
     
-    if( (simulCond.step%simulCond.printo==0) )
+    if( (param.step%ctrl.printOut==0) )
     {
-      simulCond.tempStep=2.*ener.kin/((double)simulCond.degfree*rboltzui);
+      temp=2.*ener.kin/((double)param.nDegFree*rboltzui);
       if(box.type>0)
-	simulCond.pressStep=(2.*ener.kin-ener.virtot)/(3.*box.vol*bartoiu);
+	press=(2.*ener.kin-ener.virtot)/(3.*box.vol*bartoiu);
       else
-	simulCond.pressStep=0.;
+	press=0.;
       
-      fprintf(outFile,_ENERLABELS_,enerLabel[0],enerLabel[1],enerLabel[2],enerLabel[3],enerLabel[4],
+      if( (nPrint%5==0) )
+      {
+	fprintf(outFile,"\n");
+	fprintf(outFile,"%s\n\n",dashes);
+	
+	fprintf(outFile,_ENERLABELS_,enerLabel[0],enerLabel[1],enerLabel[2],enerLabel[3],enerLabel[4],
 			       enerLabel[5],enerLabel[6],enerLabel[7],enerLabel[8],enerLabel[9],
 			       enerLabel[10],enerLabel[11],enerLabel[12],enerLabel[13],enerLabel[14]);
+	
+	fprintf(outFile,"\n%s\n",dashes);
+	
+	nPrint=0;
+      }
       
       fprintf(outFile,_ENERFORMAT_,
-	simulCond.step,simulCond.step*simulCond.timeStep,simulCond.tempStep,simulCond.pressStep,box.vol,
+	param.step,param.step*param.timeStep,temp,press,box.vol,
 	ener.tot/kcaltoiu,ener.kin/kcaltoiu,ener.pot/kcaltoiu,ener.elec/kcaltoiu,ener.vdw/kcaltoiu,
 	ener.bond/kcaltoiu,ener.ang/kcaltoiu,ener.ub/kcaltoiu,ener.dihe/kcaltoiu,ener.impr/kcaltoiu);
+      
+      fprintf(outFile,"%s\n",dashes);
+      
+      nPrint++;
     }
 
-//   Numerical derivatives to estimate forces for initial configuration.
+  /** Numerical derivatives to estimate forces for initial configuration. */
       
-    if(simulCond.numDeriv==1)
+    if(ctrl.keyNumForce==1)
     {
-      nForce=(DELTA*)malloc(simulCond.natom*sizeof(*nForce));
+      nForce=(DELTA*)my_malloc(param.nAtom*sizeof(*nForce));
       
-      frc=fopen("force.dat","w");
-      numfrc=fopen("numforce.dat","w");
-    
-//     Write analytical forces into frc file.
-    
-      fprintf(frc,"#step=%d\n",simulCond.step);
-      for(i=0;i<simulCond.natom;i++)
-	fprintf(frc,"%.15lf\t%.15lf\t%.15lf\n",atom[i].fx,atom[i].fy,atom[i].fz);
+      numforce(&ctrl,&param,&ener,&box,&neigh,bond,ub,angle,dihe,impr,nForce,x,y,z,4,1.e-4);
       
-      numforce(atom,nForce,&ff,&ener,&simulCond,&box,4,1.e-4);
-      
-//     Write numerical forces into numfrc file.
-      
-      fprintf(numfrc,"#step=%d\n",simulCond.step);
-      for(i=0;i<simulCond.natom;i++)
+      for(i=0;i<param.nAtom;i++)
       {
-	fprintf(numfrc,"%.15lf\t%.15lf\t%.15lf\n",nForce[i].x,nForce[i].y,nForce[i].z);
-	
-	atom[i].fx=nForce[i].x;
-	atom[i].fy=nForce[i].y;
-	atom[i].fz=nForce[i].z;
-      }      
+	fx[i]=nForce[i].x;
+	fy[i]=nForce[i].y;
+	fz[i]=nForce[i].z;
+      } 
     }
   }
+  /** First calculation of the enregy ends here. */
   
-  if(simulCond.keymd)
+  
+  /** MD starts here if required. */
+  
+  if(ctrl.keyMd)
   {
-//   Molecular dynamics loop starts here.
+  /** Molecular dynamics loop starts here.*/
 
-    for(++(simulCond.step);simulCond.step<=simulCond.nsteps;simulCond.step++)
+    for(++(param.step);param.step<=param.nSteps;param.step++)
     {
       
       ener.consv=0.;
       
-//     Integration of the Newtonian equations. First stage
-//     of Velocity Verlet algorithm.
+    /** Integration of the Newtonian equations.
+     * First stage of Velocity Verlet algorithm.
+     */
 
-      if(simulCond.integrator==1)
+      if(ctrl.integrator==VELOCITY)
       {
-	vv_integrate(atom,&ener,&simulCond,constList,&box,1);
-// 	fprintf(outFile,"Velocity verlet fisrt stage done for step %d\n",simulCond.step);
+	vv_integrate(&ctrl,&param,&ener,&box,&bath,constList,
+		     x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,1);
       }
       
-//     List update if needed.
+    /** List update if needed. */
+    
+      makelist(&ctrl,&param,&box,&neigh,constList,bond,angle,dihe,impr,x,y,z,frozen,
+	       &neighList,&neighPair,&neighOrder,&neighList14,&exclList,&exclPair);
       
-      makelist(&simulCond,atom,&ff,constList,&box);
       
-//     Energies calculation.
+    /** Energies calculation. */
+    
+      energy(&ctrl,&param,&ener,&ewald,&box,&neigh,bond,ub,angle,dihe,impr,
+	     x,y,z,vx,vy,vz,fx,fy,fz,q,eps,sig,eps14,sig14,frozen,
+	     neighList,neighPair,neighOrder,neighList14,exclList,exclPair);
+      
+    /** Numerical derivatives to estimate forces. */
 
-      energy(atom,&ff,&ener,&simulCond,&box);
-//       fprintf(outFile,"Energy done for step %d\n",simulCond.step);
-      
-//     Numerical derivatives to estimate forces.
-
-      if(simulCond.numDeriv==1)
+      if(ctrl.keyNumForce==1)
       {
 	
-	numforce(atom,nForce,&ff,&ener,&simulCond,&box,4,1.e-4);
-	
-//       Write analytical forces into frc file.
-	
-	fprintf(frc,"#step=%d\n",simulCond.step);
-	for(i=0;i<simulCond.natom;i++)
-	  fprintf(frc,"%.15lf\t%.15lf\t%.15lf\n",atom[i].fx,atom[i].fy,atom[i].fz);
+	numforce(&ctrl,&param,&ener,&box,&neigh,bond,ub,angle,dihe,impr,nForce,x,y,z,4,1.e-4);
 	  
-//       Write numerical forces into numfrc file.
-	
-	fprintf(numfrc,"#step=%d\n",simulCond.step);
-      
-	for(i=0;i<simulCond.natom;i++)
+	for(i=0;i<param.nAtom;i++)
 	{
-	  fprintf(numfrc,"%.15lf\t%.15lf\t%.15lf\n",nForce[i].x,nForce[i].y,nForce[i].z);
-	  
-// 	Overwrite analytical forces with numerical forces.
-	  atom[i].fx=nForce[i].x;
-	  atom[i].fy=nForce[i].y;
-	  atom[i].fz=nForce[i].z;
+	/** Overwrite analytical forces with numerical forces. */
+	  fx[i]=nForce[i].x;
+	  fy[i]=nForce[i].y;
+	  fz[i]=nForce[i].z;
 	}
 	
       }
       
-//     Integration of the Newtonian equations. Leapfrog or
-//     second stage of Velocity Verlet algorithm.
+    /** Integration of the Newtonian equations.
+     * Leapfrog or second stage of Velocity Verlet algorithm.
+     */
       
-      if(simulCond.integrator==0)
+      if(ctrl.integrator==LEAPFROG)
       {
-	lf_integrate(atom,&ener,&simulCond,constList,&box);
-
-// 	fprintf(outFile,"Leap frog done for step %d\n",simulCond.step);
+	lf_integrate(&ctrl,&param,&ener,&box,&bath,constList,
+		     x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst);
       }
-      else if(simulCond.integrator==1)
+      else if(ctrl.integrator==VELOCITY)
       {
-	vv_integrate(atom,&ener,&simulCond,constList,&box,2);
-	
-// 	fprintf(outFile,"Velocity verlet second stage done for step %d\n",simulCond.step);
+	vv_integrate(&ctrl,&param,&ener,&box,&bath,constList,
+		     x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,2);
       }
       
       ener.tot=ener.kin+ener.pot;
       
       ener.virtot=ener.virbond+ener.virub+ener.virelec+ener.virvdw+ener.virshake;
       
-//     Write thermodynamics properties into ener file.
+    /** Writes system properties with full precision into PROP file. */
       
-      if( (simulCond.keyprop) && (simulCond.step%simulCond.printpr==0) )
+      if( (ctrl.keyProp) && (param.step%ctrl.printProp==0) )
       {
-	write_prop(&simulCond,&ener,&box);
+	write_prop(&inout,&param,&ener,&box);
       }
       
-      if( (simulCond.step%simulCond.printo==0) )
+      if( (param.step%ctrl.printOut==0) )
       {
-	simulCond.tempStep=2.*ener.kin/((double)simulCond.degfree*rboltzui);
+	temp=2.*ener.kin/((double)param.nDegFree*rboltzui);
 	if(box.type>0)
-	  simulCond.pressStep=(2.*ener.kin-ener.virtot)/(3.*box.vol*bartoiu);
+	  press=(2.*ener.kin-ener.virtot)/(3.*box.vol*bartoiu);
 	else
-	  simulCond.pressStep=0.;
+	  press=0.;
 	
-	fprintf(outFile,_ENERLABELS_,enerLabel[0],enerLabel[1],enerLabel[2],enerLabel[3],enerLabel[4],
-			       enerLabel[5],enerLabel[6],enerLabel[7],enerLabel[8],enerLabel[9],
-			       enerLabel[10],enerLabel[11],enerLabel[12],enerLabel[13],enerLabel[14]);
+	if( (nPrint%5==0) )
+	{
+	  fprintf(outFile,"\n");
+	  fprintf(outFile,"%s\n\n",dashes);
+	  
+	  fprintf(outFile,_ENERLABELS_,enerLabel[0],enerLabel[1],enerLabel[2],enerLabel[3],enerLabel[4],
+				enerLabel[5],enerLabel[6],enerLabel[7],enerLabel[8],enerLabel[9],
+				enerLabel[10],enerLabel[11],enerLabel[12],enerLabel[13],enerLabel[14]);
+	  
+	  fprintf(outFile,"\n%s\n",dashes);
+	  
+	  nPrint=0;
+	}
 	
-	fprintf(outFile,_ENERFORMAT_,
-	simulCond.step,simulCond.step*simulCond.timeStep,simulCond.tempStep,simulCond.pressStep,box.vol,
+	fprintf(outFile,_ENERFORMAT_,param.step,param.step*param.timeStep,temp,press,box.vol,
 	ener.tot/kcaltoiu,ener.kin/kcaltoiu,ener.pot/kcaltoiu,ener.elec/kcaltoiu,ener.vdw/kcaltoiu,
 	ener.bond/kcaltoiu,ener.ang/kcaltoiu,ener.ub/kcaltoiu,ener.dihe/kcaltoiu,ener.impr/kcaltoiu);
 	
+	fprintf(outFile,"%s\n",dashes);
+	
+	nPrint++;
       }
 	
-//     Write coordinates into traj file.
+    /** Writes coordinates into DCD file. */
       
-      if( (simulCond.keytraj) && (simulCond.step%simulCond.printtr==0) )
+      if( (ctrl.keyTraj) && (param.step%ctrl.printTraj==0) )
       {
-//	fprintf(traj,"%d\n",simulCond.natom);
-//	fprintf(traj,"step %d\n",simulCond.step);
-//	for(i=0;i<simulCond.natom;i++)
-//	  fprintf(traj,"%s\t%7.3lf\t%7.3lf\t%7.3lf\n",atom[i].label,atom[i].x,atom[i].y,atom[i].z);
-          write_DCD_traj(atom,&simulCond,&box);
+	write_DCD_traj(&inout,&param,&box,x,y,z,frozen);
       }
       
-//     Write coordinates into resconf file.
+    /** Writes restart files. */
       
-      if(simulCond.step%simulCond.fresconf==0)
+      if(param.step%ctrl.printRest==0)
       {
-	write_CONF(atom,&simulCond);
-	fprintf(outFile,"RESCONF file written\n");
+	write_CONF(&inout,&param,atom,x,y,z);
+// 	fprintf(outFile,"\n%s file written\n",inout.rconName);
 	
-	write_rest(&simulCond,&ener,atom);
-	fprintf(outFile,"RESTART file written\n");
+	write_rest(&inout,&param,&ener,&bath,atom,x,y,z,vx,vy,vz,fx,fy,fz);
+// 	fprintf(outFile,"\n%s file written\n",inout.restName);
       }
       
     }
   
-//   Molecular dynamics loop ends here.
+  /** Molecular dynamics loop ends here. */
+  
   }
   
-// Write coordinates into resconf file.
+  /** MD ends here. */
+  
+  /** Writes restart files. */
     
-  write_CONF(atom,&simulCond);
-  fprintf(outFile,"RESCONF file written\n");
+  write_CONF(&inout,&param,atom,x,y,z);
+  fprintf(outFile,"\n%s file written\n",inout.rconName);
   
-  write_rest(&simulCond,&ener,atom);
-  fprintf(outFile,"RESTART file written\n");
-
-//  if(simulCond.keytraj)
-//    fclose(traj);
+  write_rest(&inout,&param,&ener,&bath,atom,x,y,z,vx,vy,vz,fx,fy,fz);
+  fprintf(outFile,"\n%s file written\n",inout.restName);
   
-  fprintf(outFile,"Normal Termination of MDBas.\n");
-  fprintf(outFile,"Veni, Vedi, Vici.\n");
+  fprintf(outFile,"\nNormal Termination of MDBas.\n");
   
-#if ( defined __linux__ || defined __FreeBSD__ )
-//compatible with some unixes-like OS: the struct rusage communicates with the kernel directly.
+#ifdef TIMER
+  update_timer_end(TIMER_ALL,__func__);
+  /** Write timings **/
+  print_timers();
+#endif
+  
+  /** Freeing arrays **/
+  free_all(&ctrl,&param,&ewald,&atom,&constList,&bond,&angle,&dihe,&impr,&ub,
+	   &x,&y,&z,&vx,&vy,&vz,&fx,&fy,&fz,&mass,&rmass,&q,&eps,&sig,&eps14,
+	   &sig14,&frozen,&nAtConst,&neighList,&neighPair,&neighOrder,
+	   &neighList14,&exclList,&exclPair);
+  
+#ifdef __unix__
   struct rusage infos_usage;
   getrusage(RUSAGE_SELF,&infos_usage);
-  fprintf(outFile,"Memory used in kBytes is : %ld\n",infos_usage.ru_maxrss);
-  fprintf(outFile,"Execution time in Seconds : %lf\n",(double)infos_usage.ru_utime.tv_sec+infos_usage.ru_utime.tv_usec/1000000.0);
-#endif /* unixes part */
+  /** when using omp this time is not correct **/
+//  fprintf(outFile,"Execution time in Seconds : %lf\n",(double)(infos_usage.ru_utime.tv_sec+infos_usage.ru_utime.tv_usec/1000000.0));
+  fprintf(outFile,"Max amount of physical memory used (kBytes) : %ld\n",infos_usage.ru_maxrss);
+#endif
   
   fclose(outFile);
   

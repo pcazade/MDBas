@@ -6,6 +6,8 @@
  * \date 2012
  */
 
+#include <math.h>
+
 #include "global.h"
 #include "utils.h"
 
@@ -16,8 +18,8 @@
  *
  * \return On return 0.0 as no energy evaluated.
  */
-double coulomb_none(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
-		    int i, int j, double r, double *delec)
+double coulomb_none(const PARAM *param,double *delec,const double qel,
+		    const double r2,const double rt)
 {
   *delec=0.;
   return 0.;
@@ -32,27 +34,29 @@ double coulomb_none(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
  *
  * \brief Function called for a full evaluation of the electrostatic energy and force.
  */
-void coulomb_full(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
+void coulomb_full(ENERGY *ener,PARAM *param,PBC *box,double *x,double *y,
+		  double *z,double *fx, double *fy, double *fz,double *q,
+		  int **exclList,int *exclPair)
 {
   
   int i,j,k,exclude;
   double elec=0.,pelec,delec;
-  double r,fx,fy,fz,fxi,fyi,fzi;
+  double r,r2,rt,fxi,fyi,fzi,fxj,fyj,fzj;
   double delta[3];
   
-  for(i=0;i<simulCond->natom-1;i++)
+  for(i=0;i<param->nAtom-1;i++)
   {
     fxi=0.;
     fyi=0.;
     fzi=0.;
     
-    for(j=i+1;j<simulCond->natom;j++)
+    for(j=i+1;j<param->nAtom;j++)
     {
       
       exclude=0;
-      for (k=0;k<simulCond->excludeNum[i];k++)
+      for (k=0;k<exclPair[i];k++)
       {
-	if(simulCond->excludeAtom[i][k]==j)
+	if(exclList[i][k]==j)
 	{
 	  exclude=1;
 	  break;
@@ -61,32 +65,38 @@ void coulomb_full(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond
       
       if(!exclude)
       {
-      
-	r=distance(i,j,atom,delta,simulCond,box);
 	
-	pelec=simulCond->chargeConst*atom[i].q*atom[j].q/r;
+	delta[0]=x[j]-x[i];
+	delta[1]=y[j]-y[i];
+	delta[2]=z[j]-z[i];
+	
+	r2=dist(box,delta);
+	r=sqrt(r2);
+	rt=1./r;
+	
+	pelec=param->chargeConst*q[i]*q[j]*rt;
 	elec+=pelec;
-	delec=-pelec/r;
+	delec=-pelec*rt;
 	
-	fx=delec*delta[0]/r;
-	fy=delec*delta[1]/r;
-	fz=delec*delta[2]/r;
+	fxj=delec*delta[0]*rt;
+	fyj=delec*delta[1]*rt;
+	fzj=delec*delta[2]*rt;
 	
-	fxi+=fx;
-	fyi+=fy;
-	fzi+=fz;
+	fxi+=fxj;
+	fyi+=fyj;
+	fzi+=fzj;
 	
-	atom[j].fx+=-fx;
-	atom[j].fy+=-fy;
-	atom[j].fz+=-fz;
+	fx[j]+=-fxj;
+	fy[j]+=-fyj;
+	fz[j]+=-fzj;
 	
       }
       
     }
     
-    atom[i].fx+=fxi;
-    atom[i].fy+=fyi;
-    atom[i].fz+=fzi;
+    fx[i]+=fxi;
+    fy[i]+=fyi;
+    fz[i]+=fzi;
   }
   ener->elec+=elec;
   
@@ -124,17 +134,20 @@ void coulomb_full(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond
  * \f$ dshiftFunc(r)=-2/rc+2r/rc^2 \f$
  *
  */
-double coulomb_shift1(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
-		    int i, int j, double r, double *delec)
+double coulomb_shift1(const PARAM *param,double *delec,const double qel,
+		      const double r2,const double rt)
 { 
-  double elec=0.,pelec,shiftFunc,dshiftFunc;
+  double elec=0.,pelec,shift1,shift2,shiftFunc,dshiftFunc;
+  
+  shift1=rt*r2*param->rcutOff;
+  shift2=r2*param->rcutOff2;
 
-  shiftFunc=1.-2.*r/simulCond->cutoff+X2(r/simulCond->cutoff);
-  dshiftFunc=-2./simulCond->cutoff+2.*r/X2(simulCond->cutoff);
+  shiftFunc=1.-2.*shift1+shift2;
+  dshiftFunc=2.*(shift2-shift1);
     
-  pelec=simulCond->chargeConst*atom[i].q*atom[j].q/r;
+  pelec=param->chargeConst*qel*rt;
   elec=pelec*shiftFunc;
-  *delec=pelec*(dshiftFunc-shiftFunc/r);
+  *delec=pelec*rt*(dshiftFunc-shiftFunc);
   
   return elec;
 }
@@ -170,17 +183,20 @@ double coulomb_shift1(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box
  * \f$ dshiftFunc(r)=-4r/rc^2+4r^3/rc^4 \f$
  *
  */
-double coulomb_shift2(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
-		    int i, int j, double r, double *delec)
+double coulomb_shift2(const PARAM *param,double *delec,const double qel,
+		      const double r2,const double rt)
 {
-  double elec=0.,pelec,shiftFunc,dshiftFunc;
+  double elec=0.,pelec,shift1,shift2,shiftFunc,dshiftFunc;
   
-  shiftFunc=1.-2.*X2(r/simulCond->cutoff)+X4(r/simulCond->cutoff);
-  dshiftFunc=-4.*r/X2(simulCond->cutoff)+4.*X3(r)/X4(simulCond->cutoff);
+  shift1=r2*param->rcutOff2;
+  shift2=X2(shift1);
   
-  pelec=simulCond->chargeConst*atom[i].q*atom[j].q/r;
+  shiftFunc=1.-2.*shift1+shift2;
+  dshiftFunc=4.*(shift2-shift1);
+  
+  pelec=param->chargeConst*qel*rt;
   elec=pelec*shiftFunc;
-  *delec=pelec*(dshiftFunc-shiftFunc/r);
+  *delec=pelec*rt*(dshiftFunc-shiftFunc);
   
   return elec;
 } //END of function
@@ -216,33 +232,30 @@ double coulomb_shift2(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box
  * \f$ dswitchFunc(r)=-12*r*(rc^2-r^2)*(ro^2-r^2)/(rc^2-ro^2)^3 \f$
  *
  */
-double coulomb_switch(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
-		    int i, int j, double r, double *delec)
+double coulomb_switch(const PARAM *param,double *delec,const double qel,
+		      const double r2,const double rt)
 {
-  double elec=0.,pelec,switchFunc,dswitchFunc;
+  double elec=0.,pelec,switch1,switchFunc,dswitchFunc;
   
-  if(r<=simulCond->cuton)
+  if(r2<=param->cutOn2)
   {
     
-    pelec=simulCond->chargeConst*atom[i].q*atom[j].q/r;
+    pelec=param->chargeConst*qel*rt;
     elec=pelec;
-    *delec=-pelec/r;
+    *delec=-pelec*rt;
     
   }
   else
   {
+    switch1=param->cutOff2-r2;
     
-    switchFunc=X2(X2(simulCond->cutoff)-X2(r))*
-      (X2(simulCond->cutoff)+2.*X2(r)-3.*X2(simulCond->cuton))/
-      X3(X2(simulCond->cutoff)-X2(simulCond->cuton));
+    switchFunc=X2(switch1)*(param->cutOff2+2.*r2-3.*param->cutOn2)*param->switch2;
       
-    dswitchFunc=12.*r*(X2(simulCond->cutoff)-X2(r))*
-      (X2(simulCond->cuton)-X2(r))/
-      X3(X2(simulCond->cutoff)-X2(simulCond->cuton));
+    dswitchFunc=12.*r2*switch1*(param->cutOn2-r2)*param->switch2;
     
-    pelec=simulCond->chargeConst*atom[i].q*atom[j].q/r;
+    pelec=param->chargeConst*qel*rt;
     elec=pelec*switchFunc;
-    *delec=pelec*(dswitchFunc-switchFunc/r);
+    *delec=pelec*rt*(dswitchFunc-switchFunc);
     
   }     
   
@@ -256,8 +269,8 @@ double coulomb_switch(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box
  *
  * \return On return 0.0 as no energy evaluated.
  */
-double coulomb14_none(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
-		      int i, int j, double r, double *delec)
+double coulomb14_none(const PARAM *param,double *delec,const double qel,
+		      const double r2,const double rt)
 {
   *delec=0.;
   return 0.;
@@ -277,14 +290,14 @@ double coulomb14_none(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box
  *
  * \return On return the electrostatic energy.
  */
-double coulomb14_full(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
-		    int i, int j, double r, double *delec)
+double coulomb14_full(const PARAM *param,double *delec,const double qel,
+		      const double r2,const double rt)
 {
   
   double elec=0.;
   
-  elec=ff->scal14*simulCond->chargeConst*atom[i].q*atom[j].q/r;
-  *delec=-elec/r;
+  elec=param->scal14*param->chargeConst*qel*rt;
+  *delec=-elec*rt;
   
   return elec;
 }
@@ -318,20 +331,23 @@ double coulomb14_full(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box
  * \f$ dshiftFunc(r)=-2/rc+2r/rc^2 \f$
  * 
  */
-double coulomb14_shift1(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
-		      int i, int j, double r, double *delec)
+double coulomb14_shift1(const PARAM *param,double *delec,const double qel,
+			const double r2,const double rt)
 {
-  double elec=0.,pelec,shiftFunc,dshiftFunc;
+  double elec=0.,pelec,shift1,shift2,shiftFunc,dshiftFunc;
     
-  if(r<=simulCond->cutoff)
+  if(r2<=param->cutOff2)
   {
     
-    shiftFunc=1.-2.*r/simulCond->cutoff+X2(r/simulCond->cutoff);
-    dshiftFunc=-2./simulCond->cutoff+2.*r/X2(simulCond->cutoff);
+    shift1=rt*r2*param->rcutOff;
+    shift2=r2*param->rcutOff2;
+   
+    shiftFunc=1.-2.*shift1+shift2;
+    dshiftFunc=2.*(shift2-shift1);
     
-    pelec=ff->scal14*simulCond->chargeConst*atom[i].q*atom[j].q/r;
+    pelec=param->scal14*param->chargeConst*qel*rt;
     elec=pelec*shiftFunc;
-    *delec=pelec*(dshiftFunc-shiftFunc/r);
+    *delec=pelec*rt*(dshiftFunc-shiftFunc);
     
   }
   
@@ -367,20 +383,23 @@ double coulomb14_shift1(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *b
  * \f$ dshiftFunc(r)=-4r/rc^2+4r^3/rc^4 \f$
  *
  */
-double coulomb14_shift2(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
-		      int i, int j, double r, double *delec)
+double coulomb14_shift2(const PARAM *param,double *delec,const double qel,
+			const double r2,const double rt)
 {
-  double elec=0.,pelec,shiftFunc,dshiftFunc;
+  double elec=0.,pelec,shift1,shift2,shiftFunc,dshiftFunc;
     
-  if(r<=simulCond->cutoff)
+  if(r2<=param->cutOff2)
   {
     
-    shiftFunc=1.-2.*X2(r/simulCond->cutoff)+X4(r/simulCond->cutoff);
-    dshiftFunc=-4.*r/X2(simulCond->cutoff)+4.*X3(r)/X4(simulCond->cutoff);
+    shift1=r2*param->rcutOff2;
+    shift2=X2(shift1);
     
-    pelec=ff->scal14*simulCond->chargeConst*atom[i].q*atom[j].q/r;
+    shiftFunc=1.-2.*shift1+shift2;
+    dshiftFunc=4.*(shift2-shift1);
+    
+    pelec=param->scal14*param->chargeConst*qel*rt;
     elec=pelec*shiftFunc;
-    *delec=pelec*(dshiftFunc-shiftFunc/r);
+    *delec=pelec*rt*(dshiftFunc-shiftFunc);
     
   }
   
@@ -416,33 +435,30 @@ double coulomb14_shift2(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *b
  * \f$ dswitchFunc(r)=-12*r*(rc^2-r^2)*(ro^2-r^2)/(rc^2-ro^2)^3 \f$
  * 
  */
-double coulomb14_switch(ATOM atom[],FORCEFIELD *ff,SIMULPARAMS *simulCond,PBC *box,
-		      int i, int j, double r, double *delec)
+double coulomb14_switch(const PARAM *param,double *delec,const double qel,
+			const double r2,const double rt)
 {
-  double elec=0.,pelec,switchFunc,dswitchFunc;
+  double elec=0.,pelec,switch1,switchFunc,dswitchFunc;
     
-  if(r<=simulCond->cuton)
+  if(r2<=param->cutOn2)
   {
-    
-    pelec=ff->scal14*simulCond->chargeConst*atom[i].q*atom[j].q/r;
+    pelec=param->scal14*param->chargeConst*qel*rt;
     elec=pelec;
-    *delec=-pelec/r;
-      
+    *delec=-pelec*rt;
+     
   }
-  else if(r<=simulCond->cutoff)
+  else if(r2<=param->cutOff2)
   {
     
-    switchFunc=X2(X2(simulCond->cutoff)-X2(r))*
-      (X2(simulCond->cutoff)+2.*X2(r)-3.*X2(simulCond->cuton))/
-      X3(X2(simulCond->cutoff)-X2(simulCond->cuton));
-      
-    dswitchFunc=12.*r*(X2(simulCond->cutoff)-X2(r))*
-      (X2(simulCond->cuton)-X2(r))/
-      X3(X2(simulCond->cutoff)-X2(simulCond->cuton));
+    switch1=param->cutOff2-r2;
     
-    pelec=ff->scal14*simulCond->chargeConst*atom[i].q*atom[j].q/r;
+    switchFunc=X2(switch1)*(param->cutOff2+2.*r2-3.*param->cutOn2)*param->switch2;
+      
+    dswitchFunc=12.*r2*switch1*(param->cutOn2-r2)*param->switch2;
+    
+    pelec=param->scal14*param->chargeConst*qel*rt;
     elec=pelec*switchFunc;
-    *delec=pelec*(dswitchFunc-switchFunc/r);
+    *delec=pelec*rt*(dswitchFunc-switchFunc);
       
   }     
   return elec;

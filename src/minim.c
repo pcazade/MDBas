@@ -16,12 +16,17 @@
 /** Pointer to the output file. **/
 extern FILE *outFile;
 
-void minimise(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
+void minimise(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,NEIGH *neigh,
+	      ATOM atom[],BOND bond[],BOND ub[],ANGLE angle[],DIHE dihe[],
+	      DIHE impr[])
 {
   
 }
 
-void steepestDescent(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond,PBC *box)
+void steepestDescent(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,NEIGH *neigh,
+		     ATOM atom[],BOND bond[],BOND ub[],ANGLE angle[],DIHE dihe[],
+		     DIHE impr[],double x[],double y[],double z[],double fx[],
+		     double fy[],double fz[])
 {
   double step = 1.0e-7 ;
   double prec = 1.0e-3 ;
@@ -32,21 +37,21 @@ void steepestDescent(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulC
   
   int i, currSt=0 ;
   
-  energy(atom, ff, ener, simulCond, box);
+  //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
   eprev = ener->pot;
   
 //   fprintf(outFile,"eprev : %lf\n",eprev);
 
   do
   {
-    for (i=0 ; i < simulCond->natom ; i++)
+    for (i=0 ; i < param->nAtom ; i++)
     {
-      atom[i].x += step * atom[i].fx ;
-      atom[i].y += step * atom[i].fy ;
-      atom[i].z += step * atom[i].fz ;
+      x[i] += step * fx[i] ;
+      y[i] += step * fy[i] ;
+      z[i] += step * fz[i] ;
     }
     
-    energy(atom, ff, ener, simulCond, box);
+    //energy(ctrl,param,ener,box,neigh,atom,bond,ub,angle,dihe,impr,vdw);
     enow = ener->pot;
 //     fprintf(outFile,"enow : %lf\n",enow);
     
@@ -61,7 +66,9 @@ void steepestDescent(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulC
   
 }
 
-void conjugateGradients(ATOM atom[],FORCEFIELD *ff,ENERGY *ener,SIMULPARAMS *simulCond)
+void conjugateGradients(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,NEIGH *neigh,
+			ATOM atom[],BOND bond[],BOND ub[],ANGLE angle[],DIHE dihe[],
+			DIHE impr[])
 {
   
 }
