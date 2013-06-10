@@ -1,3 +1,23 @@
+/*
+ * Copyright (c) 2013 Pierre-Andre Cazade
+ * Copyright (c) 2013 Florent hedin
+ * 
+ * This file is part of MDBas.
+ *
+ * MDBas is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * MDBas is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with MDBas.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 /**
  * \file energy.c
  * \brief Contains highest level functions for evaluating energy and forces of a system.
@@ -27,6 +47,9 @@
 #include "timing.h"
 #endif
 
+static int newjob;
+static double *buff1;
+
 /**
  * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
  * 
@@ -34,6 +57,8 @@
  */
 void init_energy_ptrs(CTRL *ctrl)
 {
+  
+  newjob=1;
   
   switch(ctrl->elecType)
   {
@@ -106,11 +131,19 @@ void energy(CTRL *ctrl,PARAM *param,ENERGY *ener,EWALD *ewald,PBC *box,NEIGH *ne
 	    double vx[],double vy[], double vz[],double fx[],double fy[],
 	    double fz[],const double q[],const double eps[],const double sig[],
 	    const double eps14[],const double sig14[],const int frozen[],
-	    const int neighList[],const int neighPair[],const int neighOrder[],
-	    const int neighList14[],int **exclList,const int exclPair[])
+	    const int *neighList[],const int neighPair[],const int neighList14[],
+	    int **exclList,const int exclPair[])
 {
   
   int i;
+  
+  if(newjob)
+  {
+    int size;
+    size=MAX(paran->nAtom,22);
+    buff1=(double*)my_malloc(paran->nAtom*sizeof(*buff1));
+    newjob=0;
+  }
   
   ener->elec=0.;
   ener->vdw=0.;
@@ -189,6 +222,41 @@ void energy(CTRL *ctrl,PARAM *param,ENERGY *ener,EWALD *ewald,PBC *box,NEIGH *ne
     improper_energy(param,ener,box,impr,x,y,z,fx,fy,fz);
   
   /* Calculate potential energy */
+  
+  if(parallel->nProc>1)
+  {
+    buff1[0]=ener->elec;
+    buff1[1]=ener->vdw;
+    buff1[2]=ener->bond;
+    buff1[3]=ener->ang;
+    buff1[4]=ener->ub;
+    buff1[5]=ener->dihe;
+    buff1[6]=ener->impr;
+    
+    buff1[7]=ener->virelec;
+    buff1[8]=ener->virvdw;
+    buff1[9]=ener->virbond;
+    buff1[10]=ener->virub;
+    
+    sum_double_para(buff1,&(buff1[11]),11);
+    
+    ener->elec=buff1[0];
+    ener->vdw=buff1[1];
+    ener->bond=buff1[2];
+    ener->ang=buff1[3];
+    ener->ub=buff1[4];
+    ener->dihe=buff1[5];
+    ener->impr=buff1[6];
+    
+    ener->virelec=buff1[7];
+    ener->virvdw=buff1[8];
+    ener->virbond=buff1[9];
+    ener->virub=buff1[10];
+    
+    sum_double_para(fx,buff1,param->nAtom);
+    sum_double_para(fy,buff1,param->nAtom);
+    sum_double_para(fz,buff1,param->nAtom);
+  }
     
   ener->pot=ener->elec+ener->vdw+ener->bond+
     ener->ang+ener->ub+ener->dihe+ener->impr;
@@ -215,8 +283,8 @@ void energy(CTRL *ctrl,PARAM *param,ENERGY *ener,EWALD *ewald,PBC *box,NEIGH *ne
  */
 void nonbond_energy(PARAM *param,ENERGY *ener,PBC *box,const double x[],const double y[],
 		    const double z[],double fx[],double fy[],double fz[],const double q[],
-		    const double eps[],const double sig[],const int neighList[],
-		    const int neighPair[],const int neighOrder[])
+		    const double eps[],const double sig[],const int *neighList[],
+		    const int neighPair[])
 {
   
   int i,j,k,l,offset;
@@ -225,27 +293,28 @@ void nonbond_energy(PARAM *param,ENERGY *ener,PBC *box,const double x[],const do
   double qel,veps,vsig;
   double delta[3]/*,stress[6]={0.}*/;
   
+  int parallel->idProc=my_proc();
+  
 #ifdef TIMER
   update_timer_begin(TIMER_ENERGY_NB,__func__);
 #endif
   
-  offset=0;
+  l=0;
   #ifdef _OPENMP
   #pragma omp parallel default(none) shared(atom,param,box,vdw,neigh,ptr_coulomb,ptr_vdw) private(i,j,k,delec,dvdw,r,fx,fy,fz,fxi,fyi,fzi,delta) reduction(+:elec,evdw,virelec,virvdw)
   {
   #pragma omp for schedule(dynamic,1000) nowait
   #endif
-    for(l=0;l<param->nAtom;l++)
+    for(i=parallel->idProc;i<param->nAtom;i+=parallel->nProc)
     {
-      i=neighOrder[l];
       
       fxi=0.;
       fyi=0.;
       fzi=0.;
       
-      for(k=0;k<neighPair[i];k++)
+      for(k=0;k<neighPair[l];k++)
       {
-	j=neighList[offset++];
+	j=neighList[l][k];
 	
 	delta[0]=x[j]-x[i];
 	delta[1]=y[j]-y[i];
@@ -316,6 +385,8 @@ void nonbond_energy(PARAM *param,ENERGY *ener,PBC *box,const double x[],const do
       #endif
       fz[i]+=fzi;
       
+      l++;
+      
     } //end of parallel for
     
   #ifdef _OPENMP
@@ -359,7 +430,7 @@ void nonbond14_energy(PARAM *param,ENERGY *ener,PBC *box,NEIGH *neigh,
 		      const int neighList14[])
 {
   
-  int i,j,k;
+  int i,j,k,l;
   double elec=0.,evdw=0.,delec=0.,dvdw=0.,virelec=0.,virvdw=0.;
   double r,r2,rt,fxj,fyj,fzj;
   double qel,veps,vsig;
@@ -369,10 +440,11 @@ void nonbond14_energy(PARAM *param,ENERGY *ener,PBC *box,NEIGH *neigh,
   update_timer_begin(TIMER_ENERGY_NB14,__func__);
 #endif
   
-  for(k=0;k<neigh->nPair14;k++)
+  l=0;
+  for(k=parallel->idProc;k<neigh->nPair14;k+=parallel->nProc)
   {
-    i=neighList14[2*k];
-    j=neighList14[2*k+1];
+    i=neighList14[2*l];
+    j=neighList14[2*l+1];
     
     delec=0.;
     dvdw=0.;
@@ -413,7 +485,8 @@ void nonbond14_energy(PARAM *param,ENERGY *ener,PBC *box,NEIGH *neigh,
     fx[j]+=-fxj;
     fy[j]+=-fyj;
     fz[j]+=-fzj;
-      
+    
+    l++;
   }
   
   ener->elec+=elec;
@@ -450,11 +523,11 @@ void nonbond14_energy(PARAM *param,ENERGY *ener,PBC *box,NEIGH *neigh,
 void ewald_energy(CTRL *ctrl,PARAM *param,ENERGY *ener,EWALD *ewald,PBC *box,const double x[],
 		  const double y[],const double z[],double fx[],double fy[],
 		  double fz[],const double q[],const double eps[],const double sig[],
-		  const int neighList[],const int neighPair[],const int neighOrder[],
-		  int **exclList,const int exclPair[])
+		  const int *neighList[],const int neighPair[],int *exclList[],
+		  const int exclPair[])
 {
   
-  int i,j,k,l,offset;
+  int i,j,k,l;
   double eEwaldRec=0.,virEwaldRec=0.,eEwaldDir=0.,dEwaldDir=0.,virEwaldDir=0.;
   double eEwaldCorr=0.,dEwaldCorr=0.,virEwaldCorr=0.;
   double evdw=0.,dvdw=0.,virvdw=0.;
@@ -471,23 +544,22 @@ void ewald_energy(CTRL *ctrl,PARAM *param,ENERGY *ener,EWALD *ewald,PBC *box,con
   else if(ctrl->keyEwald==2)
     eEwaldRec=spme_energy(param,ewald,box,x,y,z,fx,fy,fz,q,stress1,&virEwaldRec);
   
-  offset=0;
+  l=0;
   #ifdef _OPENMP
   #pragma omp parallel default(none) shared(atom,param,box,vdw,neigh,ptr_coulomb,ptr_vdw) private(i,j,k,delec,dvdw,r,fx,fy,fz,fxi,fyi,fzi,delta) reduction(+:elec,evdw,virelec,virvdw)
   {
   #pragma omp for schedule(dynamic,1000) nowait
   #endif
-    for(l=0;l<param->nAtom;l++)
+    for(i=parallel->idProc;i<param->nAtom;i+=parallel->nProc)
     {
-      i=neighOrder[l];
       
       fxi=0.;
       fyi=0.;
       fzi=0.;
       
-      for(k=0;k<neighPair[i];k++)
+      for(k=0;k<neighPair[l];k++)
       {
-	j=neighList[offset++];
+	j=neighList[l][k];
 	
 	delta[0]=x[j]-x[i];
 	delta[1]=y[j]-y[i];
@@ -540,7 +612,6 @@ void ewald_energy(CTRL *ctrl,PARAM *param,ENERGY *ener,EWALD *ewald,PBC *box,con
 	  fz[j]+=-fzj;
 	  
 	}
-	
       }
       
       #ifdef _OPENMP
@@ -558,22 +629,25 @@ void ewald_energy(CTRL *ctrl,PARAM *param,ENERGY *ener,EWALD *ewald,PBC *box,con
       #endif
       fz[i]+=fzi;
       
+      l++
+      
     } //end of parallel for
     
   #ifdef _OPENMP
   } //end of parallel region
   #endif
   
-  for(i=0;i<param->nAtom;i++)
+  l=0;
+  for(i=parallel->idProc;i<param->nAtom;i+=parallel->nProc)
   {
     
     fxi=0.;
     fyi=0.;
     fzi=0.;
     
-    for(k=0;k<exclPair[i];k++)
+    for(k=0;k<exclPair[l];k++)
     {
-      j=exclList[i][k];
+      j=exclList[l][k];
       
       if(j>i)
       {
@@ -618,6 +692,7 @@ void ewald_energy(CTRL *ctrl,PARAM *param,ENERGY *ener,EWALD *ewald,PBC *box,con
     fy[i]+=fyi;
     fz[i]+=fzi;
     
+    l++;
   }
   
   ener->elec+=eEwaldDir+eEwaldRec+eEwaldCorr;
@@ -657,7 +732,7 @@ void ewald14_energy(PARAM *param,ENERGY *ener,EWALD *ewald,PBC *box,NEIGH *neigh
 		    const int neighList14[])
 {
   
-  int i,j,k;
+  int i,j,k,l;
   double eEwaldDir=0.,dEwaldDir=0.,virEwaldDir=0.;
   double eEwaldCorr=0.,dEwaldCorr=0.,virEwaldCorr=0.;
   double evdw=0.,dvdw=0.,virvdw=0.;
@@ -669,10 +744,11 @@ void ewald14_energy(PARAM *param,ENERGY *ener,EWALD *ewald,PBC *box,NEIGH *neigh
   update_timer_begin(TIMER_ENERGY_NB14,__func__);
 #endif
   
-  for(k=0;k<neigh->nPair14;k++)
+  l=0;
+  for(k=parallel->idProc;k<neigh->nPair14;k+=parallel->nProc)
   {
-    i=neighList14[2*k];
-    j=neighList14[2*k+1];
+    i=neighList14[2*l];
+    j=neighList14[2*l+1];
     
     dEwaldCorr=0.;
     dvdw=0.;
@@ -716,7 +792,9 @@ void ewald14_energy(PARAM *param,ENERGY *ener,EWALD *ewald,PBC *box,NEIGH *neigh
     fx[j]+=-fxj;
     fy[j]+=-fyj;
     fz[j]+=-fzj;
-      
+    
+    l++;
+    
   }
   
   ener->elec+=eEwaldDir+eEwaldCorr;

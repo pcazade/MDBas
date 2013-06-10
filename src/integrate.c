@@ -1,3 +1,23 @@
+/*
+ * Copyright (c) 2013 Pierre-Andre Cazade
+ * Copyright (c) 2013 Florent hedin
+ * 
+ * This file is part of MDBas.
+ *
+ * MDBas is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * MDBas is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with MDBas.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 /**
  * \file integrate.c
  * \brief Contains functions performing the integration
@@ -43,35 +63,35 @@ void integrators_allocate_arrays(CTRL *ctrl, PARAM *param)
   {
     if (ctrl->ens == NVE)
     {
-      xo=(double*)my_malloc(param->nAtom*sizeof(*xo));
-      yo=(double*)my_malloc(param->nAtom*sizeof(*yo));
-      zo=(double*)my_malloc(param->nAtom*sizeof(*zo));
+      xo=(double*)my_malloc(parallel->nAtProc*sizeof(*xo));
+      yo=(double*)my_malloc(parallel->nAtProc*sizeof(*yo));
+      zo=(double*)my_malloc(parallel->nAtProc*sizeof(*zo));
       vxu=(double*)my_malloc(param->nAtom*sizeof(*vxu));
       vyu=(double*)my_malloc(param->nAtom*sizeof(*vyu));
       vzu=(double*)my_malloc(param->nAtom*sizeof(*vzu));
-      if(param->nConst>0)
+      if(parallel->nCtProc>0)
       {
-	ddx=(double*)my_malloc(param->nConst*sizeof(*ddx));
-	ddy=(double*)my_malloc(param->nConst*sizeof(*ddy));
-	ddz=(double*)my_malloc(param->nConst*sizeof(*ddz));
+	ddx=(double*)my_malloc(parallel->nCtProc*sizeof(*ddx));
+	ddy=(double*)my_malloc(parallel->nCtProc*sizeof(*ddy));
+	ddz=(double*)my_malloc(parallel->nCtProc*sizeof(*ddz));
       }
     }
     else
     {
-      xo=(double*)my_malloc(param->nAtom*sizeof(*xo));
-      yo=(double*)my_malloc(param->nAtom*sizeof(*yo));
-      zo=(double*)my_malloc(param->nAtom*sizeof(*zo));
-      vxo=(double*)my_malloc(param->nAtom*sizeof(*vxo));
-      vyo=(double*)my_malloc(param->nAtom*sizeof(*vyo));
-      vzo=(double*)my_malloc(param->nAtom*sizeof(*vzo));
+      xo=(double*)my_malloc(parallel->nAtProc*sizeof(*xo));
+      yo=(double*)my_malloc(parallel->nAtProc*sizeof(*yo));
+      zo=(double*)my_malloc(parallel->nAtProc*sizeof(*zo));
+      vxo=(double*)my_malloc(parallel->nAtProc*sizeof(*vxo));
+      vyo=(double*)my_malloc(parallel->nAtProc*sizeof(*vyo));
+      vzo=(double*)my_malloc(parallel->nAtProc*sizeof(*vzo));
       vxu=(double*)my_malloc(param->nAtom*sizeof(*vxu));
       vyu=(double*)my_malloc(param->nAtom*sizeof(*vyu));
       vzu=(double*)my_malloc(param->nAtom*sizeof(*vzu));
-      if(param->nConst>0)
+      if(parallel->nCtProc>0)
       {
-	ddx=(double*)my_malloc(param->nConst*sizeof(*ddx));
-	ddy=(double*)my_malloc(param->nConst*sizeof(*ddy));
-	ddz=(double*)my_malloc(param->nConst*sizeof(*ddz));
+	ddx=(double*)my_malloc(parallel->nCtProc*sizeof(*ddx));
+	ddy=(double*)my_malloc(parallel->nCtProc*sizeof(*ddy));
+	ddz=(double*)my_malloc(parallel->nCtProc*sizeof(*ddz));
 	
         xt=(double*)my_malloc(param->nAtom*sizeof(*xt));
         yt=(double*)my_malloc(param->nAtom*sizeof(*yt));
@@ -83,26 +103,26 @@ void integrators_allocate_arrays(CTRL *ctrl, PARAM *param)
   {
     if (ctrl->ens == NVE || ctrl->ens == NVT_B || ctrl->ens == NVT_H)
     {
-        if(param->nConst>0)
+        if(parallel->nCtProc>0)
 	{
-	  ddx=(double*)my_malloc(param->nConst*sizeof(*ddx));
-	  ddy=(double*)my_malloc(param->nConst*sizeof(*ddy));
-	  ddz=(double*)my_malloc(param->nConst*sizeof(*ddz));
+	  ddx=(double*)my_malloc(parallel->nCtProc*sizeof(*ddx));
+	  ddy=(double*)my_malloc(parallel->nCtProc*sizeof(*ddy));
+	  ddz=(double*)my_malloc(parallel->nCtProc*sizeof(*ddz));
 	}
     }
     else
     {
-      xo=(double*)my_malloc(param->nAtom*sizeof(*xo));
-      yo=(double*)my_malloc(param->nAtom*sizeof(*yo));
-      zo=(double*)my_malloc(param->nAtom*sizeof(*zo));
-      vxo=(double*)my_malloc(param->nAtom*sizeof(*vxo));
-      vyo=(double*)my_malloc(param->nAtom*sizeof(*vyo));
-      vzo=(double*)my_malloc(param->nAtom*sizeof(*vzo));
-      if(param->nConst>0)
+      xo=(double*)my_malloc(parallel->nAtProc*sizeof(*xo));
+      yo=(double*)my_malloc(parallel->nAtProc*sizeof(*yo));
+      zo=(double*)my_malloc(parallel->nAtProc*sizeof(*zo));
+      vxo=(double*)my_malloc(parallel->nAtProc*sizeof(*vxo));
+      vyo=(double*)my_malloc(parallel->nAtProc*sizeof(*vyo));
+      vzo=(double*)my_malloc(parallel->nAtProc*sizeof(*vzo));
+      if(parallel->nCtProc>0)
       {
-	ddx=(double*)my_malloc(param->nConst*sizeof(*ddx));
-	ddy=(double*)my_malloc(param->nConst*sizeof(*ddy));
-	ddz=(double*)my_malloc(param->nConst*sizeof(*ddz));
+	ddx=(double*)my_malloc(parallel->nCtProc*sizeof(*ddx));
+	ddy=(double*)my_malloc(parallel->nCtProc*sizeof(*ddy));
+	ddz=(double*)my_malloc(parallel->nCtProc*sizeof(*ddz));
       }
     }
   }
@@ -120,7 +140,7 @@ void integrators_free_arrays(CTRL *ctrl, PARAM *param)
       free(vxu);
       free(vyu);
       free(vzu);
-      if(param->nConst>0)
+      if(parallel->nCtProc>0)
       {
 	free(ddx);
 	free(ddy);
@@ -138,7 +158,7 @@ void integrators_free_arrays(CTRL *ctrl, PARAM *param)
       free(vxu);
       free(vyu);
       free(vzu);
-      if(param->nConst>0)
+      if(parallel->nCtProc>0)
       {
 	free(ddx);
 	free(ddy);
@@ -154,7 +174,7 @@ void integrators_free_arrays(CTRL *ctrl, PARAM *param)
   {
     if (ctrl->ens == NVE || ctrl->ens == NVT_B || ctrl->ens == NVT_H)
     {
-      if(param->nConst>0)
+      if(parallel->nCtProc>0)
       {
 	free(ddx);
 	free(ddy);
@@ -169,7 +189,7 @@ void integrators_free_arrays(CTRL *ctrl, PARAM *param)
       free(vxo);
       free(vyo);
       free(vzo);
-      if(param->nConst>0)
+      if(parallel->nCtProc>0)
       {
 	free(ddx);
 	free(ddy);
@@ -185,7 +205,7 @@ void lf_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,
 		  double *x,double *y,double *z,
 		  double *vx,double *vy,double *vz,
 		  double *fx,double *fy,double *fz,
-		  double *mass,double *rmass,int *nAtConst)
+		  double *mass,double *rmass,int *nAparallel->tConst)
 {
   
 #ifdef TIMER
@@ -195,22 +215,22 @@ void lf_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,
   switch (ctrl->ens)
   {
     case NVE:
-      lf_nve(param,ener,box,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst);
+      lf_nve(param,ener,box,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAparallel->tConst);
       break;
     case NVT_B:
-      lf_nvt_b(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst);
+      lf_nvt_b(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAparallel->tConst);
       break;
     case NPT_B:
-      lf_npt_b(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst);
+      lf_npt_b(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAparallel->tConst);
       break;
     case NVT_H:
-      lf_nvt_h(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst);
+      lf_nvt_h(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAparallel->tConst);
       break;
     case NPT_H:
-      lf_npt_h(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst);
+      lf_npt_h(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAparallel->tConst);
       break;
     default:
-      lf_nve(param,ener,box,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst);
+      lf_nve(param,ener,box,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAparallel->tConst);
       break;
   }
   
@@ -224,52 +244,45 @@ void lf_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],
 	    double *x,double *y,double *z,
 	    double *vx,double *vy,double *vz,
 	    double *fx,double *fy,double *fz,
-	    double *mass,double *rmass,int *nAtConst)
+	    double *mass,double *rmass,int *nAparallel->tConst)
 {
-  int i,ia,ib;
-//   double *xo=NULL,*yo=NULL,*zo=NULL,*vxu=NULL,*vyu=NULL,*vzu=NULL;
+  int i,ia,ib,l;
   double virshake=0.,stress[6]={0.},stresk[6]={0.};
-//   DELTA *dd=NULL;
   
-//   vxu=(double*)my_malloc(param->nAtom*sizeof(*vxu));
-//   vyu=(double*)my_malloc(param->nAtom*sizeof(*vyu));
-//   vzu=(double*)my_malloc(param->nAtom*sizeof(*vzu));
-  
-  if(param->nConst>0)
+  if(parallel->nCtProc>0)
   {
-//     dd=(DELTA*)my_malloc(param->nConst*sizeof(*dd));
-    
+    l=0;
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(param,atom,constList,dd) private(i,ia,ib)
     #endif
-    for(i=0;i<param->nConst;i++)
+    for(i=parallel->fConst;i<parallel->lConst;i++)
     {
       ia=constList[i].a;
       ib=constList[i].b;
       
-      ddx[i]=x[ib]-x[ia];
-      ddy[i]=y[ib]-y[ia];
-      ddz[i]=z[ib]-z[ia];
+      ddx[l]=x[ib]-x[ia];
+      ddy[l]=y[ib]-y[ia];
+      ddz[l]=z[ib]-z[ia];
+      
+      l++;
     }
     
-//     image_array(param->nConst,dd,simulCond,box);
-    image_array(box,ddx,ddy,ddz,param->nConst);
+    image_array(box,ddx,ddy,ddz,parallel->tConst);
     
-//     xo=(double*)my_malloc(param->nAtom*sizeof(*xo));
-//     yo=(double*)my_malloc(param->nAtom*sizeof(*yo));
-//     zo=(double*)my_malloc(param->nAtom*sizeof(*zo));
-    
+    l=0;
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(param,xo,yo,zo,atom) private(i)
     #endif
-    for(i=0;i<param->nAtom;i++)
+    for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
       
 // Store old coordinates.
-
-      xo[i]=x[i];
-      yo[i]=y[i];
-      zo[i]=z[i];
+      
+      xo[l]=x[i];
+      yo[l]=y[i];
+      zo[l]=z[i];
+      
+      l++;
       
     }
     
@@ -279,7 +292,7 @@ void lf_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],
   #ifdef _OPENMP
   #pragma omp parallel for default(none) shared(vxu,vyu,vzu,param,atom) private(i)
   #endif
-  for(i=0;i<param->nAtom;i++)
+  for(i=parallel->fAtom;i<parallel->lAtom;i++)
   {
     
 // update velocities
@@ -298,21 +311,30 @@ void lf_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],
   
   if(param->nConst>0)
   {
+    
+    if(parallel->nProc>1)
+    {
+      update_double_para(param,parallel,x,buffer);
+      update_double_para(param,parallel,y,buffer);
+      update_double_para(param,parallel,z,buffer);
+    }
+    
 // Apply constraint with Shake algorithm.
 
-    lf_shake(param,box,constList,x,y,z,ddx,ddy,ddz,rmass,nAtConst,stress,&virshake);
+    lf_shake(param,box,constList,x,y,z,ddx,ddy,ddz,rmass,nAparallel->tConst,stress,&virshake);
     
+    l=0;
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(vxu,vyu,vzu,xo,yo,zo,param,atom) private(i)
     #endif
-    for(i=0;i<param->nAtom;i++)
+    for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
         
 // Corrected velocities
     
-      vxu[i]=(x[i]-xo[i])*param->rTimeStep;
-      vyu[i]=(y[i]-yo[i])*param->rTimeStep;
-      vzu[i]=(z[i]-zo[i])*param->rTimeStep;
+      vxu[i]=(x[i]-xo[l])*param->rTimeStep;
+      vyu[i]=(y[i]-yo[l])*param->rTimeStep;
+      vzu[i]=(z[i]-zo[l])*param->rTimeStep;
     
 // Corrected Forces
     
@@ -327,7 +349,7 @@ void lf_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],
   #ifdef _OPENMP
   #pragma omp parallel for default(none) shared(vxu,vyu,vzu,param,atom) private(i)
   #endif
-  for(i=0;i<param->nAtom;i++)
+  for(i=parallel->fAtom;i<parallel->lAtom;i++)
   {
     
     vx[i]=0.5*(vx[i]+vxu[i]);
@@ -364,7 +386,7 @@ void lf_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],
   #ifdef _OPENMP
   #pragma omp parallel for default(none) shared(vxu,vyu,vzu,param,atom) private(i)
   #endif
-  for(i=0;i<param->nAtom;i++)
+  for(i=parallel->fAtom;i<parallel->lAtom;i++)
   {
     
     vx[i]=vxu[i];
@@ -373,62 +395,54 @@ void lf_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],
     
   }
   
-//   free(vxu);
-//   free(vyu);
-//   free(vzu);
-//   
-//   if(param->nConst>0)
-//   {
-//     free(xo);
-//     free(yo);
-//     free(zo);
-//     free(dd);
-//   }
-      
+  if(parallel->nProc>1)
+  {
+    update_double_para(param,parallel,x,buffer);
+    update_double_para(param,parallel,y,buffer);
+    update_double_para(param,parallel,z,buffer);
+    
+    update_double_para(param,parallel,vx,buffer);
+    update_double_para(param,parallel,vy,buffer);
+    update_double_para(param,parallel,vz,buffer);
+    
+    if(parallel->nCtProc>0)
+    {
+      update_double_para(param,parallel,fx,buffer);
+      update_double_para(param,parallel,fy,buffer);
+      update_double_para(param,parallel,fz,buffer);
+    }
+    
+  }
 }
 
 void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],
 	      double *x,double *y,double *z,
 	      double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int *nAtConst)
+	      double *mass,double *rmass,int *nAparallel->tConst)
 {
   int i,k,ia,ib,bercycle;
   double lambda,rts2;
-//   double *xo=NULL,*yo=NULL,*zo=NULL;
-//   double *vxo=NULL,*vyo=NULL,*vzo=NULL;
-//   double *xt=NULL,*yt=NULL,*zt=NULL;
-//   double *vxu=NULL,*vyu=NULL,*vzu=NULL;
   double virshake=0.,virshakt=0.,stress[6]={0.},strest[6]={0.},stresk[6]={0.};
-//   DELTA *dd=NULL;
   
-//   vxu=(double*)my_malloc(param->nAtom*sizeof(*vxu));
-//   vyu=(double*)my_malloc(param->nAtom*sizeof(*vyu));
-//   vzu=(double*)my_malloc(param->nAtom*sizeof(*vzu));
-//   
-//   xo=(double*)my_malloc(param->nAtom*sizeof(*xo));
-//   yo=(double*)my_malloc(param->nAtom*sizeof(*yo));
-//   zo=(double*)my_malloc(param->nAtom*sizeof(*zo));
-//   
-//   vxo=(double*)my_malloc(param->nAtom*sizeof(*vxo));
-//   vyo=(double*)my_malloc(param->nAtom*sizeof(*vyo));
-//   vzo=(double*)my_malloc(param->nAtom*sizeof(*vzo));
-    
+  l=0;
   #ifdef _OPENMP
   #pragma omp parallel for default(none) shared(xo,yo,zo,vxo,vyo,vzo,param,atom) private(i)
   #endif
-  for(i=0;i<param->nAtom;i++)
+  for(i=parallel->fAtom;i<parallel->lAtom;i++)
   {
     
 // Store old coordinates and old velocities.
 
-    xo[i]=x[i];
-    yo[i]=y[i];
-    zo[i]=z[i];
+    xo[l]=x[i];
+    yo[l]=y[i];
+    zo[l]=z[i];
     
-    vxo[i]=vx[i];
-    vyo[i]=vy[i];
-    vzo[i]=vz[i];
+    vxo[l]=vx[i];
+    vyo[l]=vy[i];
+    vzo[l]=vz[i];
+    
+    l++;
     
   }
   
@@ -463,7 +477,7 @@ void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   #ifdef _OPENMP
   #pragma omp parallel for default(none) shared(param,atom) private(i)
   #endif
-  for(i=0;i<param->nAtom;i++)
+  for(i=parallel->fAtom;i<parallel->lAtom;i++)
   { 
     vx[i]+=0.5*param->timeStep*fx[i]*rmass[i];
     vy[i]+=0.5*param->timeStep*fy[i]*rmass[i];
@@ -487,7 +501,7 @@ void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(param,atom,xo,yo,zo,xt,yt,zt,vxo,vyo,vzo,vxu,vyu,vzu,lambda) private(i)
     #endif
-    for(i=0;i<param->nAtom;i++)
+    for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
       
 // update velocities
@@ -518,7 +532,7 @@ void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 // Apply constraint with Shake algorithm.
       
       //lf_shake(atom,simulCond,constList,dd,box,&virshakt,strest);
-      lf_shake(param,box,constList,x,y,z,ddx,ddy,ddz,rmass,nAtConst,strest,&virshakt);
+      lf_shake(param,box,constList,x,y,z,ddx,ddy,ddz,rmass,nAparallel->tConst,strest,&virshakt);
       
       virshake+=virshakt;
       for(i=0;i<6;i++)
@@ -527,7 +541,7 @@ void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       #ifdef _OPENMP
       #pragma omp parallel for default(none) shared(param,atom,xt,yt,zt,vxu,vyu,vzu,rts2) private(i)
       #endif
-      for(i=0;i<param->nAtom;i++)
+      for(i=parallel->fAtom;i<parallel->lAtom;i++)
       {
         
 // Corrected velocities
@@ -549,7 +563,7 @@ void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(vxo,vyo,vzo,vxu,vyu,vzu,param,atom) private(i)
     #endif
-    for(i=0;i<param->nAtom;i++)
+    for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
       
       vx[i]=0.5*(vxo[i]+vxu[i]);
@@ -589,7 +603,7 @@ void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   #ifdef _OPENMP
   #pragma omp parallel for default(none) shared(vxu,vyu,vzu,param,atom) private(i)
   #endif
-  for(i=0;i<param->nAtom;i++)
+  for(i=parallel->fAtom;i<parallel->lAtom;i++)
   {
     
     vx[i]=vxu[i];
@@ -627,7 +641,7 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	      double *x,double *y,double *z,
 	      double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int *nAtConst)
+	      double *mass,double *rmass,int *nAparallel->tConst)
 {
   int i,k,ia,ib,bercycle;
   double lambda,gamma,cbrga,pp,rts2;
@@ -654,7 +668,7 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   #ifdef _OPENMP
   #pragma omp parallel for default(none) shared(xo,yo,zo,vxo,vyo,vzo,param,atom) private(i)
   #endif
-  for(i=0;i<param->nAtom;i++)
+  for(i=parallel->fAtom;i<parallel->lAtom;i++)
   {
     
 // Store old coordinates and old velocities.
@@ -714,7 +728,7 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   #ifdef _OPENMP
   #pragma omp parallel for default(none) shared(param,atom) private(i)
   #endif
-  for(i=0;i<param->nAtom;i++)
+  for(i=parallel->fAtom;i<parallel->lAtom;i++)
   { 
     vx[i]+=0.5*param->timeStep*fx[i]*rmass[i];
     vy[i]+=0.5*param->timeStep*fy[i]*rmass[i];
@@ -742,7 +756,7 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(param,atom,xo,yo,zo,xt,yt,zt,vxo,vyo,vzo,vxu,vyu,vzu,lambda,cbrga) private(i)
     #endif
-    for(i=0;i<param->nAtom;i++)
+    for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
       
 // update velocities
@@ -777,7 +791,7 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 // Apply constraint with Shake algorithm.
       
 //       lf_shake(atom,simulCond,constList,dd,box,&virshakt,strest);
-      lf_shake(param,box,constList,x,y,z,ddx,ddy,ddz,rmass,nAtConst,strest,&virshakt);
+      lf_shake(param,box,constList,x,y,z,ddx,ddy,ddz,rmass,nAparallel->tConst,strest,&virshakt);
       
       virshake+=virshakt;
       for(i=0;i<6;i++)
@@ -786,7 +800,7 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       #ifdef _OPENMP
       #pragma omp parallel for default(none) shared(param,atom,xt,yt,zt,vxu,vyu,vzu,rts2) private(i)
       #endif
-      for(i=0;i<param->nAtom;i++)
+      for(i=parallel->fAtom;i<parallel->lAtom;i++)
       {
         
 // Corrected velocities
@@ -808,7 +822,7 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(vxo,vyo,vzo,vxu,vyu,vzu,param,atom) private(i)
     #endif
-    for(i=0;i<param->nAtom;i++)
+    for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
       
       vx[i]=0.5*(vxo[i]+vxu[i]);
@@ -857,7 +871,7 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   #ifdef _OPENMP
   #pragma omp parallel for default(none) shared(vxu,vyu,vzu,param,atom) private(i)
   #endif
-  for(i=0;i<param->nAtom;i++)
+  for(i=parallel->fAtom;i<parallel->lAtom;i++)
   {
     
     vx[i]=vxu[i];
@@ -895,7 +909,7 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	      double *x,double *y,double *z,
 	      double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int *nAtConst)
+	      double *mass,double *rmass,int *nAparallel->tConst)
 {
   int i,k,ia,ib,nosecycle;
   double lambda,lambdb,lambdc,rts2,qmass;
@@ -922,7 +936,7 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   #ifdef _OPENMP
   #pragma omp parallel for default(none) shared(xo,yo,zo,vxo,vyo,vzo,param,atom) private(i)
   #endif
-  for(i=0;i<param->nAtom;i++)
+  for(i=parallel->fAtom;i<parallel->lAtom;i++)
   {
     
 // Store old coordinates and old velocities.
@@ -972,7 +986,7 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   #ifdef _OPENMP
   #pragma omp parallel for default(none) shared(param,atom) private(i)
   #endif
-  for(i=0;i<param->nAtom;i++)
+  for(i=parallel->fAtom;i<parallel->lAtom;i++)
   { 
     vx[i]+=0.5*param->timeStep*fx[i]*rmass[i];
     vy[i]+=0.5*param->timeStep*fy[i]*rmass[i];
@@ -998,7 +1012,7 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(xt,yt,zt,xo,yo,zo,vxo,vyo,vzo,vxu,vyu,vzu,param,atom,lambda) private(i)
     #endif
-    for(i=0;i<param->nAtom;i++)
+    for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
       
 // update velocities
@@ -1029,7 +1043,7 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 // Apply constraint with Shake algorithm.
       
 //       lf_shake(atom,simulCond,constList,dd,box,&virshakt,strest);
-      lf_shake(param,box,constList,x,y,z,ddx,ddy,ddz,rmass,nAtConst,strest,&virshakt);
+      lf_shake(param,box,constList,x,y,z,ddx,ddy,ddz,rmass,nAparallel->tConst,strest,&virshakt);
       
       virshake+=virshakt;
       for(i=0;i<6;i++)
@@ -1038,7 +1052,7 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       #ifdef _OPENMP
       #pragma omp parallel for default(none) shared(xt,yt,zt,vxu,vyu,vzu,param,atom,rts2) private(i)
       #endif
-      for(i=0;i<param->nAtom;i++)
+      for(i=parallel->fAtom;i<parallel->lAtom;i++)
       {
         
 // Corrected velocities
@@ -1061,7 +1075,7 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(vxo,vyo,vzo,vxu,vyu,vzu,param,atom) private(i)
     #endif
-    for(i=0;i<param->nAtom;i++)
+    for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
       
       vx[i]=0.5*(vxo[i]+vxu[i]);
@@ -1110,7 +1124,7 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   #ifdef _OPENMP
   #pragma omp parallel for default(none) shared(vxu,vyu,vzu,param,atom) private(i)
   #endif
-  for(i=0;i<param->nAtom;i++)
+  for(i=parallel->fAtom;i<parallel->lAtom;i++)
   {
     
     vx[i]=vxu[i];
@@ -1148,7 +1162,7 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	      double *x,double *y,double *z,
 	      double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int *nAtConst)
+	      double *mass,double *rmass,int *nAparallel->tConst)
 {
   int i,k,ia,ib,nosecycle;
   double lambda,lambdb,lambdc,rts2,qmass;
@@ -1177,7 +1191,7 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   #ifdef _OPENMP
   #pragma omp parallel for default(none) shared(xo,yo,zo,vxo,vyo,vzo,param,atom) private(i)
   #endif
-  for(i=0;i<param->nAtom;i++)
+  for(i=parallel->fAtom;i<parallel->lAtom;i++)
   {
     
 // Store old coordinates and old velocities.
@@ -1238,7 +1252,7 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   com[0]=0.;
   com[1]=0.;
   com[2]=0.;
-  for(i=0;i<param->nAtom;i++)
+  for(i=parallel->fAtom;i<parallel->lAtom;i++)
   {
     masst+=mass[i];
     com[0]+=mass[i]*x[i];
@@ -1259,7 +1273,7 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   #ifdef _OPENMP
   #pragma omp parallel for default(none) shared(param,atom) private(i)
   #endif
-  for(i=0;i<param->nAtom;i++)
+  for(i=parallel->fAtom;i<parallel->lAtom;i++)
   { 
     vx[i]+=0.5*param->timeStep*fx[i]*rmass[i];
     vy[i]+=0.5*param->timeStep*fy[i]*rmass[i];
@@ -1291,7 +1305,7 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(xt,yt,zt,xo,yo,zo,vxo,vyo,vzo,vxu,vyu,vzu,param,atom,lambda,gamma,com,gammc) private(i)
     #endif
-    for(i=0;i<param->nAtom;i++)
+    for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
       
 // update velocities
@@ -1328,7 +1342,7 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       scale_box(box,cell0,cbrga);
       
 //       lf_shake(atom,simulCond,constList,dd,box,&virshakt,strest);
-      lf_shake(param,box,constList,x,y,z,ddx,ddy,ddz,rmass,nAtConst,strest,&virshakt);
+      lf_shake(param,box,constList,x,y,z,ddx,ddy,ddz,rmass,nAparallel->tConst,strest,&virshakt);
       
       virshake+=virshakt;
       for(i=0;i<6;i++)
@@ -1337,7 +1351,7 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       #ifdef _OPENMP
       #pragma omp parallel for default(none) shared(xt,yt,zt,vxu,vyu,vzu,param,atom,rts2) private(i)
       #endif
-      for(i=0;i<param->nAtom;i++)
+      for(i=parallel->fAtom;i<parallel->lAtom;i++)
       {
         
 // Corrected velocities
@@ -1360,7 +1374,7 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(vxo,vyo,vzo,vxu,vyu,vzu,param,atom) private(i)
     #endif
-    for(i=0;i<param->nAtom;i++)
+    for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
       
       vx[i]=0.5*(vxo[i]+vxu[i]);
@@ -1422,7 +1436,7 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   #ifdef _OPENMP
   #pragma omp parallel for default(none) shared(vxu,vyu,vzu,param,atom) private(i)
   #endif
-  for(i=0;i<param->nAtom;i++)
+  for(i=parallel->fAtom;i<parallel->lAtom;i++)
   {
     
     vx[i]=vxu[i];
@@ -1434,7 +1448,7 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   vom[0]=0.;
   vom[1]=0.;
   vom[2]=0.;
-  for(i=0;i<param->nAtom;i++)
+  for(i=parallel->fAtom;i<parallel->lAtom;i++)
   {
     vom[0]+=mass[i]*vx[i];
     vom[1]+=mass[i]*vy[i];
@@ -1444,7 +1458,7 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   vom[1]/=masst;
   vom[2]/=masst;
   
-  for(i=0;i<param->nAtom;i++)
+  for(i=parallel->fAtom;i<parallel->lAtom;i++)
   {
     vx[i]-=vom[0];
     vy[i]-=vom[1];
@@ -1480,7 +1494,7 @@ void vv_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,BATH *bath,
 		  CONSTRAINT constList[],double *x,double *y,
 		  double *z,double *vx,double *vy,double *vz,
 		  double *fx,double *fy,double *fz,
-		  double *mass,double *rmass,int *nAtConst,int stage)
+		  double *mass,double *rmass,int *nAparallel->tConst,int stage)
 {
   
 #ifdef TIMER
@@ -1490,22 +1504,22 @@ void vv_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,BATH *bath,
   switch (ctrl->ens)
   {
     case NVE:
-      vv_nve(param,ener,box,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,stage);
+      vv_nve(param,ener,box,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAparallel->tConst,stage);
       break;
     case NVT_B:
-      vv_nvt_b(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,stage);
+      vv_nvt_b(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAparallel->tConst,stage);
       break;
     case NPT_B:
-      vv_npt_b(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,stage);
+      vv_npt_b(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAparallel->tConst,stage);
       break;
     case NVT_H:
-      vv_nvt_h(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,stage);
+      vv_nvt_h(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAparallel->tConst,stage);
       break;
     case NPT_H:
-      vv_npt_h(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,stage);
+      vv_npt_h(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAparallel->tConst,stage);
       break;
     default:
-      vv_nve(param,ener,box,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,stage);
+      vv_nve(param,ener,box,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAparallel->tConst,stage);
       break;
   }
   
@@ -1518,7 +1532,7 @@ void vv_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,BATH *bath,
 void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],
 	    double *x,double *y,double *z,double *vx,double *vy,double *vz,
 	    double *fx,double *fy,double *fz,
-	    double *mass,double *rmass,int *nAtConst,int stage)
+	    double *mass,double *rmass,int *nAparallel->tConst,int stage)
 {
   int i,ia,ib;
   double virshake,stress[6]={0.},stresk[6]={0.};
@@ -1551,7 +1565,7 @@ void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],
   #ifdef _OPENMP
   #pragma omp parallel for default(none) shared(param,atom) private(i)
   #endif
-  for(i=0;i<param->nAtom;i++)
+  for(i=parallel->fAtom;i<parallel->lAtom;i++)
   {
 // update velocities
     
@@ -1565,7 +1579,7 @@ void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(param,atom) private(i)
     #endif
-    for(i=0;i<param->nAtom;i++)
+    for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
 // update positions
       
@@ -1581,7 +1595,7 @@ void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],
 // Apply constraint with Shake algorithm.
 
 //       vv_shake_r(atom,simulCond,constList,dd,box,&virshake,stress);
-      vv_shake_r(param,box,constList,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst,stress,&virshake);
+      vv_shake_r(param,box,constList,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAparallel->tConst,stress,&virshake);
       ener->virshake=virshake;
       
     }
@@ -1596,7 +1610,7 @@ void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],
       
 // Apply constraint with Shake algorithm.
 
-      vv_shake_v(param,constList,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst);
+      vv_shake_v(param,constList,vx,vy,vz,ddx,ddy,ddz,rmass,nAparallel->tConst);
       
     }
   
@@ -1636,7 +1650,7 @@ void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],
 void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],
 	      double *x,double *y,double *z,double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int *nAtConst,int stage)
+	      double *mass,double *rmass,int *nAparallel->tConst,int stage)
 {
   int i,ia,ib;
   double lambda;
@@ -1670,7 +1684,7 @@ void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   #ifdef _OPENMP
   #pragma omp parallel for default(none) shared(param,atom) private(i)
   #endif
-  for(i=0;i<param->nAtom;i++)
+  for(i=parallel->fAtom;i<parallel->lAtom;i++)
   {
 // update velocities
     
@@ -1684,7 +1698,7 @@ void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(param,atom) private(i)
     #endif
-    for(i=0;i<param->nAtom;i++)
+    for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
 // update positions
       
@@ -1700,7 +1714,7 @@ void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 // Apply constraint with Shake algorithm.
 
 //       vv_shake_r(atom,simulCond,constList,dd,box,&virshake,stress);
-      vv_shake_r(param,box,constList,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst,stress,&virshake);
+      vv_shake_r(param,box,constList,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAparallel->tConst,stress,&virshake);
       ener->virshake=virshake;
       
     }
@@ -1716,7 +1730,7 @@ void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 // Apply constraint with Shake algorithm.
 
 //       vv_shake_v(atom,simulCond,constList,dd);
-      vv_shake_v(param,constList,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst);
+      vv_shake_v(param,constList,vx,vy,vz,ddx,ddy,ddz,rmass,nAparallel->tConst);
       
     }
   
@@ -1727,7 +1741,7 @@ void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(param,atom,lambda) private(i)
     #endif
-    for(i=0;i<param->nAtom;i++)
+    for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
       vx[i]*=lambda;
       vy[i]*=lambda;
@@ -1770,7 +1784,7 @@ void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],
 	      double *x,double *y,double *z,double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int *nAtConst,int stage)
+	      double *mass,double *rmass,int *nAparallel->tConst,int stage)
 {
   int i,ia,ib,k,nosecycle;
   double lambda,gamma,cbrga,volume,pp;
@@ -1819,7 +1833,7 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(param,atom) private(i)
     #endif
-    for(i=0;i<param->nAtom;i++)
+    for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
 //    update velocities
       
@@ -1833,7 +1847,7 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       #ifdef _OPENMP
       #pragma omp parallel for default(none) shared(xo,yo,zo,vxo,vyo,vzo,param,atom) private(i)
       #endif
-      for(i=0;i<param->nAtom;i++)
+      for(i=parallel->fAtom;i<parallel->lAtom;i++)
       {
 	
     // Store old coordinates and old velocities.
@@ -1871,7 +1885,7 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       #ifdef _OPENMP
       #pragma omp parallel for default(none) shared(param,atom,cbrga) private(i)
       #endif
-      for(i=0;i<param->nAtom;i++)
+      for(i=parallel->fAtom;i<parallel->lAtom;i++)
       {
   // update positions
 	
@@ -1887,7 +1901,7 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   // Apply constraint with Shake algorithm.
 
 // 	vv_shake_r(atom,simulCond,constList,dd,box,&virshake,stress);
-	vv_shake_r(param,box,constList,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst,stress,&virshake);
+	vv_shake_r(param,box,constList,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAparallel->tConst,stress,&virshake);
 	ener->virshake=virshake;
 	
       }
@@ -1897,7 +1911,7 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	#ifdef _OPENMP
 	#pragma omp parallel for default(none) shared(xo,yo,zo,vxo,vyo,vzo,param,atom) private(i)
 	#endif
-	for(i=0;i<param->nAtom;i++)
+	for(i=parallel->fAtom;i<parallel->lAtom;i++)
 	{
 	  
       // Store old coordinates and old velocities.
@@ -1920,7 +1934,7 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(param,atom) private(i)
     #endif
-    for(i=0;i<param->nAtom;i++)
+    for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
 //    update velocities
       
@@ -1935,7 +1949,7 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
     lambda=sqrt(1.0+param->timeStep/bath->tauT*(param->kinTemp0/ener->kin-1.0));
     
-    for(i=0;i<param->nAtom;i++)
+    for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
 //    update velocities
       
@@ -1950,7 +1964,7 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 // Apply constraint with Shake algorithm.
 
 //       vv_shake_v(atom,simulCond,constList,dd);
-      vv_shake_v(param,constList,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst);
+      vv_shake_v(param,constList,vx,vy,vz,ddx,ddy,ddz,rmass,nAparallel->tConst);
       
     }
     
@@ -1998,7 +2012,7 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],
 	      double *x,double *y,double *z,double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int *nAtConst,int stage)
+	      double *mass,double *rmass,int *nAparallel->tConst,int stage)
 {
   int i,ia,ib;
   double lambda,qmass;
@@ -2041,7 +2055,7 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(param,atom,lambda) private(i)
     #endif
-    for(i=0;i<param->nAtom;i++)
+    for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
   // scale velocities
       
@@ -2065,7 +2079,7 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(param,atom) private(i)
     #endif
-    for(i=0;i<param->nAtom;i++)
+    for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
 // update positions
       
@@ -2081,7 +2095,7 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 // Apply constraint with Shake algorithm.
 
 //       vv_shake_r(atom,simulCond,constList,dd,box,&virshake,stress);
-      vv_shake_r(param,box,constList,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst,stress,&virshake);
+      vv_shake_r(param,box,constList,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAparallel->tConst,stress,&virshake);
       ener->virshake=virshake;
       
     }
@@ -2094,7 +2108,7 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(param,atom) private(i)
     #endif
-    for(i=0;i<param->nAtom;i++)
+    for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
   // update velocities
       
@@ -2109,7 +2123,7 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 // Apply constraint with Shake algorithm.
 
 //       vv_shake_v(atom,simulCond,constList,dd);
-      vv_shake_v(param,constList,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst);
+      vv_shake_v(param,constList,vx,vy,vz,ddx,ddy,ddz,rmass,nAparallel->tConst);
       
     }
   
@@ -2122,7 +2136,7 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(param,atom,lambda) private(i)
     #endif
-    for(i=0;i<param->nAtom;i++)
+    for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
       vx[i]*=lambda;
       vy[i]*=lambda;
@@ -2171,7 +2185,7 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],
 	      double *x,double *y,double *z,double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int *nAtConst,int stage)
+	      double *mass,double *rmass,int *nAparallel->tConst,int stage)
 {
   int i,ia,ib,k,kk,nosecycle,hoovercycle=5;
   double hts,chts,cqts;
@@ -2211,7 +2225,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   volume0=box->vol;
   
   masst=0.;
-  for(i=0;i<param->nAtom;i++)
+  for(i=parallel->fAtom;i<parallel->lAtom;i++)
     masst+=mass[i];
   
   qmass=2.0*param->kinTemp0*X2(bath->tauT);
@@ -2249,7 +2263,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(param,xo,yo,zo,vxo,vyo,vzo,atom) private(i)
     #endif
-    for(i=0;i<param->nAtom;i++)
+    for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
       
   // Store old coordinates and old velocities.
@@ -2286,7 +2300,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	#ifdef _OPENMP
 	#pragma omp parallel for default(none) shared(param,atom,lambda) private(i)
 	#endif
-	for(i=0;i<param->nAtom;i++)
+	for(i=parallel->fAtom;i<parallel->lAtom;i++)
 	{
       // scale velocities
 	  
@@ -2310,7 +2324,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	
 	gamma=exp(-chts*bath->chiP);
 	
-	for(i=0;i<param->nAtom;i++)
+	for(i=parallel->fAtom;i<parallel->lAtom;i++)
 	{
       // scale velocities
 	  
@@ -2339,7 +2353,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	#ifdef _OPENMP
 	#pragma omp parallel for default(none) shared(param,atom,lambda) private(i)
 	#endif
-	for(i=0;i<param->nAtom;i++)
+	for(i=parallel->fAtom;i<parallel->lAtom;i++)
 	{
       // scale velocities
 	  
@@ -2364,7 +2378,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       #ifdef _OPENMP
       #pragma omp parallel for default(none) shared(param,atom,lambda) private(i)
       #endif
-      for(i=0;i<param->nAtom;i++)
+      for(i=parallel->fAtom;i<parallel->lAtom;i++)
       {
     // update velocities
 	
@@ -2376,7 +2390,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       com[0]=0.;
       com[1]=0.;
       com[2]=0.;
-      for(i=0;i<param->nAtom;i++)
+      for(i=parallel->fAtom;i<parallel->lAtom;i++)
       {
 	com[0]+=mass[i]*x[i];
 	com[1]+=mass[i]*y[i];
@@ -2391,7 +2405,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       #ifdef _OPENMP
       #pragma omp parallel for default(none) shared(param,atom,com,cbrga) private(i)
       #endif
-      for(i=0;i<param->nAtom;i++)
+      for(i=parallel->fAtom;i<parallel->lAtom;i++)
       {
   // update positions
 	
@@ -2407,7 +2421,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   // Apply constraint with Shake algorithm.
 
 // 	vv_shake_r(atom,simulCond,constList,dd,box,&virshake,stress);
-	vv_shake_r(param,box,constList,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst,stress,&virshake);
+	vv_shake_r(param,box,constList,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAparallel->tConst,stress,&virshake);
 	ener->virshake=virshake;
 	
       }
@@ -2422,7 +2436,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	#ifdef _OPENMP
 	#pragma omp parallel for default(none) shared(xo,yo,zo,vxo,vyo,vzo,atom,param) private(i)
 	#endif
-	for(i=0;i<param->nAtom;i++)
+	for(i=parallel->fAtom;i<parallel->lAtom;i++)
 	{
 	  
       // Store old coordinates and old velocities.
@@ -2447,7 +2461,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(param,atom) private(i)
     #endif
-    for(i=0;i<param->nAtom;i++)
+    for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
   // update velocities
       
@@ -2462,7 +2476,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 // Apply constraint with Shake algorithm.
 
 //       vv_shake_v(atom,simulCond,constList,dd);
-      vv_shake_v(param,constList,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst);
+      vv_shake_v(param,constList,vx,vy,vz,ddx,ddy,ddz,rmass,nAparallel->tConst);
       
     }
     
@@ -2480,7 +2494,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       #ifdef _OPENMP
       #pragma omp parallel for default(none) shared(param,atom,lambda) private(i)
       #endif
-      for(i=0;i<param->nAtom;i++)
+      for(i=parallel->fAtom;i<parallel->lAtom;i++)
       {
     // scale velocities
 	
@@ -2504,7 +2518,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       
       gamma=exp(-chts*bath->chiP);
       
-      for(i=0;i<param->nAtom;i++)
+      for(i=parallel->fAtom;i<parallel->lAtom;i++)
       {
     // scale velocities
 	
@@ -2533,7 +2547,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       #ifdef _OPENMP
       #pragma omp parallel for default(none) shared(param,atom,lambda) private(i)
       #endif
-      for(i=0;i<param->nAtom;i++)
+      for(i=parallel->fAtom;i<parallel->lAtom;i++)
       {
     // scale velocities
 	
@@ -2554,7 +2568,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     vom[0]=0.;
     vom[1]=0.;
     vom[2]=0.;
-    for(i=0;i<param->nAtom;i++)
+    for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
       vom[0]+=mass[i]*vx[i];
       vom[1]+=mass[i]*vy[i];
@@ -2564,7 +2578,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     vom[1]/=masst;
     vom[2]/=masst;
     
-    for(i=0;i<param->nAtom;i++)
+    for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
       vx[i]-=vom[0];
       vy[i]-=vom[1];

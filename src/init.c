@@ -1,3 +1,23 @@
+/*
+ * Copyright (c) 2013 Pierre-Andre Cazade
+ * Copyright (c) 2013 Florent hedin
+ * 
+ * This file is part of MDBas.
+ *
+ * MDBas is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * MDBas is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with MDBas.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -33,14 +53,16 @@ void init_system(int argc, char* argv[],IO *inout,CTRL *ctrl,PARAM *param,ENERGY
 		 double **y, double **z,double **vx,double **vy,double **vz,double **fx,
 		 double **fy, double **fz,double **mass,double **rmass,double **q,
 		 double **eps,double **sig,double **eps14,double **sig14,int **frozen,
-		 int **nAtConst,int **neighList,int **neighPair,int **neighOrder,
-		 int **neighList14,int ***exclList,int **exclPair)
+		 int **nAtConst,int **neighList,int **neighPair,int **neighList14,
+		 int ***exclList,int **exclPair)
 {
   
   char outName[FINAMELEN];
   int i;
   
   /** Initialization of the simulation starts here. */
+  
+  init_para(int *argc, char ***argv,param);
   
   init_rand(time(NULL));
   
@@ -68,7 +90,7 @@ void init_system(int argc, char* argv[],IO *inout,CTRL *ctrl,PARAM *param,ENERGY
       exit(0);
     }
     else
-      my_error(0,__FILE__,__LINE__,0);
+        my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
     
     i++;
   }
@@ -77,7 +99,7 @@ void init_system(int argc, char* argv[],IO *inout,CTRL *ctrl,PARAM *param,ENERGY
   if(outFile==NULL)
   {
     outFile=stdout;
-    my_error(1,__FILE__,__LINE__,0);
+    my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   }
   
   read_SIMU(inout,ctrl,param,bath,neigh,ewald,box);
@@ -239,6 +261,10 @@ void init_system(int argc, char* argv[],IO *inout,CTRL *ctrl,PARAM *param,ENERGY
     write_DCD_header(inout,ctrl,param,box,*frozen);
   }
   
+  parallel->nProc=num_proc();
+  parallel->nAtProc=(param->nAtom+parallel->nProc-1)/parallel->nProc;
+  param->nCtProc=(param->nConst+parallel->nProc-1)/parallel->nProc;
+  
   /** allocate arrays for integrators and for shake **/
   integrators_allocate_arrays(ctrl,param);
   if(param->nConst>0) shake_allocate_arrays(param);
@@ -296,7 +322,7 @@ void setup(CTRL *ctrl,PARAM *param,ATOM atom[],CONSTRAINT **constList,
     }
 
     if(k!=param->nConst)
-      my_error(1000,__FILE__,__LINE__,0);
+        my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 
     free(buffer1);
   }
@@ -380,7 +406,7 @@ void setup(CTRL *ctrl,PARAM *param,ATOM atom[],CONSTRAINT **constList,
     }
     
     if(k!=param->nBond)
-      my_error(1000,__FILE__,__LINE__,0);
+        my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
     
     free(buffer2);
   }
@@ -440,7 +466,7 @@ void setup(CTRL *ctrl,PARAM *param,ATOM atom[],CONSTRAINT **constList,
     }
     
     if(k!=param->nUb)
-      my_error(1000,__FILE__,__LINE__,0);
+        my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
     
     free(buffer2);
   }
@@ -511,7 +537,7 @@ void setup(CTRL *ctrl,PARAM *param,ATOM atom[],CONSTRAINT **constList,
     }
     
     if(k!=param->nAngle)
-      my_error(1000,__FILE__,__LINE__,0);
+        my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
     
     free(buffer3);
   }
@@ -546,7 +572,7 @@ void setup(CTRL *ctrl,PARAM *param,ATOM atom[],CONSTRAINT **constList,
     }
     
     if(k!=param->nDihedral)
-      my_error(1000,__FILE__,__LINE__,0);
+        my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
     
     free(buffer4);
   }
@@ -579,7 +605,7 @@ void setup(CTRL *ctrl,PARAM *param,ATOM atom[],CONSTRAINT **constList,
     }
     
     if(k!=param->nImproper)
-      my_error(1000,__FILE__,__LINE__,0);
+        my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
     
     free(buffer4);
   }

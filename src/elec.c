@@ -1,3 +1,23 @@
+/*
+ * Copyright (c) 2013 Pierre-Andre Cazade
+ * Copyright (c) 2013 Florent hedin
+ * 
+ * This file is part of MDBas.
+ *
+ * MDBas is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * MDBas is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with MDBas.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 /**
  * \file elec.c
  * \brief Contains functions for evaluating electrostatic energies and forces.
@@ -44,7 +64,7 @@ void coulomb_full(ENERGY *ener,PARAM *param,PBC *box,double *x,double *y,
   double r,r2,rt,fxi,fyi,fzi,fxj,fyj,fzj;
   double delta[3];
   
-  for(i=0;i<param->nAtom-1;i++)
+  for(i=parallel->idProc;i<param->nAtom-1;i+=parallel->nProc)
   {
     fxi=0.;
     fyi=0.;

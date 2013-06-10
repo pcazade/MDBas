@@ -1,3 +1,23 @@
+/*
+ * Copyright (c) 2013 Pierre-Andre Cazade
+ * Copyright (c) 2013 Florent hedin
+ * 
+ * This file is part of MDBas.
+ *
+ * MDBas is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * MDBas is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with MDBas.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include <stdlib.h>
 #include <float.h>
 #include <math.h>
@@ -21,6 +41,10 @@ static double **bsd1,**bsd2,**bsd3;
 static cplx *bspc1,*bspc2,*bspc3;
 static cplx *epl1,*epl2,*epl3;
 
+static int parallel->idProc,parallel->fAtom,parallel->lAtom,parallel->tAtom;
+
+static double *buf1,*buf2;
+
 #ifdef FFTW
 static fftw_complex *ftqsp;
 static fftw_plan fft3d1;
@@ -35,6 +59,12 @@ void init_spme(CTRL *ctrl,PARAM *param,EWALD *ewald,PBC *box)
   int i,m1maxp2,m2maxp2,m3maxp2;
   
   newJob=1;
+  
+  parallel->idProc=my_proc();
+  
+  parallel->fAtom=(parallel->idProc*param->nAtom)/parallel->nProc;
+  parallel->lAtom=((parallel->idProc+1)*param->nAtom)/parallel->nProc;
+  parallel->tAtom=parallel->lAtom-parallel->fAtom;
   
   ewald->prec=fmin( fabs( ewald->prec ) , 0.5 );
   ewald->tol=sqrt( fabs( log( ewald->prec * param->cutOff ) ) );
@@ -108,6 +138,9 @@ void init_spme(CTRL *ctrl,PARAM *param,EWALD *ewald,PBC *box)
   ewald->mmax=ewald->m1max*ewald->m2max*ewald->m3max;
   
   qsp=(double*)malloc(ewald->mmax*sizeof(*qsp));
+  
+  buf1=(double*)malloc(ewald->mmax*sizeof(*buf1));
+  buf2=(double*)malloc(ewald->mmax*sizeof(*buf2));
   
 #ifdef FFTW
   ftqsp=(fftw_complex*)fftw_malloc(ewald->mmax*sizeof(*ftqsp));
@@ -272,7 +305,7 @@ void bspgen(PARAM *param,EWALD *ewald)
   int i,j,k;
   double tsx,tsy,tsz;
   
-  for(i=0;i<param->nAtom;i++)
+  for(i=parallel->fAtom;i<parallel->lAtom;i++)
   {
     
     bsd1[i][0]=1.0;
@@ -296,7 +329,7 @@ void bspgen(PARAM *param,EWALD *ewald)
   for(k=2;k<ewald->nbsp;k++)
   {
     
-    for(i=0;i<param->nAtom;i++)
+    for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
       bsp1[i][k]=0.0;
       bsp2[i][k]=0.0;
@@ -308,7 +341,7 @@ void bspgen(PARAM *param,EWALD *ewald)
     
       if( k == (ewald->nbsp-1) )
       {
-	for(i=0;i<param->nAtom;i++)
+	for(i=parallel->fAtom;i<parallel->lAtom;i++)
 	{
 	  bsd1[i][j]=bsp1[i][j]-bsp1[i][j-1];
 	  bsd2[i][j]=bsp2[i][j]-bsp2[i][j-1];
@@ -316,7 +349,7 @@ void bspgen(PARAM *param,EWALD *ewald)
 	}
       }
       
-      for(i=0;i<param->nAtom;i++)
+      for(i=parallel->fAtom;i<parallel->lAtom;i++)
       {
 	tsx=sx[i]+(double)j-(int)sx[i];
 	tsy=sy[i]+(double)j-(int)sy[i];
@@ -331,7 +364,7 @@ void bspgen(PARAM *param,EWALD *ewald)
     
     if( k == (ewald->nbsp-1) )
     {
-      for(i=0;i<param->nAtom;i++)
+      for(i=parallel->fAtom;i<parallel->lAtom;i++)
       {
 	bsd1[i][0]=bsp1[i][0];
 	bsd2[i][0]=bsp2[i][0];
@@ -339,7 +372,7 @@ void bspgen(PARAM *param,EWALD *ewald)
       }
     }
     
-    for(i=0;i<param->nAtom;i++)
+    for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
       tsx=sx[i]-(int)sx[i];
       tsy=sy[i]-(int)sy[i];
@@ -370,8 +403,8 @@ double spme_energy(PARAM *param,EWALD *ewald,PBC *box,const double x[],const dou
   double rm1x,rm1y,rm1z,rm2x,rm2y,rm2z;
   double recCutOff,recCutOff2,rAlpha2,rVol;
   double eEwaldRec,eEwaldself,systq,eNonNeutral;
-  double fxm,fym,fzm;
   double fbx,fby,fbz;
+  double fm[3];
   
   if(newJob)
   {
@@ -380,10 +413,19 @@ double spme_energy(PARAM *param,EWALD *ewald,PBC *box,const double x[],const dou
     systq=0.;
     eEwaldself=0.;
     
-    for(i=0;i<param->nAtom;i++)
+    for(i=parallel->fAtom;i<parallel->lAtom;i++)
     { 
       systq+=q[i];
       eEwaldself+=X2(q[i]);
+    }
+    
+    if(parallel->nProc>1)
+    {
+      buf1[0]=systq;
+      buf1[1]=eEwaldself;
+      sum_double_para(buf1,buf2,2);
+      systq=buf1[0];
+      eEwaldself=buf1[1];
     }
     
     eEwaldself=-param->chargeConst*ewald->alpha*eEwaldself/SQRTPI;
@@ -431,7 +473,7 @@ double spme_energy(PARAM *param,EWALD *ewald,PBC *box,const double x[],const dou
   recCutOff2=X2(recCutOff);
   
 //   Address atoms to the cells of the mesh [0...mimax]
-  for(i=0;i<param->nAtom;i++)
+  for(i=parallel->fAtom;i<parallel->lAtom;i++)
   {
     sx[i]=(double)ewald->m1max*(x[i]*box->u1+y[i]*box->u2+z[i]*box->u3+0.5);
     sy[i]=(double)ewald->m2max*(x[i]*box->v1+y[i]*box->v2+z[i]*box->v3+0.5);
@@ -446,7 +488,7 @@ double spme_energy(PARAM *param,EWALD *ewald,PBC *box,const double x[],const dou
     qsp[i]=0.0;
   
 //   Fill charge array Q(k1,k2,k3)
-  for(l=0;l<param->nAtom;l++)
+  for(l=parallel->fAtom;l<parallel->lAtom;l++)
   {
     for(i=0;i<ewald->nbsp;i++)
     {
@@ -489,6 +531,8 @@ double spme_energy(PARAM *param,EWALD *ewald,PBC *box,const double x[],const dou
       }
     }
   }
+  
+  sum_double_para(qsp,buf1,ewald->mmax);
   
   for(m3=0;m3<ewald->mmax;m3++)
   {
@@ -592,7 +636,7 @@ double spme_energy(PARAM *param,EWALD *ewald,PBC *box,const double x[],const dou
   
   fact1=-2.0*rVol*param->chargeConst;
   
-  for(l=0;l<param->nAtom;l++)
+  for(l=parallel->fAtom;l<parallel->lAtom;l++)
   { 
     for(i=0;i<ewald->nbsp;i++)
     {
@@ -647,26 +691,28 @@ double spme_energy(PARAM *param,EWALD *ewald,PBC *box,const double x[],const dou
   
 //   Set the sum of the forces to 0
   
-  fxm=0.0;
-  fym=0.0;
-  fzm=0.0;
+  fm[0]=0.0;
+  fm[1]=0.0;
+  fm[2]=0.0;
   
-  for(l=0;l<param->nAtom;l++)
+  for(l=parallel->fAtom;l<Last;l++)
   {
-    fxm+=fx[l];
-    fym+=fy[l];
-    fzm+=fz[l];
+    fm[0]+=fx[l];
+    fm[1]+=fy[l];
+    fm[2]+=fz[l];
   }
   
-  fxm/=(double)param->nAtom;
-  fym/=(double)param->nAtom;
-  fzm/=(double)param->nAtom;
+  sum_double_para(fm,buff1,3);
   
-  for(l=0;l<param->nAtom;l++)
+  fm[0]/=(double)param->nAtom;
+  fm[1]/=(double)param->nAtom;
+  fm[2]/=(double)param->nAtom;
+  
+  for(l=parallel->fAtom;l<parallel->lAtom;l++)
   {
-    fx[l]-=fxm;
-    fy[l]-=fym;
-    fz[l]-=fzm;
+    fx[l]-=fm[0];
+    fy[l]-=fm[1];
+    fz[l]-=fm[2];
   }
   
 /**   End of the forces calculation section   */
@@ -677,9 +723,9 @@ double spme_energy(PARAM *param,EWALD *ewald,PBC *box,const double x[],const dou
     etmp+=ftqsp[m3]*qsp[m3];
   }
   
-  eNonNeutral=-(0.5*PI*param->chargeConst)*(X2(systq/ewald->alpha)/box->vol);
+  eNonNeutral=-(0.5*PI*param->chargeConst)*(X2(systq/ewald->alpha)/box->vol)/(double)parallel->nProc;
   
-  fact1=rVol*param->chargeConst;
+  fact1=rVol*param->chargeConst/(double)parallel->nProc;
   
   eEwaldRec=creal(etmp);
   
@@ -690,7 +736,7 @@ double spme_energy(PARAM *param,EWALD *ewald,PBC *box,const double x[],const dou
   stress[4]=fact1*stress[4];
   stress[5]=fact1*(stress[5]+eEwaldRec)+eNonNeutral;
   
-  eEwaldRec=fact1*eEwaldRec+eEwaldself+eNonNeutral;
+  eEwaldRec=fact1*eEwaldRec+eNonNeutral+eEwaldself/(double)parallel->nProc;
     
   *virEwaldRec=-(stress[0]+stress[3]+stress[5]);
   

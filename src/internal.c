@@ -1,3 +1,23 @@
+/*
+ * Copyright (c) 2013 Pierre-Andre Cazade
+ * Copyright (c) 2013 Florent hedin
+ * 
+ * This file is part of MDBas.
+ *
+ * MDBas is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * MDBas is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with MDBas.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 /**
  * \file internal.c
  * \brief Contains functions evaluating the internal energy.
@@ -26,11 +46,18 @@ void bond_energy(const PARAM *param,ENERGY *ener,const PBC *box,const BOND bond[
   double r,tfx,tfy,tfz,dbond,virbond=0.;
   double delta[3]/*,stress[6]={0.}*/;
   
+  int parallel->idProc=my_proc();
+  int parallel->fAtom,parallel->lAtom,parallel->tAtom;
+  
+  parallel->fAtom=(parallel->idProc*param->nBond)/parallel->nProc;
+  parallel->lAtom=((parallel->idProc+1)*param->nBond)/parallel->nProc;
+  parallel->tAtom=parallel->lAtom-parallel->fAtom;
+  
 #ifdef TIMER
   update_timer_begin(TIMER_ENERGY_BOND,__func__);
 #endif
   
-  for(ll=0;ll<param->nBond;ll++)
+  for(ll=parallel->fAtom;ll<parallel->lAtom;ll++)
   {
     
     i=bond[ll].a;
@@ -111,11 +138,18 @@ void ub_energy(const PARAM *param,ENERGY *ener,const PBC *box,const BOND ub[],co
   double r,tfx,tfy,tfz,dub,virub=0.;
   double delta[3]/*,stress[6]={0.}*/;
   
+  int parallel->idProc=my_proc();
+  int parallel->fAtom,parallel->lAtom,parallel->tAtom;
+  
+  parallel->fAtom=(parallel->idProc*param->nUb)/parallel->nProc;
+  parallel->lAtom=((parallel->idProc+1)*param->nUb)/parallel->nProc;
+  parallel->tAtom=parallel->lAtom-parallel->fAtom;
+  
 #ifdef TIMER
   update_timer_begin(TIMER_ENERGY_UB,__func__);
 #endif
   
-  for(ll=0;ll<param->nUb;ll++)
+  for(ll=parallel->fAtom;ll<parallel->lAtom;ll++)
   {
     i=ub[ll].a;
     j=ub[ll].b;
@@ -178,11 +212,18 @@ void angle_energy(const PARAM *param,ENERGY *ener,const PBC *box,const ANGLE ang
   double dab[3],dbc[3]/*,stress[6]*/;
   double fxa,fya,fza,fxc,fyc,fzc;
   
+  int parallel->idProc=my_proc();
+  int parallel->fAtom,parallel->lAtom,parallel->tAtom;
+  
+  parallel->fAtom=(parallel->idProc*param->nAngle)/parallel->nProc;
+  parallel->lAtom=((parallel->idProc+1)*param->nAngle)/parallel->nProc;
+  parallel->tAtom=parallel->lAtom-parallel->fAtom;
+  
 #ifdef TIMER
   update_timer_begin(TIMER_ENERGY_ANGL,__func__);
 #endif
   
-  for(ll=0;ll<param->nAngle;ll++)
+  for(ll=parallel->fAtom;ll<parallel->lAtom;ll++)
   {
     
     i=angle[ll].a;
@@ -259,21 +300,24 @@ void dihedral_energy(const PARAM *param,ENERGY *ener,const PBC *box,const DIHE d
 		     const double *y,const double *z,double *fx,double *fy,double *fz)
 {
   int i,j,k,l,ll;
-  double twopi;
   double edihe=0.,ddihe=0.;
   double cosp,sinp,phi;
   double /*rab,*/rbc,/*rcd,*/rpb,rpc,r2pb,r2pc,pbpc;
   double dab[3],dbc[3],dcd[3],/*dac[3],*/pb[3],pc[3]/*,stress[6]={0.}*/;
   double fax,fay,faz,fbx,fby,fbz,fcx,fcy,fcz,fdx,fdy,fdz;
   
-//   pi=atan(-1.);
-  twopi=2.*PI;
+  int parallel->idProc=my_proc();
+  int parallel->fAtom,parallel->lAtom,parallel->tAtom;
+  
+  parallel->fAtom=(parallel->idProc*param->nDihedral)/parallel->nProc;
+  parallel->lAtom=((parallel->idProc+1)*param->nDihedral)/parallel->nProc;
+  parallel->tAtom=parallel->lAtom-parallel->fAtom;
   
 #ifdef TIMER
   update_timer_begin(TIMER_ENERGY_DIHE,__func__);
 #endif
   
-  for(ll=0;ll<param->nDihedral;ll++)
+  for(ll=parallel->fAtom;ll<parallel->lAtom;ll++)
   {
     i=dihe[ll].a;
     j=dihe[ll].b;
@@ -352,7 +396,7 @@ void dihedral_energy(const PARAM *param,ENERGY *ener,const PBC *box,const DIHE d
       case DHARM: // harmonic dihedral
       
 	phi=phi-dihe[ll].phi0;
-	phi=phi-nint(phi/twopi)*twopi;
+	phi=phi-nint(phi/TWOPI)*TWOPI;
 	
 	edihe=0.5*dihe[ll].k*(phi*phi);
 	
@@ -434,21 +478,24 @@ void improper_energy(const PARAM *param,ENERGY *ener,const PBC *box,const DIHE i
 		     const double *y,const double *z,double *fx,double *fy,double *fz)
 {
   int i,j,k,l,ll;
-  double twopi;
   double edihe=0.,ddihe=0.;
   double cosp,sinp,phi;
   double /*rab,*/rbc,/*rcd,*/rpb,rpc,r2pb,r2pc,pbpc;
   double dab[3],dbc[3],dcd[3],/*dac[3],*/pb[3],pc[3]/*,stress[6]={0.}*/;
   double fax,fay,faz,fbx,fby,fbz,fcx,fcy,fcz,fdx,fdy,fdz;
   
-//   pi=atan(-1.);
-  twopi=2.*PI;
+  int parallel->idProc=my_proc();
+  int parallel->fAtom,parallel->lAtom,parallel->tAtom;
+  
+  parallel->fAtom=(parallel->idProc*param->nImproper)/parallel->nProc;
+  parallel->lAtom=((parallel->idProc+1)*param->nImproper)/parallel->nProc;
+  parallel->tAtom=parallel->lAtom-parallel->fAtom;
   
 #ifdef TIMER
   update_timer_begin(TIMER_ENERGY_UB,__func__);
 #endif
   
-  for(ll=0;ll<param->nImproper;ll++)
+  for(ll=parallel->fAtom;ll<parallel->lAtom;ll++)
   {
     i=impr[ll].a;
     j=impr[ll].b;
@@ -527,7 +574,7 @@ void improper_energy(const PARAM *param,ENERGY *ener,const PBC *box,const DIHE i
       case DHARM: // harmonic improper dihedral
       
 	phi=phi-impr[ll].phi0;
-	phi=phi-nint(phi/twopi)*twopi;
+	phi=phi-nint(phi/TWOPI)*TWOPI;
 	edihe=0.5*impr[ll].k*(phi*phi);
 	ddihe=impr[ll].k*phi/(rpb*rpc*sinp);
 	

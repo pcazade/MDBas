@@ -1,3 +1,23 @@
+/*
+ * Copyright (c) 2013 Pierre-Andre Cazade
+ * Copyright (c) 2013 Florent hedin
+ * 
+ * This file is part of MDBas.
+ *
+ * MDBas is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * MDBas is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with MDBas.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 /**
  * \file shake.c
  * \brief Contains functions for applying the SHAKE constraints.
@@ -53,19 +73,8 @@ void lf_shake(PARAM *param,PBC *box,CONSTRAINT constList[],
 	      int *nAtConst,double stress[6],double *virshake)
 {
   int i,ia,ib,icycle,converged;
-  double /* *xt,*yt,*zt,*rt2,*/ts2,maxdist,dist;
+  double ts2,maxdist,dist;
   double lambda,lambdai,lambdaj,t2rmi,t2rmj,nia,nib;
-//   double *dtx=NULL,*dty=NULL,*dtz=NULL;
-  
-//   xt=(double*)my_malloc(param->nAtom*sizeof(*xt));
-//   yt=(double*)my_malloc(param->nAtom*sizeof(*yt));
-//   zt=(double*)my_malloc(param->nAtom*sizeof(*zt));
-//   
-//   rt2=(double*)my_malloc(param->nConst*sizeof(*rt2));
-//   
-//   dtx=(double*)my_malloc(param->nConst*sizeof(*dtx));
-//   dty=(double*)my_malloc(param->nConst*sizeof(*dty));
-//   dtz=(double*)my_malloc(param->nConst*sizeof(*dtz));
   
 #ifdef TIMER
   update_timer_begin(TIMER_SHAKE,__func__);
@@ -173,10 +182,6 @@ void lf_shake(PARAM *param,PBC *box,CONSTRAINT constList[],
   
   if(!converged)
     my_error(CONVERG_SHAKE_ERROR,__FILE__,__LINE__,0);
-
-/*
-  ener->virshake+=virshake;
-*/
   
   box->stress1+=stress[0];
   box->stress2+=stress[1];
@@ -187,17 +192,6 @@ void lf_shake(PARAM *param,PBC *box,CONSTRAINT constList[],
   box->stress7+=stress[2];
   box->stress8+=stress[4];
   box->stress9+=stress[5];
-
-  
-//   free(xt);
-//   free(yt);
-//   free(zt);
-//   
-//   free(rt2);
-//   
-//   free(dtx);
-//   free(dty);
-//   free(dtz);
   
   #ifdef TIMER
   update_timer_end(TIMER_SHAKE,__func__);
@@ -213,19 +207,8 @@ void vv_shake_r(PARAM *param,PBC *box,CONSTRAINT constList[],
 		int *nAtConst,double stress[6],double *virshake)
 {
   int i,ia,ib,icycle,converged;
-  double /* *xt,*yt,*zt,*rt2,*/maxdist,dist;
+  double maxdist,dist;
   double lambda,lambdai,lambdaj,trmi,trmj,nia,nib;
-//   double *dtx=NULL,*dty=NULL,*dtz=NULL;
-  
-//   xt=(double*)my_malloc(param->nAtom*sizeof(*xt));
-//   yt=(double*)my_malloc(param->nAtom*sizeof(*yt));
-//   zt=(double*)my_malloc(param->nAtom*sizeof(*zt));
-//   
-//   rt2=(double*)my_malloc(param->nConst*sizeof(*rt2));
-//   
-//   dtx=(double*)my_malloc(param->nConst*sizeof(*dtx));
-//   dty=(double*)my_malloc(param->nConst*sizeof(*dty));
-//   dtz=(double*)my_malloc(param->nConst*sizeof(*dtz));
   
 #ifdef TIMER
   update_timer_begin(TIMER_SHAKE,__func__);
@@ -339,16 +322,6 @@ void vv_shake_r(PARAM *param,PBC *box,CONSTRAINT constList[],
   
   if(!converged)
     my_error(CONVERG_SHAKE_ERROR,__FILE__,__LINE__,0);
-  
-//   free(xt);
-//   free(yt);
-//   free(zt);
-//   
-//   free(rt2);
-//   
-//   free(dtx);
-//   free(dty);
-//   free(dtz);
     
 #ifdef TIMER
   update_timer_end(TIMER_SHAKE,__func__);
@@ -361,12 +334,8 @@ void vv_shake_v(PARAM *param,CONSTRAINT constList[],
 		double ddy[],double ddz[],double rmass[],int *nAtConst)
 {
   int i,ia,ib,icycle,converged;
-  double /* *xt,*yt,*zt,*/maxdist,tolvel;
+  double maxdist,tolvel;
   double lambda,lambdai,lambdaj,trmi,trmj,nia,nib;
-  
-//   xt=(double*)my_malloc(param->nAtom*sizeof(*xt));
-//   yt=(double*)my_malloc(param->nAtom*sizeof(*yt));
-//   zt=(double*)my_malloc(param->nAtom*sizeof(*zt));
   
 #ifdef TIMER
   update_timer_begin(TIMER_SHAKE,__func__);
@@ -445,10 +414,6 @@ void vv_shake_v(PARAM *param,CONSTRAINT constList[],
   
   if(!converged)
     my_error(CONVERG_SHAKE_ERROR,__FILE__,__LINE__,0);
-  
-//   free(xt);
-//   free(yt);
-//   free(zt);
     
 #ifdef TIMER
   update_timer_end(TIMER_SHAKE,__func__);

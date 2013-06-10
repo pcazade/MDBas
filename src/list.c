@@ -1,3 +1,23 @@
+/*
+ * Copyright (c) 2013 Pierre-Andre Cazade
+ * Copyright (c) 2013 Florent hedin
+ * 
+ * This file is part of MDBas.
+ *
+ * MDBas is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * MDBas is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with MDBas.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 /**
  * \file list.c
  * \brief Contains functions for building and updating the nonbonded interactions list.
@@ -26,10 +46,12 @@
 /** Pointer to the output file. **/
 extern FILE *outFile;
 
+int *counter;
+
 void makelist(CTRL *ctrl,PARAM *param,PBC *box,NEIGH *neigh,CONSTRAINT constList[],
 	      BOND bond[],ANGLE angle[],DIHE dihe[],DIHE impr[],double x[], double y[],
-	      double z[],int frozen[],int **neighList,int **neighPair,int **neighOrder,
-	      int **neighList14,int ***exclList,int **exclPair)
+	      double z[],int frozen[],int ***neighList,int **neighPair,int **neighList14,
+	      int ***exclList,int **exclPair)
 {
   int nlcx,nlcy,nlcz;
   double cutnb;
@@ -55,18 +77,21 @@ void makelist(CTRL *ctrl,PARAM *param,PBC *box,NEIGH *neigh,CONSTRAINT constList
     
     if(ctrl->noLink)
       ctrl->keyLink=0;
-
+    
     if(ctrl->keyLink)
     {
 #ifdef TIMER
       create_new_timer(TIMER_LNKCEL_BUILD);
       create_new_timer(TIMER_LNKCEL_UPDATE);
 #endif
-      link_cell_exclude_list(ctrl,param,neigh,constList,bond,angle,dihe,impr,
-			     neighList14,exclList,exclPair);
+      exclude_list(ctrl,param,neigh,constList,bond,angle,dihe,impr,
+		   neighList14,exclList,exclPair);
       
-      link_cell_verlet_list(param,box,neigh,x,y,z,frozen,neighList,neighPair,
-			    neighOrder,*exclList,*exclPair);
+      init_link_cell_verlet_list(param,box,neigh,x,y,z,frozen,neighList,neighPair,
+				 *exclList,*exclPair);
+      
+      link_cell_verlet_list(param,box,neigh,x,y,z,frozen,neighList,*neighPair,
+			    *exclList,*exclPair);
     }
     else
     {
@@ -77,8 +102,14 @@ void makelist(CTRL *ctrl,PARAM *param,PBC *box,NEIGH *neigh,CONSTRAINT constList
       exclude_list(ctrl,param,neigh,constList,bond,angle,dihe,impr,
 		   neighList14,exclList,exclPair);
       
-      verlet_list(param,box,neigh,x,y,z,frozen,neighList,neighPair,
-		  neighOrder,*exclList,*exclPair);
+      counter=(int*)my_malloc(parallel->nAtProc*sizeof(*counter));
+      
+      init_verlet_list(param,box,neigh,x,y,z,frozen,neighList,neighPair,
+		       *exclList,*exclPair);
+      
+      verlet_list(param,box,neigh,x,y,z,frozen,neighList,*neighPair,
+		  *exclList,*exclPair);
+      
     }
     
     ctrl->newjob=0;
@@ -89,17 +120,13 @@ void makelist(CTRL *ctrl,PARAM *param,PBC *box,NEIGH *neigh,CONSTRAINT constList
     
     if(ctrl->keyLink)
     {
-//       fprintf(outFile,"\nCalling link_cell_verlet_list_update at step %d\n",param->step);
-      link_cell_verlet_list_update(param,box,neigh,x,y,z,frozen,neighList,*neighPair,
-				   *neighOrder,*exclList,*exclPair);
-//       fprintf(outFile,"List update done.\n\n");
+      link_cell_verlet_list(param,box,neigh,x,y,z,frozen,neighList,*neighPair,
+			    *exclList,*exclPair);
     }
-    else
+    elspectra.shse
     {
-//       fprintf(outFile,"\nCalling verlet_list_update at step %d\n",param->step);
-      verlet_list_update(param,box,neigh,x,y,z,frozen,neighList,*neighPair,
+      verlet_list(param,box,neigh,x,y,z,frozen,neighList,*neighPair,
 			 *exclList,*exclPair);
-//       fprintf(outFile,"List update done.\n\n");
     }
     
   }
@@ -110,1030 +137,14 @@ void exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT constList[],
 		  int **neighList14,int ***exclList,int **exclPair)
 {
   int i,j,k,l,ii,jj,kk,ia,ib,ic,id,exclude;
-  int **tempAtom=NULL,**tempVer14=NULL,**tempConnect=NULL,*tempConnectNum=NULL;
+  int *tmpPair,**tempAtom=NULL,**tempVer14=NULL;
+  int **tempConnect=NULL,*tempConnectNum=NULL;
   int nAlloc=16,nIncr=16,nConnect=16;
   
-  *exclPair=(int*)my_malloc(param->nAtom*sizeof(**exclPair));
+  tmpPair=(int*)my_malloc(param->nAtom*sizeof(*tmpPair));
   for(i=0;i<param->nAtom;i++)
-    (*exclPair)[i]=0;
-    
-  tempAtom=(int**)my_malloc(param->nAtom*sizeof(*(tempAtom)));
-  for(i=0;i<param->nAtom;i++)
-    tempAtom[i]=(int*)my_malloc(nAlloc*sizeof(**(tempAtom)));
+    tmpPair[i]=0;
   
-/** The following temporary arrays are designed for chechking the
- * connectivity of system and make sure that all existing but not
- * parameterised angles and dihedrals are properly excluded. */
-  
-  tempConnectNum=(int*)my_malloc(param->nAtom*sizeof(*tempConnectNum));
-  for(i=0;i<param->nAtom;i++)
-    tempConnectNum[i]=0;
-  
-  tempConnect=(int**)my_malloc(param->nAtom*sizeof(*tempConnect));
-  for(i=0;i<param->nAtom;i++)
-    tempConnect[i]=(int*)my_malloc(nConnect*sizeof(**tempConnect));
-  
-    
-  for(i=0;i<param->nBond;i++)
-  {
-    ia=bond[i].a;
-    ib=bond[i].b;
-    
-    if(ib<ia)
-    {
-      ii=ib;
-      jj=ia;
-    }
-    else
-    {
-      ii=ia;
-      jj=ib;
-    }
-  
-    if((*exclPair)[ii]>=nAlloc)
-    {
-      nAlloc+=nIncr;
-      for(j=0;j<param->nAtom;j++)
-	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
-    }
-    
-    if(tempConnectNum[ii]>=nConnect||tempConnectNum[jj]>=nConnect)
-    {
-      nConnect+=nIncr;
-      for(j=0;j<param->nAtom;j++)
-	tempConnect[j]=(int*)realloc(tempConnect[j],nConnect*sizeof(**tempConnect));
-    }
-    
-    tempConnect[ii][tempConnectNum[ii]]=jj;
-    tempConnect[jj][tempConnectNum[jj]]=ii;
-    tempConnectNum[ii]++;
-    tempConnectNum[jj]++;
-    
-    tempAtom[ii][(*exclPair)[ii]]=jj;
-    (*exclPair)[ii]++;      
-  }
-  
-  if(ctrl->keyConstH)
-  {
-    for(i=0;i<param->nConst;i++)
-    {
-      ia=constList[i].a;
-      ib=constList[i].b;
-      
-      if(ib<ia)
-      {
-	ii=ib;
-	jj=ia;
-      }
-      else
-      {
-	ii=ia;
-	jj=ib;
-      }
-    
-      if((*exclPair)[ii]>=nAlloc)
-      {
-	nAlloc+=nIncr;
-	for(j=0;j<param->nAtom;j++)
-	  tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
-      }
-      
-      if(tempConnectNum[ii]>=nConnect||tempConnectNum[jj]>=nConnect)
-      {
-	nConnect+=nIncr;
-	for(j=0;j<param->nAtom;j++)
-	  tempConnect[j]=(int*)realloc(tempConnect[j],nConnect*sizeof(**tempConnect));
-      }
-      
-      tempConnect[ii][tempConnectNum[ii]]=jj;
-      tempConnect[jj][tempConnectNum[jj]]=ii;
-      tempConnectNum[ii]++;
-      tempConnectNum[jj]++;
-      
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      (*exclPair)[ii]++;      
-    }
-  }
-  
-  for(i=0;i<param->nAngle;i++)
-  {
-    ia=angle[i].a;
-    ib=angle[i].b;
-    ic=angle[i].c;
-    
-    if(ib<ia)
-    {
-      ii=ib;
-      jj=ia;
-    }
-    else
-    {
-      ii=ia;
-      jj=ib;
-    }
-  
-    if((*exclPair)[ii]>=nAlloc)
-    {
-      nAlloc+=nIncr;
-      for(j=0;j<param->nAtom;j++)
-	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
-    }
-    
-    exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
-    {
-      if(tempAtom[ii][j]==jj)
-      {
-	exclude=0;
-	break;
-      }
-    }
-    
-    if(exclude)
-    {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      (*exclPair)[ii]++;
-    }
-    
-    if(ic<ia)
-    {
-      ii=ic;
-      jj=ia;
-    }
-    else
-    {
-      ii=ia;
-      jj=ic;
-    }
-  
-    if((*exclPair)[ii]>=nAlloc)
-    {
-      nAlloc+=nIncr;
-      for(j=0;j<param->nAtom;j++)
-	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
-    }
-    
-    exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
-    {
-      if(tempAtom[ii][j]==jj)
-      {
-	exclude=0;
-	break;
-      }
-    }
-    
-    if(exclude)
-    {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      (*exclPair)[ii]++;
-    }
-    
-    if(ic<ib)
-    {
-      ii=ic;
-      jj=ib;
-    }
-    else
-    {
-      ii=ib;
-      jj=ic;
-    }
-  
-    if((*exclPair)[ii]>=nAlloc)
-    {
-      nAlloc+=nIncr;
-      for(j=0;j<param->nAtom;j++)
-	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
-    }
-    
-    exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
-    {
-      if(tempAtom[ii][j]==jj)
-      {
-	exclude=0;
-	break;
-      }
-    }
-    
-    if(exclude)
-    {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      (*exclPair)[ii]++;
-    }
-       
-  }
-  
-  tempVer14=(int**)my_malloc(5*param->nDihedral*sizeof(*tempVer14));
-  for(i=0;i<5*param->nDihedral;i++)
-    tempVer14[i]=(int*)my_malloc(2*sizeof(**tempVer14));
-  
-  neigh->nPair14=0;
-  
-  for(i=0;i<param->nDihedral;i++)
-  {
-    ia=dihe[i].a;
-    ib=dihe[i].b;
-    ic=dihe[i].c;
-    id=dihe[i].d;
-    
-    if(ib<ia)
-    {
-      ii=ib;
-      jj=ia;
-    }
-    else
-    {
-      ii=ia;
-      jj=ib;
-    }
-  
-    if((*exclPair)[ii]>=nAlloc)
-    {
-      nAlloc+=nIncr;
-      for(j=0;j<param->nAtom;j++)
-	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
-    }
-    
-    exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
-    {
-      if(tempAtom[ii][j]==jj)
-      {
-	exclude=0;
-	break;
-      }
-    }
-    
-    if(exclude)
-    {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      (*exclPair)[ii]++;
-    }
-    
-    if(ic<ia)
-    {
-      ii=ic;
-      jj=ia;
-    }
-    else
-    {
-      ii=ia;
-      jj=ic;
-    }
-  
-    if((*exclPair)[ii]>=nAlloc)
-    {
-      nAlloc+=nIncr;
-      for(j=0;j<param->nAtom;j++)
-	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
-    }
-    
-    exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
-    {
-      if(tempAtom[ii][j]==jj)
-      {
-	exclude=0;
-	break;
-      }
-    }
-    
-    if(exclude)
-    {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      (*exclPair)[ii]++;
-    }
-    
-    if(id<ia)
-    {
-      ii=id;
-      jj=ia;
-    }
-    else
-    {
-      ii=ia;
-      jj=id;
-    }
-  
-    if((*exclPair)[ii]>=nAlloc)
-    {
-      nAlloc+=nIncr;
-      for(j=0;j<param->nAtom;j++)
-	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
-    }
-    
-    exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
-    {
-      if(tempAtom[ii][j]==jj)
-      {
-	exclude=0;
-	break;
-      }
-    }
-    
-    if(exclude)
-    {
-      tempVer14[neigh->nPair14][0]=ia;
-      tempVer14[neigh->nPair14][1]=id;
-      neigh->nPair14++;
-      
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      (*exclPair)[ii]++;
-    }
-    
-    if(ic<ib)
-    {
-      ii=ic;
-      jj=ib;
-    }
-    else
-    {
-      ii=ib;
-      jj=ic;
-    }
-  
-    if((*exclPair)[ii]>=nAlloc)
-    {
-      nAlloc+=nIncr;
-      for(j=0;j<param->nAtom;j++)
-	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
-    }
-    
-    exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
-    {
-      if(tempAtom[ii][j]==jj)
-      {
-	exclude=0;
-	break;
-      }
-    }
-    
-    if(exclude)
-    {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      (*exclPair)[ii]++;
-    }
-    
-    if(id<ib)
-    {
-      ii=id;
-      jj=ib;
-    }
-    else
-    {
-      ii=ib;
-      jj=id;
-    }
-  
-    if((*exclPair)[ii]>=nAlloc)
-    {
-      nAlloc+=nIncr;
-      for(j=0;j<param->nAtom;j++)
-	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
-    }
-    
-    exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
-    {
-      if(tempAtom[ii][j]==jj)
-      {
-	exclude=0;
-	break;
-      }
-    }
-    
-    if(exclude)
-    {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      (*exclPair)[ii]++;
-    }
-    
-    if(id<ic)
-    {
-      ii=id;
-      jj=ic;
-    }
-    else
-    {
-      ii=ic;
-      jj=id;
-    }
-  
-    if((*exclPair)[ii]>=nAlloc)
-    {
-      nAlloc+=nIncr;
-      for(j=0;j<param->nAtom;j++)
-	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
-    }
-    
-    exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
-    {
-      if(tempAtom[ii][j]==jj)
-      {
-	exclude=0;
-	break;
-      }
-    }
-    
-    if(exclude)
-    {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      (*exclPair)[ii]++;
-    }
-       
-  }  
-    
-  for(i=0;i<param->nImproper;i++)
-  {
-    ia=impr[i].a;
-    ib=impr[i].b;
-    ic=impr[i].c;
-    id=impr[i].d;
-    
-    if(ib<ia)
-    {
-      ii=ib;
-      jj=ia;
-    }
-    else
-    {
-      ii=ia;
-      jj=ib;
-    }
-  
-    if((*exclPair)[ii]>=nAlloc)
-    {
-      nAlloc+=nIncr;
-      for(j=0;j<param->nAtom;j++)
-	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
-    }
-    
-    exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
-    {
-      if(tempAtom[ii][j]==jj)
-      {
-	exclude=0;
-	break;
-      }
-    }
-    
-    if(exclude)
-    {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      (*exclPair)[ii]++;
-    }
-    
-    if(ic<ia)
-    {
-      ii=ic;
-      jj=ia;
-    }
-    else
-    {
-      ii=ia;
-      jj=ic;
-    }
-  
-    if((*exclPair)[ii]>=nAlloc)
-    {
-      nAlloc+=nIncr;
-      for(j=0;j<param->nAtom;j++)
-	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
-    }
-    
-    exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
-    {
-      if(tempAtom[ii][j]==jj)
-      {
-	exclude=0;
-	break;
-      }
-    }
-    
-    if(exclude)
-    {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      (*exclPair)[ii]++;
-    }
-    
-    if(id<ia)
-    {
-      ii=id;
-      jj=ia;
-    }
-    else
-    {
-      ii=ia;
-      jj=id;
-    }
-  
-    if((*exclPair)[ii]>=nAlloc)
-    {
-      nAlloc+=nIncr;
-      for(j=0;j<param->nAtom;j++)
-	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
-    }
-    
-    exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
-    {
-      if(tempAtom[ii][j]==jj)
-      {
-	exclude=0;
-	break;
-      }
-    }
-    
-    if(exclude)
-    {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      (*exclPair)[ii]++;
-    }
-    
-    if(ic<ib)
-    {
-      ii=ic;
-      jj=ib;
-    }
-    else
-    {
-      ii=ib;
-      jj=ic;
-    }
-  
-    if((*exclPair)[ii]>=nAlloc)
-    {
-      nAlloc+=nIncr;
-      for(j=0;j<param->nAtom;j++)
-	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
-    }
-    
-    exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
-    {
-      if(tempAtom[ii][j]==jj)
-      {
-	exclude=0;
-	break;
-      }
-    }
-    
-    if(exclude)
-    {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      (*exclPair)[ii]++;
-    }
-    
-    if(id<ib)
-    {
-      ii=id;
-      jj=ib;
-    }
-    else
-    {
-      ii=ib;
-      jj=id;
-    }
-  
-    if((*exclPair)[ii]>=nAlloc)
-    {
-      nAlloc+=nIncr;
-      for(j=0;j<param->nAtom;j++)
-	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
-    }
-    
-    exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
-    {
-      if(tempAtom[ii][j]==jj)
-      {
-	exclude=0;
-	break;
-      }
-    }
-    
-    if(exclude)
-    {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      (*exclPair)[ii]++;
-    }
-    
-    if(id<ic)
-    {
-      ii=id;
-      jj=ic;
-    }
-    else
-    {
-      ii=ic;
-      jj=id;
-    }
-  
-    if((*exclPair)[ii]>=nAlloc)
-    {
-      nAlloc+=nIncr;
-      for(j=0;j<param->nAtom;j++)
-	tempAtom[j]=(int*)realloc(tempAtom[j],nAlloc*sizeof(**(tempAtom)));
-    }
-    
-    exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
-    {
-      if(tempAtom[ii][j]==jj)
-      {
-	exclude=0;
-	break;
-      }
-    }
-    
-    if(exclude)
-    {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      (*exclPair)[ii]++;
-    }
-       
-  }
-  
-  for(ia=0;ia<param->nAtom;ia++)
-  {
-    for(j=0;j<tempConnectNum[ia];j++)
-    {
-      ib=tempConnect[ia][j];
-      for(k=0;k<tempConnectNum[ib];k++)
-      {
-	ic=tempConnect[ib][k];
-	
-	if(ic==ia)
-	  continue;
-	
-	if(ic<ia)
-	{
-	  ii=ic;
-	  jj=ia;
-	}
-	else
-	{
-	  ii=ia;
-	  jj=ic;
-	}
-      
-	if((*exclPair)[ii]>=nAlloc)
-	{
-	  nAlloc+=nIncr;
-	  for(kk=0;kk<param->nAtom;kk++)
-	    tempAtom[kk]=(int*)realloc(tempAtom[kk],nAlloc*sizeof(**(tempAtom)));
-	}
-	
-	exclude=1;
-	for(kk=0;kk<(*exclPair)[ii];kk++)
-	{
-	  if(tempAtom[ii][kk]==jj)
-	  {
-	    exclude=0;
-	    break;
-	  }
-	}
-	
-	if(exclude)
-	{
-	  tempAtom[ii][(*exclPair)[ii]]=jj;
-	  (*exclPair)[ii]++;
-	}
-	
-	for(l=0;l<tempConnectNum[ic];l++)
-	{
-	  id=tempConnect[ic][l];
-	  
-	  if(id==ia||id==ib)
-	    continue;
-	  
-	  if(id<ia)
-	  {
-	    ii=id;
-	    jj=ia;
-	  }
-	  else
-	  {
-	    ii=ia;
-	    jj=id;
-	  }
-	
-	  if((*exclPair)[ii]>=nAlloc)
-	  {
-	    nAlloc+=nIncr;
-	    for(kk=0;kk<param->nAtom;kk++)
-	      tempAtom[kk]=(int*)realloc(tempAtom[kk],nAlloc*sizeof(**(tempAtom)));
-	  }
-	  
-	  if(neigh->nPair14>=5*param->nDihedral)
-	    my_error(DIHE_NONPARAM_ERROR,__FILE__,__LINE__,0);
-	  
-	  exclude=1;
-	  for(kk=0;kk<(*exclPair)[ii];kk++)
-	  {
-	    if(tempAtom[ii][kk]==jj)
-	    {
-	      exclude=0;
-	      break;
-	    }
-	  }
-	  
-	  if(exclude)
-	  {
-	    
-	    tempVer14[neigh->nPair14][0]=ia;
-	    tempVer14[neigh->nPair14][1]=id;
-	    neigh->nPair14++;
-	    
-	    tempAtom[ii][(*exclPair)[ii]]=jj;
-	    (*exclPair)[ii]++;
-	  }
-	  
-	}
-      }
-    }
-  }
-  
-  *neighList14=(int*)my_malloc(2*neigh->nPair14*sizeof(**neighList14));
-  
-  for(i=0;i<neigh->nPair14;i++)
-  {
-    (*neighList14)[2*i]=tempVer14[i][0];
-    (*neighList14)[2*i+1]=tempVer14[i][1];
-  }
-  
-  free_2D(5*param->nDihedral,tempVer14,NULL);
-  
-  free_2D(param->nAtom,tempConnect,NULL);
-  free(tempConnectNum);
-  
-  if((*exclPair)[param->nAtom-1]!=0)
-    my_error(EXCLLIST_LASTATOM_ERROR,__FILE__,__LINE__,0);
-  
-  /** Brode-Ahlrichs sorted exclude list **/
-  
-  *exclList=(int**)my_malloc((param->nAtom-1)*sizeof(**exclList));
-  
-  for(i=0;i<param->nAtom-1;i++)
-  {
-    (*exclList)[i]=(int*)my_malloc((*exclPair)[i]*sizeof(***exclList));
-    
-    for(j=0;j<(*exclPair)[i];j++)
-      (*exclList)[i][j]=tempAtom[i][j];
-  }
-  
-  free_2D(param->nAtom,tempAtom,NULL);
-
-}
-
-void verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
-		 int frozen[],int **neighList,int **neighPair,int **neighOrder,
-		 int **exclList,int exclPair[])
-{
-  int i,j,k,offset,exclude;
-  double r2,cutnb2,delta[3];
-  
-  cutnb2=param->cutOff+param->delr;
-  cutnb2=X2(cutnb2);
-  
-  neigh->sizeList=0;
-  
-#ifdef TIMER
-  update_timer_begin(TIMER_VERLET_BUILD,__func__);
-#endif
-  
-  for(i=0;i<param->nAtom-1;i++)
-  {
-    for(j=i+1;j<param->nAtom;j++)
-    {
-      
-      delta[0]=x[j]-x[i];
-      delta[1]=y[j]-y[i];
-      delta[2]=z[j]-z[i];
-      
-      r2=dist(box,delta);
-      
-      if(r2<=cutnb2)
-      {
-	exclude=0;
-	
-	if( (frozen[i]*frozen[j]) )
-	{
-	  exclude=1;
-	}
-	else
-	{
-	  for (k=0;k<exclPair[i];k++)
-	  {
-	    if(exclList[i][k]==j)
-	    {
-	      exclude=1;
-	      break;
-	    }
-	  }
-	}
-	
-	if(!exclude)
-	{
-	  
-	  neigh->sizeList++;
-	  
-	}
-      }
-    }
-  }
-  
-  neigh->sizeList=(int)(neigh->sizeList*(1.+2.*TOLLIST))+1;
-  
-  *neighPair=(int*)my_malloc(param->nAtom*sizeof(**neighPair));
-  
-  for(i=0;i<param->nAtom;i++)
-    (*neighPair)[i]=0;
-  
-  *neighOrder=(int*)my_malloc(param->nAtom*sizeof(**neighOrder));
-  for(i=0;i<param->nAtom;i++)
-    (*neighOrder)[i]=i;
-
-  *neighList=(int*)my_malloc(neigh->sizeList*sizeof(**neighList));
-  
-  offset=0;
-  
-  for(i=0;i<param->nAtom-1;i++)
-  {
-    
-    for(j=i+1;j<param->nAtom;j++)
-    {
-      
-      delta[0]=x[j]-x[i];
-      delta[1]=y[j]-y[i];
-      delta[2]=z[j]-z[i];
-      
-      r2=dist(box,delta);
-      
-      if(r2<=cutnb2)
-      {
-	exclude=0;
-	
-	if( (frozen[i]*frozen[j]) )
-	{
-	  exclude=1;
-	}
-	else
-	{
-	  for (k=0;k<exclPair[i];k++)
-	  {
-	    if(exclList[i][k]==j)
-	    {
-	      exclude=1;
-	      break;
-	    }
-	  }
-	}
-	
-	if(!exclude)
-	{
-	  
-	  if(offset>=neigh->sizeList)
-	  {
-	    fprintf(outFile,"WARNING: List larger than estimated. Size increased from %d",neigh->sizeList);
-	    neigh->sizeList=(int)(neigh->sizeList*(1.+TOLLIST))+1;
-	    fprintf(outFile," to %d.\n",neigh->sizeList);
-	    
-	    *neighList=(int*)realloc(*neighList,neigh->sizeList*sizeof(**neighList));
-	  }
-	  
-	  (*neighList)[offset]=j;
-	  (*neighPair)[i]++;
-	  offset++;
-	  
-	}
-      }
-    }
-  }
-  
-#ifdef TIMER
-  update_timer_end(TIMER_VERLET_BUILD,__func__);
-#endif
-  
-  /*printf("%d %d\n",offset,neigh->sizeList);
-  FILE *toto=fopen("list.new","wt");
-  for(i=0;i<offset;i++)
-  {
-    fprintf(toto,"%d\n",(*neighList)[i]);
-  }
-  fflush(toto);*/
-  /*printf("%d %d\n",offset,neigh->sizeList);
-  FILE *toto=fopen("list.con","wt");
-  for(i=0;i<param->nAtom;i++)
-  {
-    fprintf(toto,"%d %d\n",(*neighPair)[i],(*neighOrder)[i]);
-  }
-  fflush(toto);*/
-  
-}
-
-void verlet_list_update(PARAM *param,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
-			int frozen[],int **neighList,int neighPair[],int **exclList,
-			int exclPair[])
-{
-  int i,j,k,exclude,offset;
-  double r2,cutnb2,delta[3];
-  
-  cutnb2=param->cutOff+param->delr;
-  cutnb2=X2(cutnb2);
-  
-  offset=0;
-  
-#ifdef TIMER
-  update_timer_begin(TIMER_VERLET_UPDATE,__func__);
-#endif
-  
-  #ifdef _OPENMP
-  #pragma omp parallel default(none) shared(param,neigh,atom,box,cutnb2,neigh->sizeList) private(i,j,k,r,delta,exclude)
-  {
-  #pragma omp for schedule(dynamic,1000) nowait
-  #endif
-    for(i=0;i<param->nAtom-1;i++)
-    { 
-      neighPair[i]=0;
-      for(j=i+1;j<param->nAtom;j++)
-      {
-	
-	delta[0]=x[j]-x[i];
-	delta[1]=y[j]-y[i];
-	delta[2]=z[j]-z[i];
-      
-	r2=dist(box,delta);
-	
-	if(r2<=cutnb2)
-	{
-	  exclude=0;
-	  
-	  if( (frozen[i]*frozen[j]) )
-	  {
-	    exclude=1;
-	  }
-	  else
-	  {
-	    for (k=0;k<exclPair[i];k++)
-	    {
-	      if(exclList[i][k]==j)
-	      {
-		exclude=1;
-		break;
-	      }
-	    }
-	  }
-	  
-	  if(!exclude)
-	  {
-	    
-	    if(offset>=neigh->sizeList)
-	    {
-	      fprintf(outFile,"WARNING: List larger than estimated. Size increased from %d",neigh->sizeList);
-	      neigh->sizeList=(int)(neigh->sizeList*(1.+TOLLIST))+1;
-	      fprintf(outFile," to %d.\n",neigh->sizeList);
-	      
-	      *neighList=(int*)realloc(*neighList,neigh->sizeList*sizeof(**neighList));
-	    }
-	    
-	    (*neighList)[offset]=j;
-	    neighPair[i]++;
-	    offset++;
-	    
-	  }
-	}
-      }
-    }
-  #ifdef _OPENMP
-  } // END OF parallel zone
-  #endif
-  
-#ifdef TIMER
-  update_timer_end(TIMER_VERLET_UPDATE,__func__);
-#endif
-
-}
-
-void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT constList[],
-			    BOND bond[],ANGLE angle[],DIHE dihe[],DIHE impr[],
-			    int **neighList14,int ***exclList,int **exclPair)
-{
-  int i,j,k,l,kk,ii,jj,ia,ib,ic,id,exclude;
-  int **tempAtom=NULL,**tempVer14=NULL,**tempConnect=NULL,*tempConnectNum=NULL;
-  int nAlloc=32,nIncr=16,nConnect=16;
-  
-  *exclPair=(int*)my_malloc(param->nAtom*sizeof(**exclPair));
-  for(i=0;i<param->nAtom;i++)
-    (*exclPair)[i]=0;
-    
   tempAtom=(int**)my_malloc(param->nAtom*sizeof(*(tempAtom)));
   for(i=0;i<param->nAtom;i++)
     tempAtom[i]=(int*)my_malloc(nAlloc*sizeof(**(tempAtom)));
@@ -1159,7 +170,7 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     ii=ia;
     jj=ib;
 
-    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
+    if((*exclPair)[ii]>=nAlloc||tmpPair[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
       for(j=0;j<param->nAtom;j++)
@@ -1178,10 +189,10 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     tempConnectNum[ii]++;
     tempConnectNum[jj]++;
     
-    tempAtom[ii][(*exclPair)[ii]]=jj;
-    tempAtom[jj][(*exclPair)[jj]]=ii;
-    (*exclPair)[ii]++;
-    (*exclPair)[jj]++;
+    tempAtom[ii][tmpPair[ii]]=jj;
+    tempAtom[jj][tmpPair[jj]]=ii;
+    tmpPair[ii]++;
+    tmpPair[jj]++;
   }
   
   if(ctrl->keyConstH)
@@ -1194,7 +205,7 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
       ii=ia;
       jj=ib;
       
-      if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
+      if(tmpPair[ii]>=nAlloc||tmpPair[jj]>=nAlloc)
       {
 	nAlloc+=nIncr;
 	for(j=0;j<param->nAtom;j++)
@@ -1213,10 +224,10 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
       tempConnectNum[ii]++;
       tempConnectNum[jj]++;
       
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      tempAtom[jj][(*exclPair)[jj]]=ii;
-      (*exclPair)[ii]++;
-      (*exclPair)[jj]++;
+      tempAtom[ii][tmpPair[ii]]=jj;
+      tempAtom[jj][tmpPair[jj]]=ii;
+      tmpPair[ii]++;
+      tmpPair[jj]++;
     }
   }
   
@@ -1229,7 +240,7 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     ii=ia;
     jj=ib;
       
-    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
+    if(tmpPair[ii]>=nAlloc||tmpPair[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
       for(j=0;j<param->nAtom;j++)
@@ -1237,7 +248,7 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     }
     
     exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
+    for(j=0;j<tmpPair[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1248,16 +259,16 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     
     if(exclude)
     {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      tempAtom[jj][(*exclPair)[jj]]=ii;
-      (*exclPair)[ii]++;
-      (*exclPair)[jj]++;
+      tempAtom[ii][tmpPair[ii]]=jj;
+      tempAtom[jj][tmpPair[jj]]=ii;
+      tmpPair[ii]++;
+      tmpPair[jj]++;
     }
     
     ii=ia;
     jj=ic;
     
-    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
+    if(tmpPair[ii]>=nAlloc||tmpPair[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
       for(j=0;j<param->nAtom;j++)
@@ -1265,7 +276,7 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     }
     
     exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
+    for(j=0;j<tmpPair[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1276,16 +287,16 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     
     if(exclude)
     {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      tempAtom[jj][(*exclPair)[jj]]=ii;
-      (*exclPair)[ii]++;
-      (*exclPair)[jj]++;
+      tempAtom[ii][tmpPair[ii]]=jj;
+      tempAtom[jj][tmpPair[jj]]=ii;
+      tmpPair[ii]++;
+      tmpPair[jj]++;
     }
     
     ii=ib;
     jj=ic;
     
-    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
+    if(tmpPair[ii]>=nAlloc||tmpPair[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
       for(j=0;j<param->nAtom;j++)
@@ -1293,7 +304,7 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     }
     
     exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
+    for(j=0;j<tmpPair[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1304,10 +315,10 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     
     if(exclude)
     {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      tempAtom[jj][(*exclPair)[jj]]=ii;
-      (*exclPair)[ii]++;
-      (*exclPair)[jj]++;
+      tempAtom[ii][tmpPair[ii]]=jj;
+      tempAtom[jj][tmpPair[jj]]=ii;
+      tmpPair[ii]++;
+      tmpPair[jj]++;
     }
        
   }
@@ -1328,7 +339,7 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     ii=ia;
     jj=ib;
     
-    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
+    if(tmpPair[ii]>=nAlloc||tmpPair[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
       for(j=0;j<param->nAtom;j++)
@@ -1336,7 +347,7 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     }
     
     exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
+    for(j=0;j<tmpPair[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1347,16 +358,16 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     
     if(exclude)
     {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      tempAtom[jj][(*exclPair)[jj]]=ii;
-      (*exclPair)[ii]++;
-      (*exclPair)[jj]++;
+      tempAtom[ii][tmpPair[ii]]=jj;
+      tempAtom[jj][tmpPair[jj]]=ii;
+      tmpPair[ii]++;
+      tmpPair[jj]++;
     }
     
     ii=ia;
     jj=ic;
     
-    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
+    if(tmpPair[ii]>=nAlloc||tmpPair[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
       for(j=0;j<param->nAtom;j++)
@@ -1364,7 +375,7 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     }
     
     exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
+    for(j=0;j<tmpPair[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1375,16 +386,16 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     
     if(exclude)
     {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      tempAtom[jj][(*exclPair)[jj]]=ii;
-      (*exclPair)[ii]++;
-      (*exclPair)[jj]++;
+      tempAtom[ii][tmpPair[ii]]=jj;
+      tempAtom[jj][tmpPair[jj]]=ii;
+      tmpPair[ii]++;
+      tmpPair[jj]++;
     }
     
     ii=ia;
     jj=id;
     
-    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
+    if(tmpPair[ii]>=nAlloc||tmpPair[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
       for(j=0;j<param->nAtom;j++)
@@ -1392,7 +403,7 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     }
     
     exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
+    for(j=0;j<tmpPair[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1407,16 +418,16 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
       tempVer14[neigh->nPair14][1]=id;
       neigh->nPair14++;
       
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      tempAtom[jj][(*exclPair)[jj]]=ii;
-      (*exclPair)[ii]++;
-      (*exclPair)[jj]++;
+      tempAtom[ii][tmpPair[ii]]=jj;
+      tempAtom[jj][tmpPair[jj]]=ii;
+      tmpPair[ii]++;
+      tmpPair[jj]++;
     }
     
     ii=ib;
     jj=ic;
     
-    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
+    if(tmpPair[ii]>=nAlloc||tmpPair[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
       for(j=0;j<param->nAtom;j++)
@@ -1424,7 +435,7 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     }
     
     exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
+    for(j=0;j<tmpPair[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1435,16 +446,16 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     
     if(exclude)
     {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      tempAtom[jj][(*exclPair)[jj]]=ii;
-      (*exclPair)[ii]++;
-      (*exclPair)[jj]++;
+      tempAtom[ii][tmpPair[ii]]=jj;
+      tempAtom[jj][tmpPair[jj]]=ii;
+      tmpPair[ii]++;
+      tmpPair[jj]++;
     }
     
     ii=ib;
     jj=id;
     
-    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
+    if(tmpPair[ii]>=nAlloc||tmpPair[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
       for(j=0;j<param->nAtom;j++)
@@ -1452,7 +463,7 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     }
     
     exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
+    for(j=0;j<tmpPair[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1463,16 +474,16 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     
     if(exclude)
     {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      tempAtom[jj][(*exclPair)[jj]]=ii;
-      (*exclPair)[ii]++;
-      (*exclPair)[jj]++;
+      tempAtom[ii][tmpPair[ii]]=jj;
+      tempAtom[jj][tmpPair[jj]]=ii;
+      tmpPair[ii]++;
+      tmpPair[jj]++;
     }
     
     ii=ic;
     jj=id;
     
-    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
+    if(tmpPair[ii]>=nAlloc||tmpPair[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
       for(j=0;j<param->nAtom;j++)
@@ -1480,7 +491,7 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     }
     
     exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
+    for(j=0;j<tmpPair[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1491,10 +502,10 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     
     if(exclude)
     {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      tempAtom[jj][(*exclPair)[jj]]=ii;
-      (*exclPair)[ii]++;
-      (*exclPair)[jj]++;
+      tempAtom[ii][tmpPair[ii]]=jj;
+      tempAtom[jj][tmpPair[jj]]=ii;
+      tmpPair[ii]++;
+      tmpPair[jj]++;
     }
     
   }  
@@ -1509,7 +520,7 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     ii=ia;
     jj=ib;
     
-    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
+    if(tmpPair[ii]>=nAlloc||tmpPair[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
       for(j=0;j<param->nAtom;j++)
@@ -1517,7 +528,7 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     }
     
     exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
+    for(j=0;j<tmpPair[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1528,16 +539,16 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     
     if(exclude)
     {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      tempAtom[jj][(*exclPair)[jj]]=ii;
-      (*exclPair)[ii]++;
-      (*exclPair)[jj]++;
+      tempAtom[ii][tmpPair[ii]]=jj;
+      tempAtom[jj][tmpPair[jj]]=ii;
+      tmpPair[ii]++;
+      tmpPair[jj]++;
     }
     
     ii=ia;
     jj=ic;
     
-    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
+    if(tmpPair[ii]>=nAlloc||tmpPair[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
       for(j=0;j<param->nAtom;j++)
@@ -1545,7 +556,7 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     }
     
     exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
+    for(j=0;j<tmpPair[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1556,16 +567,16 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     
     if(exclude)
     {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      tempAtom[jj][(*exclPair)[jj]]=ii;
-      (*exclPair)[ii]++;
-      (*exclPair)[jj]++;
+      tempAtom[ii][tmpPair[ii]]=jj;
+      tempAtom[jj][tmpPair[jj]]=ii;
+      tmpPair[ii]++;
+      tmpPair[jj]++;
     }
     
     ii=ia;
     jj=id;
     
-    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
+    if(tmpPair[ii]>=nAlloc||tmpPair[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
       for(j=0;j<param->nAtom;j++)
@@ -1573,7 +584,7 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     }
     
     exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
+    for(j=0;j<tmpPair[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1584,16 +595,16 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     
     if(exclude)
     {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      tempAtom[jj][(*exclPair)[jj]]=ii;
-      (*exclPair)[ii]++;
-      (*exclPair)[jj]++;
+      tempAtom[ii][tmpPair[ii]]=jj;
+      tempAtom[jj][tmpPair[jj]]=ii;
+      tmpPair[ii]++;
+      tmpPair[jj]++;
     }
     
     ii=ib;
     jj=ic;
     
-    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
+    if(tmpPair[ii]>=nAlloc||tmpPair[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
       for(j=0;j<param->nAtom;j++)
@@ -1601,7 +612,7 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     }
     
     exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
+    for(j=0;j<tmpPair[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1612,16 +623,16 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     
     if(exclude)
     {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      tempAtom[jj][(*exclPair)[jj]]=ii;
-      (*exclPair)[ii]++;
-      (*exclPair)[jj]++;
+      tempAtom[ii][tmpPair[ii]]=jj;
+      tempAtom[jj][tmpPair[jj]]=ii;
+      tmpPair[ii]++;
+      tmpPair[jj]++;
     }
     
     ii=ib;
     jj=id;
     
-    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
+    if(tmpPair[ii]>=nAlloc||tmpPair[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
       for(j=0;j<param->nAtom;j++)
@@ -1629,7 +640,7 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     }
     
     exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
+    for(j=0;j<tmpPair[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1640,16 +651,16 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     
     if(exclude)
     {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      tempAtom[jj][(*exclPair)[jj]]=ii;
-      (*exclPair)[ii]++;
-      (*exclPair)[jj]++;
+      tempAtom[ii][tmpPair[ii]]=jj;
+      tempAtom[jj][tmpPair[jj]]=ii;
+      tmpPair[ii]++;
+      tmpPair[jj]++;
     }
     
     ii=ic;
     jj=id;
     
-    if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
+    if(tmpPair[ii]>=nAlloc||tmpPair[jj]>=nAlloc)
     {
       nAlloc+=nIncr;
       for(j=0;j<param->nAtom;j++)
@@ -1657,7 +668,7 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     }
     
     exclude=1;
-    for(j=0;j<(*exclPair)[ii];j++)
+    for(j=0;j<tmpPair[ii];j++)
     {
       if(tempAtom[ii][j]==jj)
       {
@@ -1668,10 +679,10 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     
     if(exclude)
     {
-      tempAtom[ii][(*exclPair)[ii]]=jj;
-      tempAtom[jj][(*exclPair)[jj]]=ii;
-      (*exclPair)[ii]++;
-      (*exclPair)[jj]++;
+      tempAtom[ii][tmpPair[ii]]=jj;
+      tempAtom[jj][tmpPair[jj]]=ii;
+      tmpPair[ii]++;
+      tmpPair[jj]++;
     }
        
   }
@@ -1691,7 +702,7 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
 	ii=ia;
 	jj=ic;
 	
-	if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
+	if(tmpPair[ii]>=nAlloc||tmpPair[jj]>=nAlloc)
 	{
 	  nAlloc+=nIncr;
 	  for(kk=0;kk<param->nAtom;kk++)
@@ -1699,7 +710,7 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
 	}
 	
 	exclude=1;
-	for(kk=0;kk<(*exclPair)[ii];kk++)
+	for(kk=0;kk<tmpPair[ii];kk++)
 	{
 	  if(tempAtom[ii][kk]==jj)
 	  {
@@ -1710,10 +721,10 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
 	
 	if(exclude)
 	{
-	  tempAtom[ii][(*exclPair)[ii]]=jj;
-	  tempAtom[jj][(*exclPair)[jj]]=ii;
-	  (*exclPair)[ii]++;
-	  (*exclPair)[jj]++;
+	  tempAtom[ii][tmpPair[ii]]=jj;
+	  tempAtom[jj][tmpPair[jj]]=ii;
+	  tmpPair[ii]++;
+	  tmpPair[jj]++;
 	}
 	
 	for(l=0;l<tempConnectNum[ic];l++)
@@ -1726,7 +737,7 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
 	  ii=ia;
 	  jj=id;
 	  
-	  if((*exclPair)[ii]>=nAlloc||(*exclPair)[jj]>=nAlloc)
+	  if(tmpPair[ii]>=nAlloc||tmpPair[jj]>=nAlloc)
 	  {
 	    nAlloc+=nIncr;
 	    for(kk=0;kk<param->nAtom;kk++)
@@ -1737,7 +748,7 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
 	    my_error(DIHE_NONPARAM_ERROR,__FILE__,__LINE__,0);
 	  
 	  exclude=1;
-	  for(kk=0;kk<(*exclPair)[ii];kk++)
+	  for(kk=0;kk<tmpPair[ii];kk++)
 	  {
 	    if(tempAtom[ii][kk]==jj)
 	    {
@@ -1752,10 +763,10 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
 	    tempVer14[neigh->nPair14][1]=id;
 	    neigh->nPair14++;
 	    
-	    tempAtom[ii][(*exclPair)[ii]]=jj;
-	    tempAtom[jj][(*exclPair)[jj]]=ii;
-	    (*exclPair)[ii]++;
-	    (*exclPair)[jj]++;
+	    tempAtom[ii][tmpPair[ii]]=jj;
+	    tempAtom[jj][tmpPair[jj]]=ii;
+	    tmpPair[ii]++;
+	    tmpPair[jj]++;
 	  }
 	  
 	}
@@ -1763,12 +774,16 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
     }
   }
   
-  *neighList14=(int*)my_malloc(2*neigh->nPair14*sizeof(**neighList14));
+  int n14Proc=(neigh->nPair14+parallel->nProc-1)/parallel->nProc;
   
-  for(i=0;i<neigh->nPair14;i++)
+  *neighList14=(int*)my_malloc(2*n14Proc*sizeof(**neighList14));
+  
+  ii=0;
+  for(i=parallel->idProc;i<neigh->nPair14;i+=parallel->nProc)
   {
-    (*neighList14)[2*i]=tempVer14[i][0];
-    (*neighList14)[2*i+1]=tempVer14[i][1];
+    (*neighList14)[2*ii]=tempVer14[i][0];
+    (*neighList14)[2*ii+1]=tempVer14[i][1];\
+    ii++;
   }
   
   free_2D(5*param->nDihedral,tempVer14,NULL);
@@ -1776,23 +791,287 @@ void link_cell_exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT cons
   free_2D(param->nAtom,tempConnect,NULL);
   free(tempConnectNum);
   
-  *exclList=(int**)my_malloc(param->nAtom*sizeof(**exclList));
-  for(i=0;i<param->nAtom;i++)
-    (*exclList)[i]=(int*)my_malloc((*exclPair)[i]*sizeof(***exclList));
+  /** Brode-Ahlrichs sorted exclude list **/
   
-  for(i=0;i<param->nAtom;i++)
+  int parallel->idProc=my_proc();
+  int hnAtom,hm1nAtom;
+  int exclAtom;
+  
+  hnAtom=param->nAtom/2;
+  hm1nAtom=(param->nAtom-1)/2;
+  
+  *exclPair=(int*)my_malloc(parallel->nAtProc*sizeof(**exclPair));
+  
+  *exclList=(int**)my_malloc((parallel->nAtProc)*sizeof(**exclList));
+  
+  if(ctrl->keyLink)
   {
-    for(j=0;j<(*exclPair)[i];j++)
-      (*exclList)[i][j]=tempAtom[i][j];
+    ii=0;
+    for(i=parallel->idProc;i<param->nAtom;i+=parallel->nProc)
+    {
+      (*exclList)[ii]=(int*)my_malloc(tmpPair[i]*sizeof(***exclList));
+      
+      jj=0;
+      for(j=0;j<tmpPair[i];j++)
+      {
+	exclAtom=tempAtom[i][j];
+	
+	(*exclList)[ii][jj]=exclAtom;
+	
+	jj++;
+      }
+      
+      (*exclPair)[ii]=jj;
+      
+      ii++;
+    }
+  }
+  else
+  {
+    ii=0;
+    for(i=parallel->idProc;i<param->nAtom;i+=parallel->nProc)
+    {
+      (*exclList)[ii]=(int*)my_malloc(tmpPair[i]*sizeof(***exclList));
+      
+      jj=0;
+      for(j=0;j<tmpPair[i];j++)
+      {
+	exclAtom=tempAtom[i][j];
+	
+	if(
+	    ( ( exclAtom>i ) && ( (exclAtom-i) < hnAtom ) ) ||
+	    ( ( exclAtom<i ) && ( (exclAtom-i+param->nAtom) < hm1nAtom ) )
+	  )
+	{
+	  (*exclList)[ii][jj]=exclAtom;
+	  
+	  if(jj>0)
+	  {
+	    for(k=jj;k>0;k--)
+	    {
+	      if((*exclList)[ii][k]<(*exclList)[ii][k-1])
+	      {
+		exclAtom=(*exclList)[ii][k];
+		(*exclList)[ii][k]=(*exclList)[ii][k-1];
+		(*exclList)[ii][k-1]=exclAtom;
+	      }
+	    }
+	  }
+	  jj++;
+	}
+      }
+      (*exclPair)[ii]=jj;
+      ii++;
+    }
+    
+    ii=0;
+    for(i=parallel->idProc;i<param->nAtom;i+=parallel->nProc)
+    {
+      for(jj=0;jj<(*exclPair)[ii];jj++)
+      {
+	if((*exclList)[ii][0]<i)
+	{
+	  exclAtom=(*exclList)[ii][0];
+	  
+	  for(kk=0;kk<(*exclPair)[ii]-1;kk++)
+	  {
+	    (*exclList)[ii][kk]=(*exclList)[ii][kk+1];
+	  }
+	  
+	  (*exclList)[ii][(*exclPair)[ii]]=exclAtom;
+	}
+      }
+      ii++;
+    }
   }
   
+  free(tmpPair);
   free_2D(param->nAtom,tempAtom,NULL);
 
 }
 
-void link_cell_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
-			   int frozen[],int **neighList,int **neighPair,int **neighOrder,
-			   int **exclList,int exclPair[])
+void init_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
+		      int frozen[],int ***neighList,int **neighPair,int **exclList,
+		      int exclPair[])
+{
+  int i,ii,j,k,l,m,latm;
+  int exclude;
+  double r2,cutnb2,delta[3];
+  
+  cutnb2=param->cutOff+param->delr;
+  cutnb2=X2(cutnb2);
+  
+  int parallel->idProc=my_proc();
+  int hnAtom,hm1nAtom;
+  
+  latm=param->nAtom;
+  hnAtom=param->nAtom/2;
+  hm1nAtom=(param->nAtom-1)/2;
+  
+  *neighPair=(int*)my_malloc(parallel->nAtProc*sizeof(**neighPair));
+  for(i=0;i<parallel->nAtProc;i++)
+    (*neighPair)[i]=0;
+  
+#ifdef TIMER
+  update_timer_begin(TIMER_VERLET_BUILD,__func__);
+#endif
+  
+  for(i=0;i<parallel->nAtProc;i++)
+  {
+    counter[i]=0;
+  }
+  
+  for(m=0;m<hnAtom;m++)
+  {
+    if(m>=hm1nAtom)
+      latm=hnAtom;
+    
+    ii=0;
+  
+    for(i=parallel->idProc;i<latm;i+=parallel->nProc)
+    {
+      j=i+m+1;
+      
+      if(j>=param->nAtom)
+	j=j-param->nAtom;
+      
+      if( (exclPair[ii]>0) && (exclList[ii][counter[ii]]==j) )
+      {
+	counter[ii]++;
+      }
+      else
+      {
+	exclude=0;
+	if( (frozen[i]*frozen[j]) )
+	  exclude=1;
+	  
+	if(!exclude)
+	{
+	  
+	  delta[0]=x[j]-x[i];
+	  delta[1]=y[j]-y[i];
+	  delta[2]=z[j]-z[i];
+	  
+	  r2=dist(box,delta);
+	  
+	  if(r2<=cutnb2)
+	  {
+	    neigh->sizeList++;
+	    (*neighPair)[ii]++;
+	  }
+	}
+      }
+      ii++;
+    }
+  }
+  
+  neigh->sizeList=0;
+  for(i=0;i<parallel->nAtProc;i++)
+  {
+    if((*neighPair)[i]>neigh->sizeList)
+      neigh->sizeList=(*neighPair)[i];
+  }
+  
+  neigh->sizeList=(int)(neigh->sizeList*(1.+2.*TOLLIST))+1;
+
+  *neighList=(int**)my_malloc(parallel->nAtProc*sizeof(**neighList));
+  for(i=0;i<parallel->nAtProc;i++)
+  {
+    (*neighList)[i]=(int*)my_malloc(neigh->sizeList*sizeof(***neighList));
+  }
+  
+#ifdef TIMER
+  update_timer_end(TIMER_VERLET_BUILD,__func__);
+#endif
+  
+}
+
+void verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
+			int frozen[],int ***neighList,int neighPair[],int **exclList,
+			int exclPair[])
+{
+  int i,ii,j,k,l,m,latm;
+  int exclude;
+  double r2,cutnb2,delta[3];
+  
+  cutnb2=param->cutOff+param->delr;
+  cutnb2=X2(cutnb2);
+  
+  int parallel->idProc=my_proc();
+  int hnAtom,hm1nAtom;
+  
+  latm=param->nAtom;
+  hnAtom=param->nAtom/2;
+  hm1nAtom=(param->nAtom-1)/2;
+  
+  for(i=0;i<parallel->nAtProc;i++)
+  {
+    counter[i]=0;
+    neighPair[i]=0;
+  }
+  
+  for(m=0;m<hnAtom;m++)
+  {
+    if(m>=hm1nAtom)
+      latm=hnAtom;
+    
+    ii=0;
+    
+    for(i=parallel->idProc;i<latm;i+=parallel->nProc)
+    {
+      j=i+m+1;
+      
+      if(j>=param->nAtom)
+	j=j-param->nAtom;
+      
+      if( (exclPair[ii]>0) && (exclList[ii][counter[ii]]==j) )
+      {
+	counter[ii]++;
+      }
+      else
+      {
+	exclude=0;
+	if( (frozen[i]*frozen[j]) )
+	  exclude=1;
+	  
+	if(!exclude)
+	{
+	  
+	  delta[0]=x[j]-x[i];
+	  delta[1]=y[j]-y[i];
+	  delta[2]=z[j]-z[i];
+	  
+	  r2=dist(box,delta);
+	  
+	  if(r2<=cutnb2)
+	  {
+	    if(neighPair[ii]>=neigh->sizeList)
+	    {
+	      fprintf(outFile,"WARNING: List larger than estimated. Size increased from %d",neigh->sizeList);
+	      neigh->sizeList=(int)(neigh->sizeList*(1.+TOLLIST))+1;
+	      fprintf(outFile," to %d.\n",neigh->sizeList);
+	      
+	      for(l=0;l<parallel->nAtProc;l++)
+	      {
+		(*neighList)[l]=(int*)realloc((*neighList)[l],neigh->sizeList*sizeof(***neighList));
+	      }
+	    }
+	    
+	    (*neighList)[ii][neighPair[ii]]=j;
+	    neighPair[ii]++;
+	    
+	  }
+	}
+      }
+      ii++;
+    }
+  }
+
+}
+
+void init_link_cell_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
+				int frozen[],int ***neighList,int **neighPair,int **exclList,
+				int exclPair[])
 {
   
   int transx[508]={0,1,0,0,-1,1,0,-1,1,0,-1,1,-1,1,2,0,0,-2,2,-1,1,0,-2,2,0,
@@ -1855,10 +1134,12 @@ void link_cell_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double 
     2,2,2,2,3,3,3,3,3,3,3,3,5,5,5,5,5,5,5,5,3,3,3,3,3,3,3,3,5,5,5,5};
     
   int cellCheck,enoughLinkCells,nlcx,nlcy,nlcz;
-  int i,j,k,l,kk,ll,icell,exclude,offset,iorder;
+  int i,ii,ih,j,k,l,kk,ll,icell,exclude,offset,iorder;
   int ix,iy,iz,jx,jy,jz;
   double r2,cutnb,cutnb2,dnlcx,dnlcy,dnlcz;
   double cx,cy,cz,xt,yt,zt,xd,yd,zd,*xu,*yu,*zu;
+  
+  int parallel->idProc=my_proc();
   
 #ifdef TIMER
   update_timer_begin(TIMER_LNKCEL_BUILD,__func__);
@@ -1923,7 +1204,6 @@ void link_cell_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double 
     head[i]=-1;
   }
   
-//   image_update(atom,simulCond,box); //if new job.
   image_update(param,box,x,y,z); //if new job.
   
   #ifdef _OPENMP
@@ -1966,299 +1246,166 @@ void link_cell_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double 
     
   }//end for
   
-  *neighOrder=(int*)my_malloc(param->nAtom*sizeof(**neighOrder));
-  
-  iorder=0;
-  for(k=0;k<neigh->nCells;k++)
-  {
-    i=head[k];
-    while(i!=-1)
-    {
-      (*neighOrder)[iorder++]=i;
-      i=link[i];
-    }
-  }
+  *neighPair=(int*)my_malloc(parallel->nAtProc*sizeof(**neighPair));
+  for(i=0;i<parallel->nAtProc;i++)
+    (*neighPair)[i]=0;
   
   ix=0;
   iy=0;
   iz=0;
+  
+  for(k=0;k<neigh->nCells;k++)
+  {
+    ih=head[k];
+    
+    if(ih>-1)
+    {
+      
+      for(l=0;l<cellCheck;l++)
+      {
+	i=ih;
+	
+	cx=0.;
+	cy=0.;
+	cz=0.;
+	
+	jx=ix+transx[l];
+	jy=iy+transy[l];
+	jz=iz+transz[l];
+	
+	if(jx>nlcx-1)
+	{
+	  jx=jx-nlcx;
+	  cx=1.;
+	}
+	else if(jx<0)
+	{
+	  jx=jx+nlcx;
+	  cx=-1.;
+	}
+	
+	if(jy>nlcy-1)
+	{
+	  jy=jy-nlcy;
+	  cy=1.;
+	}
+	else if(jy<0)
+	{
+	  jy=jy+nlcy;
+	  cy=-1.;
+	}
+	
+	if(jz>nlcz-1)
+	{
+	  jz=jz-nlcz;
+	  cz=1.;
+	}
+	else if(jz<0)
+	{
+	  jz=jz+nlcz;
+	  cz=-1.;
+	}
+	
+	ll=jx+nlcx*(jy+nlcy*jz);
+	
+	j=head[ll];
+	
+	if(j>-1)
+	{
+	
+	  while(i!=-1)
+	  {
+	  
+	    if( ( i%parallel->nProc ) == parallel->idProc )
+	    {
+	      
+	      ii=i/parallel->nProc;
+	      
+	      if(k==ll)j=link[i];
+	      
+	      while(j!=-1)
+	      {
+		if( !(frozen[i]*frozen[j]) )
+		{
+		  xt=xu[j]-xu[i]+cx;
+		  yt=yu[j]-yu[i]+cy;
+		  zt=zu[j]-zu[i]+cz;
+		  
+		  xd=xt*box->a1+yt*box->b1+zt*box->c1;
+		  yd=xt*box->a2+yt*box->b2+zt*box->c2;
+		  zd=xt*box->a3+yt*box->b3+zt*box->c3;
+		  
+		  r2=X2(xd)+X2(yd)+X2(zd);
+		  
+		  if(r2<=cutnb2)
+		  {
+		    exclude=0;
+		    
+		    for (kk=0;kk<exclPair[ii];kk++)
+		    {
+		      if(exclList[ii][kk]==j)
+		      {
+			exclude=1;
+			break;
+		      }
+		    }
+		
+		    if(!exclude)
+		    {
+		      
+		      (*neighPair)[ii]++;
+		      
+		    } //exclude
+		  }//cutnb
+		}//if not frozen
+		
+		j=link[j];
+		
+	      }//while j
+	      
+	    }//if i on this node
+	    
+	    j=head[ll];
+	    i=link[i];
+	    
+	  }//while i
+	  
+	} //if(j>-1)
+	      
+      }//for checkcell
+      
+    }// if(i>-1)
+    
+    ix=ix+1;
+    if(ix>nlcx-1)
+    {       
+      ix=0;
+      iy=iy+1;
+            
+      if(iy>nlcy-1)
+      {        
+	iy=0;
+	iz=iz+1;
+      }
+      
+    }
+    
+  }//for ncells
   
   neigh->sizeList=0;
-  
-  for(k=0;k<neigh->nCells;k++)
+  for(i=0;i<parallel->nAtProc;i++)
   {
-    i=head[k];
-    
-    while(i!=-1)
-    {
-      
-      for(l=0;l<cellCheck;l++)
-      {
-	
-	cx=0.;
-	cy=0.;
-	cz=0.;
-	
-	jx=ix+transx[l];
-	jy=iy+transy[l];
-	jz=iz+transz[l];
-	
-	if(jx>nlcx-1)
-	{
-	  jx=jx-nlcx;
-	  cx=1.;
-	}
-	else if(jx<0)
-	{
-	  jx=jx+nlcx;
-	  cx=-1.;
-	}
-	
-	if(jy>nlcy-1)
-	{
-	  jy=jy-nlcy;
-	  cy=1.;
-	}
-	else if(jy<0)
-	{
-	  jy=jy+nlcy;
-	  cy=-1.;
-	}
-	
-	if(jz>nlcz-1)
-	{
-	  jz=jz-nlcz;
-	  cz=1.;
-	}
-	else if(jz<0)
-	{
-	  jz=jz+nlcz;
-	  cz=-1.;
-	}
-	
-	ll=jx+nlcx*(jy+nlcy*jz);
-	
-	j=head[ll];
-	    
-	if(k==ll)j=link[i];
-	    
-	while(j!=-1)
-	{
-	  xt=xu[j]-xu[i]+cx;
-	  yt=yu[j]-yu[i]+cy;
-	  zt=zu[j]-zu[i]+cz;
-	  
-	  xd=xt*box->a1+yt*box->b1+zt*box->c1;
-	  yd=xt*box->a2+yt*box->b2+zt*box->c2;
-	  zd=xt*box->a3+yt*box->b3+zt*box->c3;
-	  
-	  r2=X2(xd)+X2(yd)+X2(zd);
-	  
-	  if(r2<=cutnb2)
-	  {
-	    exclude=0;
-	    
-	    if( (frozen[i]*frozen[j]) )
-	    {
-	      exclude=1;
-	    }
-	    else
-	    {
-	      for (kk=0;kk<exclPair[i];kk++)
-	      {
-		if(exclList[i][kk]==j)
-		{
-		  exclude=1;
-		  break;
-		}
-	      }
-	    }
-	    
-	    if(!exclude)
-	    {
-	      
-	      neigh->sizeList++;
-	      
-	    } //exclude
-	  }//cutnb
-	  
-	  j=link[j];
-	
-	}//while j
-      }//for checkcell
-      
-      i=link[i];
-      
-    }// while i
-    
-    ix=ix+1;
-    if(ix>nlcx-1)
-    {       
-      ix=0;
-      iy=iy+1;
-            
-      if(iy>nlcy-1)
-      {        
-	iy=0;
-	iz=iz+1;
-      }
-      
-    }
-    
-  }//for ncells
-  
-  neigh->sizeList=(int)((double)neigh->sizeList*(1.+2.*TOLLIST))+1;
-
-  *neighList=(int*)my_malloc(neigh->sizeList*sizeof(**neighList));
-  
-  *neighPair=(int*)my_malloc(param->nAtom*sizeof(**neighPair));
-  
-  #ifdef _OPENMP
-  #pragma omp parallel for default(none) shared(param,neigh,neigh->sizeList) private(i)
-  #endif
-  for(i=0;i<param->nAtom;i++)
-  {
-    (*neighPair)[i]=0;
+    if((*neighPair)[i]>neigh->sizeList)
+      neigh->sizeList=(*neighPair)[i];
   }
   
-  ix=0;
-  iy=0;
-  iz=0;
+  neigh->sizeList=(int)((double)neigh->sizeList*(1.+2.*TOLLIST))+1;
   
-  offset=0;
-  
-  for(k=0;k<neigh->nCells;k++)
+  *neighList=(int**)my_malloc(parallel->nAtProc*sizeof(**neighList));
+  for(i=0;i<parallel->nAtProc;i++)
   {
-    i=head[k];
-    
-    while(i!=-1)
-    {
-      
-      for(l=0;l<cellCheck;l++)
-      {
-	
-	cx=0.;
-	cy=0.;
-	cz=0.;
-	
-	jx=ix+transx[l];
-	jy=iy+transy[l];
-	jz=iz+transz[l];
-	
-	if(jx>nlcx-1)
-	{
-	  jx=jx-nlcx;
-	  cx=1.;
-	}
-	else if(jx<0)
-	{
-	  jx=jx+nlcx;
-	  cx=-1.;
-	}
-	
-	if(jy>nlcy-1)
-	{
-	  jy=jy-nlcy;
-	  cy=1.;
-	}
-	else if(jy<0)
-	{
-	  jy=jy+nlcy;
-	  cy=-1.;
-	}
-	
-	if(jz>nlcz-1)
-	{
-	  jz=jz-nlcz;
-	  cz=1.;
-	}
-	else if(jz<0)
-	{
-	  jz=jz+nlcz;
-	  cz=-1.;
-	}
-	
-	ll=jx+nlcx*(jy+nlcy*jz);
-	
-	j=head[ll];
-	    
-	if(k==ll)j=link[i];
-	    
-	while(j!=-1)
-	{
-	  xt=xu[j]-xu[i]+cx;
-	  yt=yu[j]-yu[i]+cy;
-	  zt=zu[j]-zu[i]+cz;
-	  
-	  xd=xt*box->a1+yt*box->b1+zt*box->c1;
-	  yd=xt*box->a2+yt*box->b2+zt*box->c2;
-	  zd=xt*box->a3+yt*box->b3+zt*box->c3;
-	  
-	  r2=X2(xd)+X2(yd)+X2(zd);
-	  
-	  if(r2<=cutnb2)
-	  {
-	    exclude=0;
-	    
-	    if( (frozen[i]*frozen[j]) )
-	    {
-	      exclude=1;
-	    }
-	    else
-	    {
-	      for (kk=0;kk<exclPair[i];kk++)
-	      {
-		if(exclList[i][kk]==j)
-		{
-		  exclude=1;
-		  break;
-		}
-	      }
-	    }
-	    
-	    if(!exclude)
-	    {
-	      
-	      if(offset>=neigh->sizeList)
-	      {
-		fprintf(outFile,"WARNING: List larger than estimated. Size increased from %d",neigh->sizeList);
-		neigh->sizeList=(int)((double)neigh->sizeList*(1.+TOLLIST))+1;
-		fprintf(outFile," to %d.\n",neigh->sizeList);
-		
-		*neighList=(int*)realloc(*neighList,neigh->sizeList*sizeof(**neighList));
-	      }
-	      
-	      (*neighList)[offset]=j;
-	      (*neighPair)[i]++;
-	      offset++;
-	      
-	    } //exclude
-	  }//cutnb
-	  
-	  j=link[j];
-	
-	}//while j
-      }//for checkcell
-      
-      i=link[i];
-      
-    }// while i
-    
-    ix=ix+1;
-    if(ix>nlcx-1)
-    {       
-      ix=0;
-      iy=iy+1;
-            
-      if(iy>nlcy-1)
-      {        
-	iy=0;
-	iz=iz+1;
-      }
-      
-    }
-    
-  }//for ncells
+    (*neighList)[i]=(int*)my_malloc(neigh->sizeList*sizeof(***neighList));
+  }
   
   free(xu);
   free(yu);
@@ -2273,9 +1420,9 @@ void link_cell_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double 
   
 }
 
-void link_cell_verlet_list_update(PARAM *param,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
-				  int frozen[],int **neighList,int neighPair[],int neighOrder[],
-				  int **exclList,int exclPair[])
+void link_cell_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
+			   int frozen[],int ***neighList,int neighPair[],int **exclList,
+			   int exclPair[])
 {
   
   int transx[508]={0,1,0,0,-1,1,0,-1,1,0,-1,1,-1,1,2,0,0,-2,2,-1,1,0,-2,2,0,
@@ -2338,10 +1485,12 @@ void link_cell_verlet_list_update(PARAM *param,PBC *box,NEIGH *neigh,double x[],
     2,2,2,2,3,3,3,3,3,3,3,3,5,5,5,5,5,5,5,5,3,3,3,3,3,3,3,3,5,5,5,5};
     
   int cellCheck,enoughLinkCells,nlcx,nlcy,nlcz;
-  int i,j,k,l,ll,kk,icell,exclude,offset,iorder;
+  int i,j,k,l,ll,kk,ilist,icell,exclude;
   int ix,iy,iz,jx,jy,jz;
   double r2,cutnb,cutnb2,dnlcx,dnlcy,dnlcz;
   double cx,cy,cz,xt,yt,zt,xd,yd,zd,*xu,*yu,*zu;
+  
+  int parallel->idProc=my_proc();
   
 #ifdef TIMER
   update_timer_begin(TIMER_LNKCEL_UPDATE,__func__);
@@ -2353,14 +1502,6 @@ void link_cell_verlet_list_update(PARAM *param,PBC *box,NEIGH *neigh,double x[],
   
   cutnb=param->cutOff+param->delr;
   cutnb2=X2(cutnb);
-  
-  #ifdef _OPENMP
-  #pragma omp parallel for default(none) shared(param,neigh,neigh->sizeList) private(i)
-  #endif
-  for(i=0;i<param->nAtom;i++)
-  {
-    neighPair[i]=0;
-  }
   
   neigh->linkRatio=MIN(MAX(neigh->linkRatio,1),5);
   
@@ -2455,32 +1596,28 @@ void link_cell_verlet_list_update(PARAM *param,PBC *box,NEIGH *neigh,double x[],
 
   } //end for
   
-  iorder=0;
-  for(k=0;k<neigh->nCells;k++)
-  {
-    i=head[k];
-    while(i!=-1)
-    {
-      neighOrder[iorder++]=i;
-      i=link[i];
-    }
-  }
-  
   ix=0;
   iy=0;
   iz=0;
   
-  offset=0;
+  #ifdef _OPENMP
+  #pragma omp parallel for default(none) shared(param,neigh,neigh->sizeList) private(i)
+  #endif
+  for(i=0;i<param->nAtom;i++)
+  {
+    neighPair[i]=0;
+  }
   
   for(k=0;k<neigh->nCells;k++)
   {
-    i=head[k];
+    ih=head[k];
     
-    while(i!=-1)
+    if(ih>-1)
     {
       
       for(l=0;l<cellCheck;l++)
       {
+	i=ih;
 	
 	cx=0.;
 	cy=0.;
@@ -2526,68 +1663,84 @@ void link_cell_verlet_list_update(PARAM *param,PBC *box,NEIGH *neigh,double x[],
 	ll=jx+nlcx*(jy+nlcy*jz);
 	
 	j=head[ll];
-	    
-	if(k==ll)j=link[i];
-	    
-	while(j!=-1)
-	{
-	  xt=xu[j]-xu[i]+cx;
-	  yt=yu[j]-yu[i]+cy;
-	  zt=zu[j]-zu[i]+cz;
-	  
-	  xd=xt*box->a1+yt*box->b1+zt*box->c1;
-	  yd=xt*box->a2+yt*box->b2+zt*box->c2;
-	  zd=xt*box->a3+yt*box->b3+zt*box->c3;
-	  
-	  r2=X2(xd)+X2(yd)+X2(zd);
-	  
-	  if(r2<=cutnb2)
-	  {
-	    exclude=0;
-	    
-	    if( (frozen[i]*frozen[j]) )
-	    {
-	      exclude=1;
-	    }
-	    else
-	    {
-	      for (kk=0;kk<exclPair[i];kk++)
-	      {
-		if(exclList[i][kk]==j)
-		{
-		  exclude=1;
-		  break;
-		}
-	      }
-	    }
-	    
-	    if(!exclude)
-	    {
-	      
-	      if(offset>=neigh->sizeList)
-	      {
-		fprintf(outFile,"WARNING: List larger than estimated. Size increased from %d",neigh->sizeList);
-		neigh->sizeList=(int)((double)neigh->sizeList*(1.+TOLLIST))+1;
-		fprintf(outFile," to %d.\n",neigh->sizeList);
-		
-		*neighList=(int*)realloc(*neighList,neigh->sizeList*sizeof(**neighList));
-	      }
-	      
-	      (*neighList)[offset]=j;
-	      neighPair[i]++;
-	      offset++;
-	      
-	    } //exclude
-	  }//cutnb
-	  
-	  j=link[j];
 	
-	}//while j
+	if(j>-1)
+	{
+	
+	  while(i!=-1)
+	  {
+	  
+	    if( ( i%parallel->nProc ) == parallel->idProc )
+	    {
+	      
+	      ii=i/parallel->nProc;
+	      
+	      if(k==ll)j=link[i];
+	      
+	      while(j!=-1)
+	      {
+		if( !(frozen[i]*frozen[j]) )
+		{
+		  xt=xu[j]-xu[i]+cx;
+		  yt=yu[j]-yu[i]+cy;
+		  zt=zu[j]-zu[i]+cz;
+		  
+		  xd=xt*box->a1+yt*box->b1+zt*box->c1;
+		  yd=xt*box->a2+yt*box->b2+zt*box->c2;
+		  zd=xt*box->a3+yt*box->b3+zt*box->c3;
+		  
+		  r2=X2(xd)+X2(yd)+X2(zd);
+		  
+		  if(r2<=cutnb2)
+		  {
+		    exclude=0;
+		    
+		    for (kk=0;kk<exclPair[ii];kk++)
+		    {
+		      if(exclList[ii][kk]==j)
+		      {
+			exclude=1;
+			break;
+		      }
+		    }
+		
+		    if(!exclude)
+		    {
+		      if(neighPair[ii]>=neigh->sizeList)
+		      {
+			fprintf(outFile,"WARNING: List larger than estimated. Size increased from %d",neigh->sizeList);
+			neigh->sizeList=(int)(neigh->sizeList*(1.+TOLLIST))+1;
+			fprintf(outFile," to %d.\n",neigh->sizeList);
+			
+			for(ilist=0;ilist<parallel->nAtProc;ilist++)
+			{
+			  (*neighList)[ilist]=(int*)realloc((*neighList)[ilist],neigh->sizeList*sizeof(***neighList));
+			}
+		      }
+		      
+		      (*neighList)[ii][neighPair[ii]]=j;
+		      neighPair[ii]++;
+		      
+		    } //exclude
+		  }//cutnb
+		}//if not frozen
+		
+		j=link[j];
+		
+	      }//while j
+	      
+	    }//if i on this node
+	    
+	    j=head[ll];
+	    i=link[i];
+	    
+	  }//while i
+	  
+	} //if(j>-1)
+	      
       }//for checkcell
       
-      i=link[i];
-      
-    }// while i
+    }// if(i>-1)
     
     ix=ix+1;
     if(ix>nlcx-1)
@@ -2619,7 +1772,7 @@ void link_cell_verlet_list_update(PARAM *param,PBC *box,NEIGH *neigh,double x[],
 }
 
 void fast_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
-		      int frozen[],int **neighList,int **neighPair,int **neighOrder,
+		      int frozen[],int ***neighList,int **neighPair,int **neighOrder,
 		      int **exclList,int exclPair[])
 {
   /**
@@ -2758,7 +1911,7 @@ void fast_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double y[],d
     if(ptrcell[m]<(m+1)*atpercell)
       ptrcell[m]++;
     else
-      my_error(130,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
     
   }
   

@@ -1,0 +1,231 @@
+#ifdef OPENCL
+
+#include <stdlib.h>
+#include <stdio.h>
+
+#include "ocl/ocl_top.h"
+
+double ocl_get_VDW_SWITCH(ATOM *atom, FORCEFIELD *ff, SIMULPARAMS *simulCond)
+{
+  cl_int i,j;
+  
+  cl_int errCode;
+  
+  /** Loading kernel_file and creating openCL "program" **/
+  FILE *kernel_file = NULL;
+  kernel_file=fopen("kernels/kernel_vdw_switch.cl","rt");
+  if (kernel_file==NULL)
+  {
+    fprintf(ocl_info,"ERROR : unable to open kernels/kernel_vdw_switch.cl \n");
+    exit(0);
+  }
+  fseek(kernel_file, 0, SEEK_END);
+  size_t filesize = ftell(kernel_file);
+  rewind(kernel_file);
+  char *file_content = (char*)malloc(filesize+1);	
+  fread(file_content,sizeof(char),filesize,kernel_file);
+  file_content[filesize]='\0';
+  fclose(kernel_file);
+  
+  cl_program program = clCreateProgramWithSource(context, 1, 
+                                                (const char **)&file_content, (const size_t *)&filesize, &errCode);
+  if (errCode == CL_SUCCESS) ; else { fprintf(ocl_info,"Error when loading program from source : error code : %d\n", errCode); } 
+  
+  //Build the program
+  errCode = clBuildProgram(program, 1, &device, "-Werror", NULL, NULL);
+  
+  if (errCode != CL_SUCCESS)
+  {
+    fprintf(ocl_info,"Error when building the ocl program : error code %d\n",errCode); 
+    char logBuffer[100000];
+    clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, sizeof(logBuffer), logBuffer, NULL);
+    fprintf(ocl_info,"\n----- BUILD LOG : -----\n%s\n",logBuffer);
+    exit(errCode);
+  }
+  
+  //prepare kernel
+  cl_kernel kernel = clCreateKernel(program, "kernel_vdw_switch", &errCode);
+  if (errCode == CL_SUCCESS) ; else { fprintf(ocl_info,"Error when creating kernel : error code : %d\n", errCode); } 
+ 
+/* 
+  size_t info;
+
+  errCode=clGetKernelWorkGroupInfo(kernel,device,CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t),&info,NULL);
+  if (errCode == CL_SUCCESS) fprintf(ocl_info,"Kernel max work group size is %d \n",info);  else { fprintf(ocl_info,"Error when getting Kernel max work group size : error code : %d\n", errCode);}
+
+  errCode=clGetKernelWorkGroupInfo(kernel,device,CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE,sizeof(size_t),&info,NULL);
+  if (errCode == CL_SUCCESS) fprintf(ocl_info,"Kernel prefered work group size is %d \n",info);  else { fprintf(ocl_info,"Error when getting Kernel prefered work group size : error code : %d\n", errCode); } 
+  */ 
+
+  /** DATA preparation and copy to device **/
+  
+  // we create an array on the host and the device for storing energy of each atom
+  cl_double *ener = (cl_double*)malloc((atom->natom-1)*sizeof(cl_double));
+  for (i=0;i<atom->natom-1;i++)
+    ener[i]=-42.;
+  cl_mem e_dev = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, 
+			    (atom->natom-1)*sizeof(cl_double), ener, &errCode);
+  if (errCode == CL_SUCCESS) ; else { fprintf(ocl_info,"Error when creating buffer : file %s line %d errCode : %d\n",__FILE__, __LINE__, errCode); }
+  
+  // First we need to copy data to memory of the device : openCL will not be able to use structures
+  // Coordinates
+  cl_mem x_dev = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, 
+			    atom->natom*sizeof(cl_double), atom->x, &errCode);
+  if (errCode == CL_SUCCESS) ; else { fprintf(ocl_info,"Error when creating buffer : file %s line %d errCode : %d\n",__FILE__, __LINE__, errCode); }
+  
+  cl_mem y_dev = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, 
+			    atom->natom*sizeof(cl_double), atom->y, &errCode);
+  if (errCode == CL_SUCCESS) ; else { fprintf(ocl_info,"Error when creating buffer : file %s line %d errCode : %d\n",__FILE__, __LINE__, errCode); }
+  
+  cl_mem z_dev = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, 
+			    atom->natom*sizeof(cl_double), atom->z, &errCode);
+  if (errCode == CL_SUCCESS) ; else { fprintf(ocl_info,"Error when creating buffer : file %s line %d errCode : %d\n",__FILE__, __LINE__, errCode); }
+  
+  //forces
+  cl_mem fx_dev = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, 
+			    atom->natom*sizeof(cl_double), atom->fx, &errCode);
+  if (errCode == CL_SUCCESS) ; else { fprintf(ocl_info,"Error when creating buffer : file %s line %d errCode : %d\n",__FILE__, __LINE__, errCode); }
+  
+  cl_mem fy_dev = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, 
+			    atom->natom*sizeof(cl_double), atom->fy, &errCode);
+  if (errCode == CL_SUCCESS) ; else { fprintf(ocl_info,"Error when creating buffer : file %s line %d errCode : %d\n",__FILE__, __LINE__, errCode); }
+  
+  cl_mem fz_dev = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, 
+			    atom->natom*sizeof(cl_double), atom->fz, &errCode);
+  if (errCode == CL_SUCCESS) ; else { fprintf(ocl_info,"Error when creating buffer : file %s line %d errCode : %d\n",__FILE__, __LINE__, errCode); }
+  
+  
+  // Verlet arrays
+  cl_mem verP_dev = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, 
+			    (atom->natom-1)*sizeof(cl_int), ff->verPair, &errCode);
+  if (errCode == CL_SUCCESS) ; else { fprintf(ocl_info,"Error when creating buffer : file %s line %d errCode : %d\n",__FILE__, __LINE__, errCode); }
+  
+  
+  cl_int *verCumSum = (cl_int*)malloc((atom->natom-1)*sizeof(cl_int));
+  verCumSum[0] = 0;//ff->verPair[0];
+  for (i=1;i<atom->natom-1;i++)
+    verCumSum[i] = verCumSum[i-1] + ff->verPair[i-1];
+  
+//   printf("verl length is : %d\n",ff->npr);
+  
+//   for (i=0;i<atom->natom-1;i++)
+//     printf("VCM[%d] = %d \t VP[%d] = %d\n",i,verCumSum[i],i,ff->verPair[i]);
+
+  cl_mem verCM_dev = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, 
+			    (atom->natom-1)*sizeof(cl_int), verCumSum, &errCode);
+  if (errCode == CL_SUCCESS) ; else { fprintf(ocl_info,"Error when creating buffer : file %s line %d errCode : %d\n",__FILE__, __LINE__, errCode); }
+  
+  cl_mem verL_dev = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, 
+			    ff->npr*sizeof(cl_int), ff->verList, &errCode);
+  if (errCode == CL_SUCCESS) ; else { fprintf(ocl_info,"Error when creating buffer : file %s line %d errCode : %d\n",__FILE__, __LINE__, errCode); }
+  
+  //arrays for lj parameters
+  cl_double *epsilon = (cl_double*)malloc(atom->natom*sizeof(cl_double));
+  cl_double *sigma   = (cl_double*)malloc(atom->natom*sizeof(cl_double));
+  for (i=0;i<atom->natom;i++)
+  {
+    epsilon[i] = ff->parmVdw[i][0];
+    sigma[i]   = ff->parmVdw[i][1];
+  }
+  cl_mem epsil_dev = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, 
+			    atom->natom*sizeof(cl_double), epsilon, &errCode);
+  if (errCode == CL_SUCCESS) ; else { fprintf(ocl_info,"Error when creating buffer : file %s line %d errCode : %d\n",__FILE__, __LINE__, errCode); }
+  
+  cl_mem sigma_dev = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, 
+			    atom->natom*sizeof(cl_double), sigma, &errCode);
+  if (errCode == CL_SUCCESS) ; else { fprintf(ocl_info,"Error when creating buffer : file %s line %d errCode : %d\n",__FILE__, __LINE__, errCode); }
+  
+  //pbc : only 9 elements useful, size 16 is an optimization for compatibility with vectors of size 16 in opencl
+  cl_double pbc[16] = {0.};
+  for(i=0;i<3;i++)
+    for(j=0;j<3;j++)
+      pbc[3*i+j] = simulCond->periodicBox[i][j];
+      
+  /** set kernel arguments **/
+  errCode = clSetKernelArg(kernel, 0, sizeof(cl_mem), &e_dev);
+  if (errCode == 0); else fprintf(ocl_info,"File %s : error whith arguments : please check line %d . Code error : %d\n",__FILE__,__LINE__,errCode);
+  
+  errCode |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &x_dev);
+  if (errCode == 0); else fprintf(ocl_info,"File %s : error whith arguments : please check line %d . Code error : %d\n",__FILE__,__LINE__,errCode);
+  errCode |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &y_dev);
+  if (errCode == 0); else fprintf(ocl_info,"File %s : error whith arguments : please check line %d . Code error : %d\n",__FILE__,__LINE__,errCode);
+  errCode |= clSetKernelArg(kernel, 3, sizeof(cl_mem), &z_dev);
+  if (errCode == 0); else fprintf(ocl_info,"File %s : error whith arguments : please check line %d . Code error : %d\n",__FILE__,__LINE__,errCode);
+  
+  errCode |= clSetKernelArg(kernel, 4, sizeof(cl_mem), &fx_dev);
+  if (errCode == 0); else fprintf(ocl_info,"File %s : error whith arguments : please check line %d . Code error : %d\n",__FILE__,__LINE__,errCode);
+  errCode |= clSetKernelArg(kernel, 5, sizeof(cl_mem), &fy_dev);
+  if (errCode == 0); else fprintf(ocl_info,"File %s : error whith arguments : please check line %d . Code error : %d\n",__FILE__,__LINE__,errCode);
+  errCode |= clSetKernelArg(kernel, 6, sizeof(cl_mem), &fz_dev);
+  if (errCode == 0); else fprintf(ocl_info,"File %s : error whith arguments : please check line %d . Code error : %d\n",__FILE__,__LINE__,errCode);
+  
+  errCode |= clSetKernelArg(kernel, 7, sizeof(cl_mem), &verP_dev);
+  if (errCode == 0); else fprintf(ocl_info,"File %s : error whith arguments : please check line %d . Code error : %d\n",__FILE__,__LINE__,errCode);
+  errCode |= clSetKernelArg(kernel, 8, sizeof(cl_mem), &verCM_dev);
+  if (errCode == 0); else fprintf(ocl_info,"File %s : error whith arguments : please check line %d . Code error : %d\n",__FILE__,__LINE__,errCode);
+  errCode |= clSetKernelArg(kernel, 9, sizeof(cl_mem), &verL_dev);
+  if (errCode == 0); else fprintf(ocl_info,"File %s : error whith arguments : please check line %d . Code error : %d\n",__FILE__,__LINE__,errCode);
+  
+  errCode |= clSetKernelArg(kernel, 10, sizeof(cl_mem), &epsil_dev);
+  if (errCode == 0); else fprintf(ocl_info,"File %s : error whith arguments : please check line %d . Code error : %d\n",__FILE__,__LINE__,errCode);
+  errCode |= clSetKernelArg(kernel, 11, sizeof(cl_mem), &sigma_dev);
+  if (errCode == 0); else fprintf(ocl_info,"File %s : error whith arguments : please check line %d . Code error : %d\n",__FILE__,__LINE__,errCode);
+  
+  errCode |= clSetKernelArg(kernel, 12, sizeof(pbc), &pbc);
+  if (errCode == 0); else fprintf(ocl_info,"File %s : error whith arguments : please check line %d . Code error : %d\n",__FILE__,__LINE__,errCode);
+  errCode |= clSetKernelArg(kernel, 13, sizeof(cl_double), &simulCond->cuton);
+  if (errCode == 0); else fprintf(ocl_info,"File %s : error whith arguments : please check line %d . Code error : %d\n",__FILE__,__LINE__,errCode);
+  errCode |= clSetKernelArg(kernel, 14, sizeof(cl_double), &simulCond->cutoff);
+  if (errCode == 0); else fprintf(ocl_info,"File %s : error whith arguments : please check line %d . Code error : %d\n",__FILE__,__LINE__,errCode);
+  
+  cl_uint dim = 1;
+  size_t global_work_size = atom->natom - 1 ; 
+  cl_event time_event;
+  errCode = clEnqueueNDRangeKernel(command_queue, kernel, dim, NULL, 
+                               &global_work_size, NULL, 0, NULL, &time_event);
+  clFinish(command_queue); //wait while kernels are running
+  if (errCode == CL_SUCCESS) ; else { fprintf(ocl_info,"Error when executing kernel : error code : %d\n", errCode); }
+  
+  errCode = clEnqueueReadBuffer(command_queue, e_dev, CL_TRUE, 0, (atom->natom-1) * sizeof(cl_double), ener, 0, NULL, NULL);
+  if (errCode == CL_SUCCESS) ; else { printf("File %s : error when copying data back to the host : line %d : error code : %d\n",__FILE__,__LINE__,errCode);}
+
+  cl_double totener = 0.;
+  for(i=0;i<atom->natom-1;i++)
+  {
+//     fprintf(ocl_info,"E[%d] = %lf\n",i,ener[i]);
+    totener += ener[i];
+  }  
+  
+  cl_ulong start, end; 
+  clGetEventProfilingInfo(time_event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, NULL); 
+  clGetEventProfilingInfo(time_event, CL_PROFILING_COMMAND_START,sizeof(cl_ulong), &start, NULL); 
+  cl_double executionTimeInMilliseconds = (end - start) * 1.0e-6;
+  fprintf(ocl_info,"Kernel execution time : %lf milliseconds\n",executionTimeInMilliseconds);
+    
+  free(file_content);
+  free(ener);
+  free(verCumSum);
+  free(epsilon);
+  free(sigma);
+  
+  clReleaseMemObject(e_dev);
+  clReleaseMemObject(x_dev);
+  clReleaseMemObject(y_dev);
+  clReleaseMemObject(z_dev);
+  clReleaseMemObject(fx_dev);
+  clReleaseMemObject(fy_dev);
+  clReleaseMemObject(fz_dev);
+  clReleaseMemObject(verP_dev);
+  clReleaseMemObject(verCM_dev);
+  clReleaseMemObject(verL_dev);
+  clReleaseMemObject(epsil_dev);
+  clReleaseMemObject(sigma_dev);
+  
+  clReleaseKernel(kernel);
+  clReleaseProgram(program);
+  
+  return totener;
+}
+
+#endif
+

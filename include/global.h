@@ -1,23 +1,3 @@
-/*
- * Copyright (c) 2013 Pierre-Andre Cazade
- * Copyright (c) 2013 Florent hedin
- * 
- * This file is part of MDBas.
- *
- * MDBas is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * MDBas is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with MDBas.  If not, see <http://www.gnu.org/licenses/>.
- */
-
 /**
  * \file global.h
  * \brief The main header file containing most of the defines, plus the patterns of enum and structs.
@@ -235,6 +215,9 @@ typedef struct
   double temp0,press0,kinTemp0;
   
   double tolMinim,maxminsiz,maxminst;
+  
+  int nProc,nAtProc;
+  
 }PARAM;
 
 typedef struct
@@ -314,6 +297,15 @@ typedef struct
   int mmax,m1max,m2max,m3max;
   double prec,tol,tol1,alpha;
 }EWALD;
+
+typedef struct
+{
+  int nProc,idProc;
+  int nAtProc,nCtProc;
+  int fAtom,lAtom,tAtom;
+  int fConst,lConst,tConst
+  int buffSize;
+}PARALLEL;
 
 #ifdef	__cplusplus
 }

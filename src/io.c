@@ -1,3 +1,23 @@
+/*
+ * Copyright (c) 2013 Pierre-Andre Cazade
+ * Copyright (c) 2013 Florent hedin
+ * 
+ * This file is part of MDBas.
+ *
+ * MDBas is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * MDBas is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with MDBas.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 /**
  * \file io.c
  * \brief Contains functions in charge of I/O and parsing. 
@@ -789,11 +809,11 @@ void read_rest(IO *inout,PARAM *param,ENERGY *ener,BATH *bath,ATOM **atom,
   
   ret=fread(&(param->step),sizeof(int),1,inout->restFile);
   if(ret!=1)
-    my_error(502,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   ret=fread(&(param->nAtom),sizeof(int),1,inout->restFile);
   if(ret!=1)
-    my_error(502,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   *atom=(ATOM*)my_malloc(param->nAtom*sizeof(ATOM));
   
@@ -811,55 +831,55 @@ void read_rest(IO *inout,PARAM *param,ENERGY *ener,BATH *bath,ATOM **atom,
   
   ret=fread(*atom,sizeof(ATOM),param->nAtom,inout->restFile);
   if(ret!=(size_t)param->nAtom)
-    my_error(502,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   ret=fread(*x,sizeof(double),param->nAtom,inout->restFile);
   if(ret!=(size_t)param->nAtom)
-    my_error(502,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   ret=fread(*y,sizeof(double),param->nAtom,inout->restFile);
   if(ret!=(size_t)param->nAtom)
-    my_error(502,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   ret=fread(*z,sizeof(double),param->nAtom,inout->restFile);
   if(ret!=(size_t)param->nAtom)
-    my_error(502,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   ret=fread(*vx,sizeof(double),param->nAtom,inout->restFile);
   if(ret!=(size_t)param->nAtom)
-    my_error(502,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   ret=fread(*vy,sizeof(double),param->nAtom,inout->restFile);
   if(ret!=(size_t)param->nAtom)
-    my_error(502,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   ret=fread(*vz,sizeof(double),param->nAtom,inout->restFile);
   if(ret!=(size_t)param->nAtom)
-    my_error(502,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   ret=fread(*fx,sizeof(double),param->nAtom,inout->restFile);
   if(ret!=(size_t)param->nAtom)
-    my_error(502,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   ret=fread(*fy,sizeof(double),param->nAtom,inout->restFile);
   if(ret!=(size_t)param->nAtom)
-    my_error(502,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   ret=fread(*fz,sizeof(double),param->nAtom,inout->restFile);
   if(ret!=(size_t)param->nAtom)
-    my_error(502,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   ret=fread(ener,sizeof(ENERGY),1,inout->restFile);
   if(ret!=1)
-    my_error(502,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   ret=fread(&(bath->chiT),sizeof(double),1,inout->restFile);
   if(ret!=1)
-    my_error(502,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   ret=fread(&(bath->chiP),sizeof(double),1,inout->restFile);
   if(ret!=1)
-    my_error(502,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   fclose(inout->restFile);
   
@@ -921,7 +941,7 @@ void read_FORF(IO *inout,PARAM *param,ATOM atom[],CONSTRAINT **constList,BOND **
 	  nAtConst[i]=0;
 	  
 	  if( ( frozen[i]!=0 ) && ( frozen[i]!=1 ) )
-	    my_error(21,__FILE__,__LINE__,0);
+          my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 	  
 	  k++;
 	}
@@ -997,7 +1017,7 @@ void read_FORF(IO *inout,PARAM *param,ATOM atom[],CONSTRAINT **constList,BOND **
 	    
 	}
 	else
-	  my_error(27,__FILE__,__LINE__,0);
+        my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
       }
       
     }
@@ -1031,7 +1051,7 @@ void read_FORF(IO *inout,PARAM *param,ATOM atom[],CONSTRAINT **constList,BOND **
 	  
 	}
 	else
-	  my_error(28,__FILE__,__LINE__,0);
+        my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
       }
       
     }
@@ -1187,7 +1207,7 @@ void read_FORF(IO *inout,PARAM *param,ATOM atom[],CONSTRAINT **constList,BOND **
     }
     else
     {
-      my_error(29,__FILE__,__LINE__,0);
+        my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
     }
   }
   
@@ -1281,63 +1301,63 @@ void write_rest(IO *inout,PARAM *param,ENERGY *ener,BATH *bath,ATOM atom[],
   
   ret=fwrite(&(param->step),sizeof(int),1,inout->restFile);
   if(ret!=1)
-    my_error(501,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   ret=fwrite(&(param->nAtom),sizeof(int),1,inout->restFile);
   if(ret!=1)
-    my_error(501,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   ret=fwrite(atom,sizeof(ATOM),param->nAtom,inout->restFile);
   if(ret!=(size_t)param->nAtom)
-    my_error(501,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
     
   ret=fwrite(x,sizeof(double),param->nAtom,inout->restFile);
   if(ret!=(size_t)param->nAtom)
-    my_error(501,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   ret=fwrite(y,sizeof(double),param->nAtom,inout->restFile);
   if(ret!=(size_t)param->nAtom)
-    my_error(501,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   ret=fwrite(z,sizeof(double),param->nAtom,inout->restFile);
   if(ret!=(size_t)param->nAtom)
-    my_error(501,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   ret=fwrite(vx,sizeof(double),param->nAtom,inout->restFile);
   if(ret!=(size_t)param->nAtom)
-    my_error(501,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   ret=fwrite(vy,sizeof(double),param->nAtom,inout->restFile);
   if(ret!=(size_t)param->nAtom)
-    my_error(501,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   ret=fwrite(vz,sizeof(double),param->nAtom,inout->restFile);
   if(ret!=(size_t)param->nAtom)
-    my_error(501,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   ret=fwrite(fx,sizeof(double),param->nAtom,inout->restFile);
   if(ret!=(size_t)param->nAtom)
-    my_error(501,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   ret=fwrite(fy,sizeof(double),param->nAtom,inout->restFile);
   if(ret!=(size_t)param->nAtom)
-    my_error(501,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   ret=fwrite(fz,sizeof(double),param->nAtom,inout->restFile);
   if(ret!=(size_t)param->nAtom)
-    my_error(501,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   ret=fwrite(ener,sizeof(ENERGY),1,inout->restFile);
   if(ret!=1)
-    my_error(501,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   ret=fwrite(&(bath->chiT),sizeof(double),1,inout->restFile);
   if(ret!=1)
-    my_error(501,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   ret=fwrite(&(bath->chiP),sizeof(double),1,inout->restFile);
   if(ret!=1)
-    my_error(501,__FILE__,__LINE__,0);
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
   
   fclose(inout->restFile);
   

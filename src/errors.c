@@ -1,9 +1,29 @@
+/*
+ * Copyright (c) 2013 Pierre-Andre Cazade
+ * Copyright (c) 2013 Florent hedin
+ * 
+ * This file is part of MDBas.
+ *
+ * MDBas is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * MDBas is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with MDBas.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 /**
  * \file errors.c
  * \brief Contains functions for managing errors.
  * \author Pierre-Andre Cazade and Florent Hedin
  * \version alpha-branch
- * \date 2012
+ * \date 2012-2013
  */
 
 #include <stdlib.h>
@@ -12,17 +32,65 @@
 
 #include "errors.h"
 
+/**
+ * \param errorNumber An enumerated type corresponding to an error code describing the problem encountered ; see errors.h and the manual for a full list.
+ * \param file The file where the error occured ; it may be automatically generated when compiling the program by using the macro __FILE__ .
+ * \param line The line on the previous file where the call to this function happened ; it may be automatically generated when compiling the program by using the macro __LINE__ .
+ * \param num_optional_args A number >= 0 indicating how many optional arguments are passed to this function.
+ * \param More_arguments_... If num_optional_args is > 0 then several other arguments are passed to this function. They have to be pointers as they will be treated as pointers to void (void*) .
+ * 
+ * \brief This function is designed for providing a flexible way of handling errors, with the possiblity of printing as much information
+ *        as needed.
+ * 
+ *        How to use this function:
+ *
+ *        \code
+ *        my_error(an_error_code,__FILE__,__LINE__,0); // will print the error message corresponding to the code an_error_code , plus the name of the file and the line of the call to this function. No extra arguments used here.
+ * 
+ *        my_error(an_error_code,__FILE__,__LINE__,2,first_extra_argument,second_extra_argument);  // will print the error message corresponding to the code an_error_code , plus the name of the file and the line of the call to this function. 
+ *                                                                                                 // Two extra arguments are passed ; they are used as (void*) pointers (de-referenced pointers), and the programmer can re-reference them.
+ *        \endcode
+ * 
+ *        Consider the error CONF_ATNUM_ERROR from file io.c : this function is called as following : 
+ * 
+ *        \code 
+ *         my_error(CONF_ATNUM_ERROR,__FILE__,__LINE__,2,&(param->nAtom),&nAtomCheck); 
+ *        \endcode
+ * 
+ *        2 extra arguments, pointers to int, are passed.
+ *        Then the error is handled on the switch with the following code:
+ * 
+ * \code
+ *            case CONF_ATNUM_ERROR:
+ *            {     
+ *                   fprintf(outFile,"MDBas found a different number of atoms in CONF file and\n");
+ *                   fprintf(outFile,"in FORF file. Structure does not match configuration.\n");
+ *                   fprintf(outFile,"Check carefully these files.\n");
+ * 
+ *                   if(num_optional_args>0)
+ *                   {
+ *                       int *n1 = (int*)optArgs[0];
+ *                       int *n2 = (int*)optArgs[1];
+ *                       fprintf(outFile,"NATOM is %d (CONF) but the value currently parsed is %d (FORF)\n",*n1,*n2);
+ *                   }
+ *            }
+ *            break;
+ * \endcode
+ * 
+ */
 void my_error(enum ERROR_TYPE errorNumber, char file[], int line, int num_optional_args, ...)
 {
-  /** otpional arguments work **/
+  /* otpional arguments processing */
   va_list ap;
   va_start(ap,num_optional_args);
   void** optArgs = NULL;
   
   if (num_optional_args > 0)
   {
-    // an array of void* will contains adress of the passed parameters
-    // note that there is no way to know from those adress what are the corresponding sizes or types of the associated variables !
+    /* an array of void* will contains adress of the passed parameters
+        note that there is no way to know from those adress what are the corresponding sizes or types of the associated variables ! 
+        The programmer has to handle this properly
+    */
     optArgs=(void**)malloc(num_optional_args*sizeof(*optArgs));
     
     int i;
@@ -33,10 +101,9 @@ void my_error(enum ERROR_TYPE errorNumber, char file[], int line, int num_option
     }
   }
   
-  /** **/
-  
   fprintf(outFile,"MDBas failed due to error number: %d\n",errorNumber);
   fprintf(outFile,"For file %s , on line %d\n",file,line);
+  fprintf(outFile,"Now more details concerning this error : \n");
   
   switch (errorNumber)
   {
@@ -279,6 +346,10 @@ void my_error(enum ERROR_TYPE errorNumber, char file[], int line, int num_option
   }
   break;
   
+  case UNKNOWN_GENERAL_ERROR:
+      fprintf(outFile,"An undocumented error happened.\nPlease check the corresponding source file. Praying or reading the manual will not help you.\n");
+  break;
+  
   default:
     fprintf(outFile,"MDBas failed due to unknown error number: %d\n",errorNumber);
     fprintf(outFile,"Reading the manual will not help you. You are by yourself.\n");
@@ -287,6 +358,9 @@ void my_error(enum ERROR_TYPE errorNumber, char file[], int line, int num_option
   
     
   }
+  
+  if (num_optional_args > 0) 
+      free(optArgs);
   
   exit(errorNumber);
     

@@ -1,3 +1,23 @@
+/*
+ * Copyright (c) 2013 Pierre-Andre Cazade
+ * Copyright (c) 2013 Florent hedin
+ * 
+ * This file is part of MDBas.
+ *
+ * MDBas is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * MDBas is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with MDBas.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include <stdlib.h>
 #include <math.h>
 
@@ -6,6 +26,8 @@
 
 static double **cm1,**sm1,**cm2,**sm2,**cm3,**sm3;
 static double *cm,*sm,*cms,*sms;
+
+static double buf1[2],buf2[2];
 
 void init_ewald(CTRL *ctrl,PARAM *param,EWALD *ewald,PBC *box)
 {
@@ -71,11 +93,11 @@ void init_ewald(CTRL *ctrl,PARAM *param,EWALD *ewald,PBC *box)
     m2min=-ewald->m2max;
   }
   
-  cm=(double*)malloc(param->nAtom*sizeof(*cm));
-  sm=(double*)malloc(param->nAtom*sizeof(*sm));
+  cm=(double*)malloc(parallel->nAtProc*sizeof(*cm));
+  sm=(double*)malloc(parallel->nAtProc*sizeof(*sm));
   
-  cms=(double*)malloc(param->nAtom*sizeof(*cms));
-  sms=(double*)malloc(param->nAtom*sizeof(*sms));
+  cms=(double*)malloc(parallel->nAtProc*sizeof(*cms));
+  sms=(double*)malloc(parallel->nAtProc*sizeof(*sms));
   
   cm1=(double**)malloc(ewald->mmax*sizeof(*cm1));
   cm2=(double**)malloc(ewald->mmax*sizeof(*cm2));
@@ -87,13 +109,13 @@ void init_ewald(CTRL *ctrl,PARAM *param,EWALD *ewald,PBC *box)
   
   for(i=0;i<ewald->mmax;i++)
   {
-    cm1[i]=(double*)malloc(param->nAtom*sizeof(**cm1));
-    cm2[i]=(double*)malloc(param->nAtom*sizeof(**cm2));
-    cm3[i]=(double*)malloc(param->nAtom*sizeof(**cm3));
+    cm1[i]=(double*)malloc(parallel->nAtProc*sizeof(**cm1));
+    cm2[i]=(double*)malloc(parallel->nAtProc*sizeof(**cm2));
+    cm3[i]=(double*)malloc(parallel->nAtProc*sizeof(**cm3));
     
-    sm1[i]=(double*)malloc(param->nAtom*sizeof(**sm1));
-    sm2[i]=(double*)malloc(param->nAtom*sizeof(**sm2));
-    sm3[i]=(double*)malloc(param->nAtom*sizeof(**sm3));
+    sm1[i]=(double*)malloc(parallel->nAtProc*sizeof(**sm1));
+    sm2[i]=(double*)malloc(parallel->nAtProc*sizeof(**sm2));
+    sm3[i]=(double*)malloc(parallel->nAtProc*sizeof(**sm3));
   }
   
 }
@@ -132,7 +154,7 @@ double ewald_rec(PARAM *param,EWALD *ewald,PBC *box,const double x[],const doubl
 	       double fx[],double fy[],double fz[],const double q[],double stress[6],double *virEwaldRec)
 {
   
-  int i,m1,m2,m3,am2,am3,m2min,m3min;
+  int i,l,m1,m2,m3,am2,am3,m2min,m3min;
   double sx,sy,sz,rm,rrm,rmx,rmy,rmz;
   double rm1x,rm1y,rm1z,rm2x,rm2y,rm2z;
   double recCutOff,recCutOff2,rAlpha2,rVol;
@@ -140,7 +162,7 @@ double ewald_rec(PARAM *param,EWALD *ewald,PBC *box,const double x[],const doubl
   double eEwaldself,systq,eNonNeutral;
   double cmss,smss,am,vam;
   double fact0,fact1;
-    
+  
   rVol=TWOPI/box->vol;
   rAlpha2=-0.25/(X2(ewald->alpha));
   
@@ -162,15 +184,19 @@ double ewald_rec(PARAM *param,EWALD *ewald,PBC *box,const double x[],const doubl
   stress[4]=0.;
   stress[5]=0.;
   
-  for(i=0;i<param->nAtom;i++)
+  for(i=parallel->fAtom;i<parallel->lAtom;i++)
   { 
     systq+=q[i];
     eEwaldself+=X2(q[i]);
   }
   
+  if(parallel->nProc>1)
+    sum_double_para(&systq,buf1,1);
+  
   eEwaldself=-param->chargeConst*ewald->alpha*eEwaldself/SQRTPI;
   
-  for(i=0;i<param->nAtom;i++)
+  i=0;
+  for(l=parallel->fAtom;l<parallel->lAtom;l++)
   {
     cm1[0][i]=1.0;
     cm2[0][i]=1.0;
@@ -180,9 +206,9 @@ double ewald_rec(PARAM *param,EWALD *ewald,PBC *box,const double x[],const doubl
     sm2[0][i]=0.0;
     sm3[0][i]=0.0;
     
-    sx=TWOPI*(x[i]*box->u1+y[i]*box->u2+z[i]*box->u3);
-    sy=TWOPI*(x[i]*box->v1+y[i]*box->v2+z[i]*box->v3);
-    sz=TWOPI*(x[i]*box->w1+y[i]*box->w2+z[i]*box->w3);
+    sx=TWOPI*(x[l]*box->u1+y[l]*box->u2+z[l]*box->u3);
+    sy=TWOPI*(x[l]*box->v1+y[l]*box->v2+z[l]*box->v3);
+    sz=TWOPI*(x[l]*box->w1+y[l]*box->w2+z[l]*box->w3);
     
     cm1[1][i]=cos(sx);
     cm2[1][i]=cos(sy);
@@ -191,11 +217,13 @@ double ewald_rec(PARAM *param,EWALD *ewald,PBC *box,const double x[],const doubl
     sm1[1][i]=sin(sx);
     sm2[1][i]=sin(sy);
     sm3[1][i]=sin(sz);
+    
+    i++;
   }
   
   for(m1=2;m1<=ewald->m1max;m1++)
   {
-    for(i=0;i<param->nAtom;i++)
+    for(i=0;i<parallel->tAtom;i++)
     { 
       cm1[m1][i]=cm1[m1-1][i]*cm1[1][i]-sm1[m1-1][i]*sm1[1][i];
       sm1[m1][i]=sm1[m1-1][i]*cm1[1][i]+cm1[m1-1][i]*sm1[1][i];
@@ -204,7 +232,7 @@ double ewald_rec(PARAM *param,EWALD *ewald,PBC *box,const double x[],const doubl
   
   for(m2=2;m2<=ewald->m2max;m2++)
   {
-    for(i=0;i<param->nAtom;i++)
+    for(i=0;i<parallel->tAtom;i++)
     { 
       cm2[m2][i]=cm2[m2-1][i]*cm2[1][i]-sm2[m2-1][i]*sm2[1][i];
       sm2[m2][i]=sm2[m2-1][i]*cm2[1][i]+cm2[m2-1][i]*sm2[1][i];
@@ -213,7 +241,7 @@ double ewald_rec(PARAM *param,EWALD *ewald,PBC *box,const double x[],const doubl
   
   for(m3=2;m3<=ewald->m3max;m3++)
   {
-    for(i=0;i<param->nAtom;i++)
+    for(i=0;i<parallel->tAtom;i++)
     { 
       cm3[m3][i]=cm3[m3-1][i]*cm3[1][i]-sm3[m3-1][i]*sm3[1][i];
       sm3[m3][i]=sm3[m3-1][i]*cm3[1][i]+cm3[m3-1][i]*sm3[1][i];
@@ -239,7 +267,7 @@ double ewald_rec(PARAM *param,EWALD *ewald,PBC *box,const double x[],const doubl
       
       if(m2>=0)
       {
-	for(i=0;i<param->nAtom;i++)
+	for(i=0;i<parallel->tAtom;i++)
 	{
 	  cm[i]=cm1[m1][i]*cm2[am2][i]-sm1[m1][i]*sm2[am2][i];
 	  sm[i]=sm1[m1][i]*cm2[am2][i]+cm1[m1][i]*sm2[am2][i];
@@ -247,7 +275,7 @@ double ewald_rec(PARAM *param,EWALD *ewald,PBC *box,const double x[],const doubl
       }
       else
       {
-	for(i=0;i<param->nAtom;i++)
+	for(i=0;i<parallel->tAtom;i++)
 	{
 	  cm[i]=cm1[m1][i]*cm2[am2][i]+sm1[m1][i]*sm2[am2][i];
 	  sm[i]=sm1[m1][i]*cm2[am2][i]-cm1[m1][i]*sm2[am2][i];
@@ -266,31 +294,43 @@ double ewald_rec(PARAM *param,EWALD *ewald,PBC *box,const double x[],const doubl
 	
 	if(rm<=recCutOff2)
 	{
+	  i=0;
 	  
 	  if(m3>=0)
 	  {
-	    for(i=0;i<param->nAtom;i++)
+	    for(l=parallel->fAtom;l<parallel->lAtom;l++)
 	    {
-	      cms[i]=q[i]*(cm[i]*cm3[am3][i]-sm[i]*sm3[am3][i]);
-	      sms[i]=q[i]*(sm[i]*cm3[am3][i]+cm[i]*sm3[am3][i]);
+	      cms[i]=q[l]*(cm[i]*cm3[am3][i]-sm[i]*sm3[am3][i]);
+	      sms[i]=q[l]*(sm[i]*cm3[am3][i]+cm[i]*sm3[am3][i]);
+	      i++;
 	    }
 	  }
 	  else
 	  {
-	    for(i=0;i<param->nAtom;i++)
+	    for(l=parallel->fAtom;l<parallel->lAtom;l++)
 	    {
-	      cms[i]=q[i]*(cm[i]*cm3[am3][i]+sm[i]*sm3[am3][i]);
-	      sms[i]=q[i]*(sm[i]*cm3[am3][i]-cm[i]*sm3[am3][i]);
+	      cms[i]=q[l]*(cm[i]*cm3[am3][i]+sm[i]*sm3[am3][i]);
+	      sms[i]=q[l]*(sm[i]*cm3[am3][i]-cm[i]*sm3[am3][i]);
+	      i++;
 	    }
 	  }
 	  
 	  cmss=0.0;
 	  smss=0.0;
 	  
-	  for(i=0;i<param->nAtom;i++)
+	  for(i=0;i<parallel->tAtom;i++)
 	  {
 	    cmss+=cms[i];
 	    smss+=sms[i];
+	  }
+	  
+	  if(parallel->nProc>1)
+	  {
+	    buf1[0]=cmss;
+	    buf1[1]=smss;
+	    sum_double_para(buf1,buf2,2);
+	    cmss=buf1[0];
+	    smss=buf1[1];
 	  }
 	  
 	  rrm=1.0/rm;
@@ -308,12 +348,15 @@ double ewald_rec(PARAM *param,EWALD *ewald,PBC *box,const double x[],const doubl
 	  stress[4]-=virtmp*rmy*rmz;
 	  stress[5]-=virtmp*rmz*rmz;
 	  
-	  for(i=0;i<param->nAtom;i++)
+	  i=0;
+	  for(l=parallel->fAtom;l<parallel->lAtom;l++)
 	  {
 	    dEwaldRec=am*(sms[i]*cmss-cms[i]*smss);
-	    fx[i]+=rmx*dEwaldRec;
-	    fy[i]+=rmy*dEwaldRec;
-	    fz[i]+=rmz*dEwaldRec;
+	    fx[l]+=rmx*dEwaldRec;
+	    fy[l]+=rmy*dEwaldRec;
+	    fz[l]+=rmz*dEwaldRec;
+	    
+	    i++;
 	  }
 	}
       }
@@ -322,7 +365,14 @@ double ewald_rec(PARAM *param,EWALD *ewald,PBC *box,const double x[],const doubl
     m2min=-ewald->m2max;
   }
   
-  eNonNeutral=-(0.5*PI*param->chargeConst)*(X2(systq/ewald->alpha)/box->vol);
+  eEwaldRec/=(double)parallel->nProc;
+  
+  for(i=0;i<6;i++)
+  {
+    stress[i]/=(double)parallel->nProc;
+  }
+  
+  eNonNeutral=-(0.5*PI*param->chargeConst)*(X2(systq/ewald->alpha)/box->vol)/(double)parallel->nProc;;
   
   double etmp;
   
@@ -333,7 +383,7 @@ double ewald_rec(PARAM *param,EWALD *ewald,PBC *box,const double x[],const doubl
   
   eEwaldRec=fact1*eEwaldRec+eEwaldself+eNonNeutral;
   
-  for(i=0;i<param->nAtom;i++)
+  for(i=parallel->fAtom;i<parallel->lAtom;i++)
   {
     fx[i]*=fact0;
     fy[i]*=fact0;

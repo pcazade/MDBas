@@ -4,7 +4,7 @@
 
 #use : make DEBUG=ON for a debug build
 #DEBUG=OFF
-COMP=gcc
+#COMP=/usr/lib64/openmpi/bin/mpicc
 #OMP=OFF
 
 #ifeq ($(COMP),icc)
@@ -20,6 +20,7 @@ COMP=gcc
 #ifeq ($(OMP),ON)
 #CC=gcc -fopenmp
 #else
+#CC=/usr/lib64/openmpi/bin/mpicc
 CC=gcc
 #endif
 
