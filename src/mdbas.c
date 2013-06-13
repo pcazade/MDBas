@@ -103,6 +103,8 @@ int main(int argc, char* argv[])
   
   DELTA *nForce=NULL;
   
+  PARALLEL *parallel=NULL;
+  
   double *x,*y,*z;
   double *vx,*vy,*vz;
   double *fx,*fy,*fz;

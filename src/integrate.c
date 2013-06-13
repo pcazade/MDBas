@@ -54,7 +54,7 @@ static double *xt,*yt,*zt;
 static double *vxo,*vyo,*vzo;
 static double *vxu,*vyu,*vzu;
 
-void integrators_allocate_arrays(CTRL *ctrl, PARAM *param)
+void integrators_allocate_arrays(CTRL *ctrl, PARAM *param, PARALLEL *parallel)
 {
   ddx=ddy=ddz=NULL;
   xo=yo=zo=xt=yt=zt=vxo=vyo=vzo=vxu=vyu=vzu=NULL;
@@ -128,7 +128,7 @@ void integrators_allocate_arrays(CTRL *ctrl, PARAM *param)
   }
 }
 
-void integrators_free_arrays(CTRL *ctrl, PARAM *param)
+void integrators_free_arrays(CTRL *ctrl, PARAM *param, PARALLEL *parallel)
 {
   if(ctrl->integrator == LEAPFROG)
   {
@@ -205,7 +205,7 @@ void lf_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,
 		  double *x,double *y,double *z,
 		  double *vx,double *vy,double *vz,
 		  double *fx,double *fy,double *fz,
-		  double *mass,double *rmass,int *nAparallel->tConst)
+		  double *mass,double *rmass,int *parallel->tConst)
 {
   
 #ifdef TIMER
@@ -215,22 +215,22 @@ void lf_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,
   switch (ctrl->ens)
   {
     case NVE:
-      lf_nve(param,ener,box,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAparallel->tConst);
+      lf_nve(param,ener,box,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,parallel->tConst);
       break;
     case NVT_B:
-      lf_nvt_b(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAparallel->tConst);
+      lf_nvt_b(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,parallel->tConst);
       break;
     case NPT_B:
-      lf_npt_b(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAparallel->tConst);
+      lf_npt_b(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,parallel->tConst);
       break;
     case NVT_H:
-      lf_nvt_h(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAparallel->tConst);
+      lf_nvt_h(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,parallel->tConst);
       break;
     case NPT_H:
-      lf_npt_h(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAparallel->tConst);
+      lf_npt_h(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,parallel->tConst);
       break;
     default:
-      lf_nve(param,ener,box,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAparallel->tConst);
+      lf_nve(param,ener,box,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,parallel->tConst);
       break;
   }
   
