@@ -1,3 +1,10 @@
-./obj
+obj/
+test*/
+tools/
 MDBas
+*.o
+*.out
+*.log
+*.xyz
+*.dat
 
