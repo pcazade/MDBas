@@ -1,3 +1,5 @@
+#ifdef MDBAS_PARA_MPI
+
 #include <mpi.h>
 
 #define BUFSIZ 8192
@@ -66,3 +68,5 @@ void mpi_error(int err, char file[],int line)
   my_error(MPI_ERROR,file,line,0);
     
 }
+
+#endif //MDBAS_PARA_MPI

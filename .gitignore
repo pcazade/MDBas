@@ -1,4 +1,10 @@
-./obj
+obj/
+test*/
+tools/
 MDBas
 *.kdev4
-
+*.o
+*.out
+*.log
+*.xyz
+*.dat
