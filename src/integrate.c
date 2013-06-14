@@ -201,11 +201,11 @@ void integrators_free_arrays(CTRL *ctrl, PARAM *param, PARALLEL *parallel)
 }
 
 void lf_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,
-		  BATH *bath,CONSTRAINT constList[],
+		  BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
 		  double *x,double *y,double *z,
 		  double *vx,double *vy,double *vz,
 		  double *fx,double *fy,double *fz,
-		  double *mass,double *rmass,int *parallel->tConst)
+		  double *mass,double *rmass)
 {
   
 #ifdef TIMER
@@ -215,22 +215,22 @@ void lf_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,
   switch (ctrl->ens)
   {
     case NVE:
-      lf_nve(param,ener,box,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,parallel->tConst);
+      lf_nve(param,ener,box,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass);
       break;
     case NVT_B:
-      lf_nvt_b(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,parallel->tConst);
+      lf_nvt_b(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass);
       break;
     case NPT_B:
-      lf_npt_b(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,parallel->tConst);
+      lf_npt_b(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass);
       break;
     case NVT_H:
-      lf_nvt_h(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,parallel->tConst);
+      lf_nvt_h(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass);
       break;
     case NPT_H:
-      lf_npt_h(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,parallel->tConst);
+      lf_npt_h(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass);
       break;
     default:
-      lf_nve(param,ener,box,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,parallel->tConst);
+      lf_nve(param,ener,box,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass);
       break;
   }
   
@@ -240,11 +240,11 @@ void lf_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,
   
 }
 
-void lf_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],
+void lf_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
 	    double *x,double *y,double *z,
 	    double *vx,double *vy,double *vz,
 	    double *fx,double *fy,double *fz,
-	    double *mass,double *rmass,int *nAparallel->tConst)
+	    double *mass,double *rmass)
 {
   int i,ia,ib,l;
   double virshake=0.,stress[6]={0.},stresk[6]={0.};
@@ -415,11 +415,11 @@ void lf_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],
   }
 }
 
-void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],
+void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
 	      double *x,double *y,double *z,
 	      double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int *nAparallel->tConst)
+	      double *mass,double *rmass)
 {
   int i,k,ia,ib,bercycle;
   double lambda,rts2;
@@ -637,11 +637,11 @@ void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       
 }
 
-void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],
+void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
 	      double *x,double *y,double *z,
 	      double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int *nAparallel->tConst)
+	      double *mass,double *rmass)
 {
   int i,k,ia,ib,bercycle;
   double lambda,gamma,cbrga,pp,rts2;
@@ -905,11 +905,11 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       
 }
 
-void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],
+void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
 	      double *x,double *y,double *z,
 	      double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int *nAparallel->tConst)
+	      double *mass,double *rmass)
 {
   int i,k,ia,ib,nosecycle;
   double lambda,lambdb,lambdc,rts2,qmass;
@@ -1158,11 +1158,11 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       
 }
 
-void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],
+void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
 	      double *x,double *y,double *z,
 	      double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int *nAparallel->tConst)
+	      double *mass,double *rmass)
 {
   int i,k,ia,ib,nosecycle;
   double lambda,lambdb,lambdc,rts2,qmass;
@@ -1491,10 +1491,10 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 }
 
 void vv_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,BATH *bath,
-		  CONSTRAINT constList[],double *x,double *y,
+		  CONSTRAINT constList[],PARALLEL *parallel,double *x,double *y,
 		  double *z,double *vx,double *vy,double *vz,
 		  double *fx,double *fy,double *fz,
-		  double *mass,double *rmass,int *nAparallel->tConst,int stage)
+		  double *mass,double *rmass,int stage)
 {
   
 #ifdef TIMER
@@ -1504,22 +1504,22 @@ void vv_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,BATH *bath,
   switch (ctrl->ens)
   {
     case NVE:
-      vv_nve(param,ener,box,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAparallel->tConst,stage);
+      vv_nve(param,ener,box,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,stage);
       break;
     case NVT_B:
-      vv_nvt_b(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAparallel->tConst,stage);
+      vv_nvt_b(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,stage);
       break;
     case NPT_B:
-      vv_npt_b(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAparallel->tConst,stage);
+      vv_npt_b(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,stage);
       break;
     case NVT_H:
-      vv_nvt_h(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAparallel->tConst,stage);
+      vv_nvt_h(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,stage);
       break;
     case NPT_H:
-      vv_npt_h(param,ener,box,bath,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAparallel->tConst,stage);
+      vv_npt_h(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,stage);
       break;
     default:
-      vv_nve(param,ener,box,constList,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAparallel->tConst,stage);
+      vv_nve(param,ener,box,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,stage);
       break;
   }
   
@@ -1529,10 +1529,10 @@ void vv_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,BATH *bath,
   
 }
 
-void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],
+void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
 	    double *x,double *y,double *z,double *vx,double *vy,double *vz,
 	    double *fx,double *fy,double *fz,
-	    double *mass,double *rmass,int *nAparallel->tConst,int stage)
+	    double *mass,double *rmass,int stage)
 {
   int i,ia,ib;
   double virshake,stress[6]={0.},stresk[6]={0.};
@@ -1647,10 +1647,10 @@ void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],
    
 }
 
-void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],
+void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
 	      double *x,double *y,double *z,double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int *nAparallel->tConst,int stage)
+	      double *mass,double *rmass,int stage)
 {
   int i,ia,ib;
   double lambda;
@@ -1781,10 +1781,10 @@ void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
    
 }
 
-void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],
+void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
 	      double *x,double *y,double *z,double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int *nAparallel->tConst,int stage)
+	      double *mass,double *rmass,int stage)
 {
   int i,ia,ib,k,nosecycle;
   double lambda,gamma,cbrga,volume,pp;
@@ -2009,10 +2009,10 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
    
 }
 
-void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],
+void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
 	      double *x,double *y,double *z,double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int *nAparallel->tConst,int stage)
+	      double *mass,double *rmass,int stage)
 {
   int i,ia,ib;
   double lambda,qmass;
@@ -2182,10 +2182,10 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
    
 }
 
-void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],
+void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
 	      double *x,double *y,double *z,double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int *nAparallel->tConst,int stage)
+	      double *mass,double *rmass,int stage)
 {
   int i,ia,ib,k,kk,nosecycle,hoovercycle=5;
   double hts,chts,cqts;
