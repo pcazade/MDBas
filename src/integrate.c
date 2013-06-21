@@ -35,6 +35,7 @@
 #include "shake.h"
 #include "integrate.h"
 #include "memory.h"
+#include "parallel.h"
 
 #if (defined TIMING && defined __unix__ && !defined __STRICT_ANSI__)
 #define TIMER
@@ -93,9 +94,9 @@ void integrators_allocate_arrays(CTRL *ctrl, PARAM *param, PARALLEL *parallel)
 	ddy=(double*)my_malloc(parallel->nCtProc*sizeof(*ddy));
 	ddz=(double*)my_malloc(parallel->nCtProc*sizeof(*ddz));
 	
-        xt=(double*)my_malloc(param->nAtom*sizeof(*xt));
-        yt=(double*)my_malloc(param->nAtom*sizeof(*yt));
-        zt=(double*)my_malloc(param->nAtom*sizeof(*zt));
+        xt=(double*)my_malloc(parallel->nCtProc*sizeof(*xt));
+        yt=(double*)my_malloc(parallel->nCtProc*sizeof(*yt));
+        zt=(double*)my_malloc(parallel->nCtProc*sizeof(*zt));
       }
     }
   }
@@ -205,7 +206,7 @@ void lf_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,
 		  double *x,double *y,double *z,
 		  double *vx,double *vy,double *vz,
 		  double *fx,double *fy,double *fz,
-		  double *mass,double *rmass)
+		  double *mass,double *rmass,int *nAtConst)
 {
   
 #ifdef TIMER
@@ -215,22 +216,22 @@ void lf_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,
   switch (ctrl->ens)
   {
     case NVE:
-      lf_nve(param,ener,box,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass);
+      lf_nve(param,ener,box,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst);
       break;
     case NVT_B:
-      lf_nvt_b(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass);
+      lf_nvt_b(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst);
       break;
     case NPT_B:
-      lf_npt_b(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass);
+      lf_npt_b(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst);
       break;
     case NVT_H:
-      lf_nvt_h(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass);
+      lf_nvt_h(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst);
       break;
     case NPT_H:
-      lf_npt_h(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass);
+      lf_npt_h(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst);
       break;
     default:
-      lf_nve(param,ener,box,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass);
+      lf_nve(param,ener,box,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst);
       break;
   }
   
@@ -244,10 +245,11 @@ void lf_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *
 	    double *x,double *y,double *z,
 	    double *vx,double *vy,double *vz,
 	    double *fx,double *fy,double *fz,
-	    double *mass,double *rmass)
+	    double *mass,double *rmass,int *nAtConst)
 {
   int i,ia,ib,l;
   double virshake=0.,stress[6]={0.},stresk[6]={0.};
+  double *buffer;
   
   if(parallel->nCtProc>0)
   {
@@ -321,7 +323,7 @@ void lf_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *
     
 // Apply constraint with Shake algorithm.
 
-    lf_shake(param,box,constList,x,y,z,ddx,ddy,ddz,rmass,nAparallel->tConst,stress,&virshake);
+    lf_shake(param,box,constList,parallel,x,y,z,ddx,ddy,ddz,rmass,nAtConst,stress,&virshake);
     
     l=0;
     #ifdef _OPENMP
@@ -341,6 +343,8 @@ void lf_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *
       fx[i]=(vxu[i]-vx[i])*mass[i]*param->rTimeStep;
       fy[i]=(vyu[i]-vy[i])*mass[i]*param->rTimeStep;
       fz[i]=(vzu[i]-vz[i])*mass[i]*param->rTimeStep;
+      
+      l++;
     
     }
   }
@@ -419,9 +423,9 @@ void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	      double *x,double *y,double *z,
 	      double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass)
+	      double *mass,double *rmass,int *nAtConst)
 {
-  int i,k,ia,ib,bercycle;
+  int i,k,l,ia,ib,bercycle;
   double lambda,rts2;
   double virshake=0.,virshakt=0.,stress[6]={0.},strest[6]={0.},stresk[6]={0.};
   
@@ -446,29 +450,23 @@ void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
   }
   
-  if(param->nConst>0)
+  if(parallel->nCtProc>0)
   {
-//     dd=(DELTA*)my_malloc(param->nConst*sizeof(*dd));
-    
+    l=0;
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(param,atom,constList,dd) private(i,ia,ib)
     #endif
-    for(i=0;i<param->nConst;i++)
+    for(i=parallel->fConst;i<parallel->lConst;i++)
     {
       ia=constList[i].a;
       ib=constList[i].b;
       
-      ddx[i]=x[ib]-x[ia];
-      ddy[i]=y[ib]-y[ia];
-      ddz[i]=z[ib]-z[ia];
+      ddx[l]=x[ib]-x[ia];
+      ddy[l]=y[ib]-y[ia];
+      ddz[l]=z[ib]-z[ia];
     }
     
-//     image_array(param->nConst,dd,simulCond,box);
-    image_array(box,ddx,ddy,ddz,param->nConst);
-    
-//     xt=(double*)my_malloc(param->nAtom*sizeof(*xt));
-//     yt=(double*)my_malloc(param->nAtom*sizeof(*yt));
-//     zt=(double*)my_malloc(param->nAtom*sizeof(*zt));
+    image_array(box,ddx,ddy,ddz,parallel->tConst);
     
   }
   
@@ -497,7 +495,7 @@ void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     lambda=sqrt(1.0+param->timeStep/bath->tauT*(param->kinTemp0/ener->kin-1.0));
     
 // move atoms by leapfrog algorithm
-    
+    l=0;
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(param,atom,xo,yo,zo,xt,yt,zt,vxo,vyo,vzo,vxu,vyu,vzu,lambda) private(i)
     #endif
@@ -506,38 +504,47 @@ void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       
 // update velocities
       
-      vxu[i]=(vxo[i]+param->timeStep*fx[i]*rmass[i])*lambda;
-      vyu[i]=(vyo[i]+param->timeStep*fy[i]*rmass[i])*lambda;
-      vzu[i]=(vzo[i]+param->timeStep*fz[i]*rmass[i])*lambda;
+      vxu[i]=(vxo[l]+param->timeStep*fx[i]*rmass[i])*lambda;
+      vyu[i]=(vyo[l]+param->timeStep*fy[i]*rmass[i])*lambda;
+      vzu[i]=(vzo[l]+param->timeStep*fz[i]*rmass[i])*lambda;
       
 // update positions
       
-      x[i]=xo[i]+param->timeStep*vxu[i];
-      y[i]=yo[i]+param->timeStep*vyu[i];
-      z[i]=zo[i]+param->timeStep*vzu[i];
+      x[i]=xo[l]+param->timeStep*vxu[i];
+      y[i]=yo[l]+param->timeStep*vyu[i];
+      z[i]=zo[l]+param->timeStep*vzu[i];
       
 // Temporary storage of the uncorrected positions
       
       if(param->nConst>0)
       {
-	xt[i]=x[i];
-	yt[i]=y[i];
-	zt[i]=z[i];
+	xt[l]=x[i];
+	yt[l]=y[i];
+	zt[l]=z[i];
       }
       
+      l++;
     }
     
     if( (param->nConst>0) && (k==0) )
     {
+      
+      if(parallel->nProc>1)
+      {
+	update_double_para(param,parallel,x,buffer);
+	update_double_para(param,parallel,y,buffer);
+	update_double_para(param,parallel,z,buffer);
+      }
+      
 // Apply constraint with Shake algorithm.
       
-      //lf_shake(atom,simulCond,constList,dd,box,&virshakt,strest);
-      lf_shake(param,box,constList,x,y,z,ddx,ddy,ddz,rmass,nAparallel->tConst,strest,&virshakt);
+      lf_shake(param,box,constList,parallel,x,y,z,ddx,ddy,ddz,rmass,nAtConst,strest,&virshakt);
       
       virshake+=virshakt;
       for(i=0;i<6;i++)
 	stress[i]+=strest[i];
       
+      l=0;
       #ifdef _OPENMP
       #pragma omp parallel for default(none) shared(param,atom,xt,yt,zt,vxu,vyu,vzu,rts2) private(i)
       #endif
@@ -546,30 +553,32 @@ void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
         
 // Corrected velocities
       
-	vxu[i]+=(x[i]-xt[i])*param->rTimeStep;
-	vyu[i]+=(y[i]-yt[i])*param->rTimeStep;
-	vzu[i]+=(z[i]-zt[i])*param->rTimeStep;
+	vxu[i]+=(x[i]-xt[l])*param->rTimeStep;
+	vyu[i]+=(y[i]-yt[l])*param->rTimeStep;
+	vzu[i]+=(z[i]-zt[l])*param->rTimeStep;
       
 // Corrected Forces
       
-	fx[i]+=(x[i]-xt[i])*mass[i]*rts2;
-	fy[i]+=(y[i]-yt[i])*mass[i]*rts2;
-	fz[i]+=(z[i]-zt[i])*mass[i]*rts2;
+	fx[i]+=(x[i]-xt[l])*mass[i]*rts2;
+	fy[i]+=(y[i]-yt[l])*mass[i]*rts2;
+	fz[i]+=(z[i]-zt[l])*mass[i]*rts2;
       
       }
     }
     
 // calculate full timestep velocity
+    l=0;
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(vxo,vyo,vzo,vxu,vyu,vzu,param,atom) private(i)
     #endif
     for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
       
-      vx[i]=0.5*(vxo[i]+vxu[i]);
-      vy[i]=0.5*(vyo[i]+vyu[i]);
-      vz[i]=0.5*(vzo[i]+vzu[i]);
+      vx[i]=0.5*(vxo[l]+vxu[i]);
+      vy[i]=0.5*(vyo[l]+vyu[i]);
+      vz[i]=0.5*(vzo[l]+vzu[i]);
       
+      l++;
     }
     
 // calculate kinetic energy
@@ -612,28 +621,24 @@ void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
   }
   
-// Free temporary arrays
-  
-//   free(vxu);
-//   free(vyu);
-//   free(vzu);
-//   
-//   free(xo);
-//   free(yo);
-//   free(zo);
-//   
-//   free(vxo);
-//   free(vyo);
-//   free(vzo);
-//   
-//   if(param->nConst>0)
-//   {
-//     free(dd);
-//     
-//     free(xt);
-//     free(yt);
-//     free(zt);
-//   }
+  if(parallel->nProc>1)
+  {
+    update_double_para(param,parallel,x,buffer);
+    update_double_para(param,parallel,y,buffer);
+    update_double_para(param,parallel,z,buffer);
+    
+    update_double_para(param,parallel,vx,buffer);
+    update_double_para(param,parallel,vy,buffer);
+    update_double_para(param,parallel,vz,buffer);
+    
+    if(parallel->nCtProc>0)
+    {
+      update_double_para(param,parallel,fx,buffer);
+      update_double_para(param,parallel,fy,buffer);
+      update_double_para(param,parallel,fz,buffer);
+    }
+    
+  }
       
 }
 
@@ -641,30 +646,14 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	      double *x,double *y,double *z,
 	      double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass)
+	      double *mass,double *rmass,int *nAtConst)
 {
-  int i,k,ia,ib,bercycle;
+  int i,k,l,ia,ib,bercycle;
   double lambda,gamma,cbrga,pp,rts2;
-//   double *xo=NULL,*yo=NULL,*zo=NULL;
-//   double *vxo=NULL,*vyo=NULL,*vzo=NULL;
-//   double *xt=NULL,*yt=NULL,*zt=NULL;
-//   double *vxu=NULL,*vyu=NULL,*vzu=NULL;
   double volume,cell0[9];
   double virshake=0.,virshakt=0.,stress[6]={0.},strest[6]={0.},stresk[6]={0.};
-//   DELTA *dd=NULL;
-//   
-//   vxu=(double*)my_malloc(param->nAtom*sizeof(*vxu));
-//   vyu=(double*)my_malloc(param->nAtom*sizeof(*vyu));
-//   vzu=(double*)my_malloc(param->nAtom*sizeof(*vzu));
-//   
-//   xo=(double*)my_malloc(param->nAtom*sizeof(*xo));
-//   yo=(double*)my_malloc(param->nAtom*sizeof(*yo));
-//   zo=(double*)my_malloc(param->nAtom*sizeof(*zo));
-//   
-//   vxo=(double*)my_malloc(param->nAtom*sizeof(*vxo));
-//   vyo=(double*)my_malloc(param->nAtom*sizeof(*vyo));
-//   vzo=(double*)my_malloc(param->nAtom*sizeof(*vzo));
-    
+  
+  l=0;
   #ifdef _OPENMP
   #pragma omp parallel for default(none) shared(xo,yo,zo,vxo,vyo,vzo,param,atom) private(i)
   #endif
@@ -673,13 +662,15 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
 // Store old coordinates and old velocities.
 
-    xo[i]=x[i];
-    yo[i]=y[i];
-    zo[i]=z[i];
+    xo[l]=x[i];
+    yo[l]=y[i];
+    zo[l]=z[i];
     
-    vxo[i]=vx[i];
-    vyo[i]=vy[i];
-    vzo[i]=vz[i];
+    vxo[l]=vx[i];
+    vyo[l]=vy[i];
+    vzo[l]=vz[i];
+    
+    l++;
     
   }
   
@@ -699,27 +690,21 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   
   if(param->nConst>0)
   {
-//     dd=(DELTA*)my_malloc(param->nConst*sizeof(*dd));
-    
+    l=0;
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(param,atom,constList,dd) private(i,ia,ib)
     #endif
-    for(i=0;i<param->nConst;i++)
+    for(i=parallel->fConst;i<parallel->lConst;i++)
     {
       ia=constList[i].a;
       ib=constList[i].b;
       
-      ddx[i]=x[ib]-x[ia];
-      ddy[i]=y[ib]-y[ia];
-      ddz[i]=z[ib]-z[ia];
+      ddx[l]=x[ib]-x[ia];
+      ddy[l]=y[ib]-y[ia];
+      ddz[l]=z[ib]-z[ia];
     }
     
-//     image_array(param->nConst,dd,simulCond,box);
-    image_array(box,ddx,ddy,ddz,param->nConst);
-    
-//     xt=(double*)my_malloc(param->nAtom*sizeof(*xt));
-//     yt=(double*)my_malloc(param->nAtom*sizeof(*yt));
-//     zt=(double*)my_malloc(param->nAtom*sizeof(*zt));
+    image_array(box,ddx,ddy,ddz,parallel->tConst);
     
   }
   
@@ -738,7 +723,7 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   ener->kin=kinetic(param,vx,vy,vz,mass);
   
   pp=(2.*ener->kin-ener->virpot-virshake)/(3.*volume);
-  gamma=1.+watercomp*param->timeStep*(pp-param->press0)/bath->tauP;
+  gamma=1.+bath->compress*param->timeStep*(pp-param->press0)/bath->tauP;
   cbrga=cbrt(gamma);
   
   lambda=sqrt(1.0+param->timeStep/bath->tauT*(param->kinTemp0/ener->kin-1.0));
@@ -752,7 +737,7 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   {
     
 // move atoms by leapfrog algorithm
-    
+    l=0;
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(param,atom,xo,yo,zo,xt,yt,zt,vxo,vyo,vzo,vxu,vyu,vzu,lambda,cbrga) private(i)
     #endif
@@ -761,15 +746,15 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       
 // update velocities
       
-      vxu[i]=(vxo[i]+param->timeStep*fx[i]*rmass[i])*lambda;
-      vyu[i]=(vyo[i]+param->timeStep*fy[i]*rmass[i])*lambda;
-      vzu[i]=(vzo[i]+param->timeStep*fz[i]*rmass[i])*lambda;
+      vxu[i]=(vxo[l]+param->timeStep*fx[i]*rmass[i])*lambda;
+      vyu[i]=(vyo[l]+param->timeStep*fy[i]*rmass[i])*lambda;
+      vzu[i]=(vzo[l]+param->timeStep*fz[i]*rmass[i])*lambda;
       
 // update positions
       
-      x[i]=cbrga*xo[i]+param->timeStep*vxu[i];
-      y[i]=cbrga*yo[i]+param->timeStep*vyu[i];
-      z[i]=cbrga*zo[i]+param->timeStep*vzu[i];
+      x[i]=cbrga*xo[l]+param->timeStep*vxu[i];
+      y[i]=cbrga*yo[l]+param->timeStep*vyu[i];
+      z[i]=cbrga*zo[l]+param->timeStep*vzu[i];
       
 // Temporary storage of the uncorrected positions
       
@@ -780,23 +765,31 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	zt[i]=z[i];
       }
       
+      l++;
+      
     }
     
     if( (param->nConst>0) && (k==0) )
     {
       
-//       scale_box(box,cbrga,cell0);
+      if(parallel->nProc>1)
+      {
+	update_double_para(param,parallel,x,buffer);
+	update_double_para(param,parallel,y,buffer);
+	update_double_para(param,parallel,z,buffer);
+      }
+      
       scale_box(box,cell0,cbrga);
       
 // Apply constraint with Shake algorithm.
       
-//       lf_shake(atom,simulCond,constList,dd,box,&virshakt,strest);
-      lf_shake(param,box,constList,x,y,z,ddx,ddy,ddz,rmass,nAparallel->tConst,strest,&virshakt);
+      lf_shake(param,box,constList,parallel,x,y,z,ddx,ddy,ddz,rmass,nAtConst,strest,&virshakt);
       
       virshake+=virshakt;
       for(i=0;i<6;i++)
 	stress[i]+=strest[i];
       
+      l=0;
       #ifdef _OPENMP
       #pragma omp parallel for default(none) shared(param,atom,xt,yt,zt,vxu,vyu,vzu,rts2) private(i)
       #endif
@@ -805,20 +798,23 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
         
 // Corrected velocities
       
-	vxu[i]+=(x[i]-xt[i])*param->rTimeStep;
-	vyu[i]+=(y[i]-yt[i])*param->rTimeStep;
-	vzu[i]+=(z[i]-zt[i])*param->rTimeStep;
+	vxu[i]+=(x[i]-xt[l])*param->rTimeStep;
+	vyu[i]+=(y[i]-yt[l])*param->rTimeStep;
+	vzu[i]+=(z[i]-zt[l])*param->rTimeStep;
       
 // Corrected Forces
       
-	fx[i]+=(x[i]-xt[i])*mass[i]*rts2;
-	fy[i]+=(y[i]-yt[i])*mass[i]*rts2;
-	fz[i]+=(z[i]-zt[i])*mass[i]*rts2;
-      
+	fx[i]+=(x[i]-xt[l])*mass[i]*rts2;
+	fy[i]+=(y[i]-yt[l])*mass[i]*rts2;
+	fz[i]+=(z[i]-zt[l])*mass[i]*rts2;
+	
+	l++;
       }
     }
     
 // calculate full timestep velocity
+
+    l=0;
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(vxo,vyo,vzo,vxu,vyu,vzu,param,atom) private(i)
     #endif
@@ -828,6 +824,8 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       vx[i]=0.5*(vxo[i]+vxu[i]);
       vy[i]=0.5*(vyo[i]+vyu[i]);
       vz[i]=0.5*(vzo[i]+vzu[i]);
+      
+      l++;
       
     }
     
@@ -909,7 +907,7 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	      double *x,double *y,double *z,
 	      double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass)
+	      double *mass,double *rmass,int *nAtConst)
 {
   int i,k,ia,ib,nosecycle;
   double lambda,lambdb,lambdc,rts2,qmass;
@@ -1162,7 +1160,7 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	      double *x,double *y,double *z,
 	      double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass)
+	      double *mass,double *rmass,int *nAtConst)
 {
   int i,k,ia,ib,nosecycle;
   double lambda,lambdb,lambdc,rts2,qmass;
@@ -1494,7 +1492,7 @@ void vv_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,BATH *bath,
 		  CONSTRAINT constList[],PARALLEL *parallel,double *x,double *y,
 		  double *z,double *vx,double *vy,double *vz,
 		  double *fx,double *fy,double *fz,
-		  double *mass,double *rmass,int stage)
+		  double *mass,double *rmass,int *nAtConst,int stage)
 {
   
 #ifdef TIMER
@@ -1504,22 +1502,22 @@ void vv_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,BATH *bath,
   switch (ctrl->ens)
   {
     case NVE:
-      vv_nve(param,ener,box,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,stage);
+      vv_nve(param,ener,box,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,stage);
       break;
     case NVT_B:
-      vv_nvt_b(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,stage);
+      vv_nvt_b(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,stage);
       break;
     case NPT_B:
-      vv_npt_b(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,stage);
+      vv_npt_b(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,stage);
       break;
     case NVT_H:
-      vv_nvt_h(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,stage);
+      vv_nvt_h(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,stage);
       break;
     case NPT_H:
-      vv_npt_h(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,stage);
+      vv_npt_h(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,stage);
       break;
     default:
-      vv_nve(param,ener,box,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,stage);
+      vv_nve(param,ener,box,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,stage);
       break;
   }
   
@@ -1532,7 +1530,7 @@ void vv_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,BATH *bath,
 void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
 	    double *x,double *y,double *z,double *vx,double *vy,double *vz,
 	    double *fx,double *fy,double *fz,
-	    double *mass,double *rmass,int stage)
+	    double *mass,double *rmass,int *nAtConst,int stage)
 {
   int i,ia,ib;
   double virshake,stress[6]={0.},stresk[6]={0.};
@@ -1650,7 +1648,7 @@ void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *
 void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
 	      double *x,double *y,double *z,double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int stage)
+	      double *mass,double *rmass,int *nAtConst,int stage)
 {
   int i,ia,ib;
   double lambda;
@@ -1784,7 +1782,7 @@ void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
 	      double *x,double *y,double *z,double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int stage)
+	      double *mass,double *rmass,int *nAtConst,int stage)
 {
   int i,ia,ib,k,nosecycle;
   double lambda,gamma,cbrga,volume,pp;
@@ -2012,7 +2010,7 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
 	      double *x,double *y,double *z,double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int stage)
+	      double *mass,double *rmass,int *nAtConst,int stage)
 {
   int i,ia,ib;
   double lambda,qmass;
@@ -2185,7 +2183,7 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
 	      double *x,double *y,double *z,double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int stage)
+	      double *mass,double *rmass,int *nAtConst,int stage)
 {
   int i,ia,ib,k,kk,nosecycle,hoovercycle=5;
   double hts,chts,cqts;

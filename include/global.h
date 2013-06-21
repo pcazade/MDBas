@@ -301,9 +301,15 @@ typedef struct
 typedef struct
 {
   int nProc,idProc;
+  
   int nAtProc,nCtProc;
+  int nBdProc,nAgProc;
+  int nUbProc,nDiProc;
+  int nImProc;
+  
   int fAtom,lAtom,tAtom;
-  int fConst,lConst,tConst
+  int fConst,lConst,tConst;
+  
   int buffSize;
 }PARALLEL;
 

@@ -38,6 +38,7 @@
 #include "errors.h"
 #include "integrate.h"
 #include "shake.h"
+#include "parallel.h"
 
 #if (defined TIMING && defined __unix__ && !defined __STRICT_ANSI__)
 #define TIMER
@@ -47,8 +48,8 @@
 /** Pointer to the output file. **/
 extern FILE *outFile;
 
-void init_system(int argc, char* argv[],IO *inout,CTRL *ctrl,PARAM *param,ENERGY *ener,BATH *bath,
-		 NEIGH *neigh,EWALD *ewald,PBC *box,ATOM **atom,CONSTRAINT **constList,
+void init_system(int argc, char* argv[],IO *inout,CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,
+		 BATH *bath,NEIGH *neigh,EWALD *ewald,PBC *box,ATOM **atom,CONSTRAINT **constList,
 		 BOND **bond,ANGLE **angle,DIHE **dihe,DIHE **impr,BOND **ub,double **x,
 		 double **y, double **z,double **vx,double **vy,double **vz,double **fx,
 		 double **fy, double **fz,double **mass,double **rmass,double **q,
@@ -262,8 +263,13 @@ void init_system(int argc, char* argv[],IO *inout,CTRL *ctrl,PARAM *param,ENERGY
   }
   
   parallel->nProc=num_proc();
-  parallel->nAtProc=(param->nAtom+parallel->nProc-1)/parallel->nProc;
-  param->nCtProc=(param->nConst+parallel->nProc-1)/parallel->nProc;
+  parallel->nAtProc=(param->nAtom     + parallel->nProc-1)/parallel->nProc;
+  parallel->nCtProc=(param->nConst    + parallel->nProc-1)/parallel->nProc;
+  parallel->nBdProc=(param->nBond     + parallel->nProc-1)/parallel->nProc;
+  parallel->nAgProc=(param->nAngle    + parallel->nProc-1)/parallel->nProc;
+  parallel->nUbProc=(param->nUb       + parallel->nProc-1)/parallel->nProc;
+  parallel->nDiProc=(param->nDihedral + parallel->nProc-1)/parallel->nProc;
+  parallel->nImProc=(param->nImproper + parallel->nProc-1)/parallel->nProc;
   
   /** allocate arrays for integrators and for shake **/
   integrators_allocate_arrays(ctrl,param);

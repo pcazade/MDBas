@@ -25,13 +25,9 @@
 
 #include "global.h"
 #include "errors.h"
+#include "parallel.h"
 
 #define BUFSIZ 8192
-
-void init_para(int *argc, char ***argv,PARAM *param);
-int my_proc();
-int num_proc();
-void mpi_error(int err, char file[],int line);
 
 void init_para(int *argc, char ***argv,PARAM *param)
 {

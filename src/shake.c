@@ -45,7 +45,7 @@ static double *xt,*yt,*zt;
 static double *rt2;
 static double *dtx,*dty,*dtz;
 
-void shake_allocate_arrays(const PARAM *param)
+void shake_allocate_arrays(const PARAM *param,const PARALLEL *parallel)
 {
   xt=yt=zt=rt2=dtx=dty=dtz=NULL;
 
@@ -67,7 +67,7 @@ void shake_free_arrays()
   free(dtx);    free(dty);      free(dtz);
 }
 
-void lf_shake(PARAM *param,PBC *box,CONSTRAINT constList[],
+void lf_shake(PARAM *param,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
 	      double x[],double y[],double z[],
 	      double ddx[],double ddy[],double ddz[],double rmass[],
 	      int *nAtConst,double stress[6],double *virshake)
@@ -200,7 +200,7 @@ void lf_shake(PARAM *param,PBC *box,CONSTRAINT constList[],
 }
 
 
-void vv_shake_r(PARAM *param,PBC *box,CONSTRAINT constList[],
+void vv_shake_r(PARAM *param,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
 		double x[],double y[],double z[],
 		double vx[],double vy[],double vz[],
 		double ddx[],double ddy[],double ddz[],double rmass[],
@@ -329,7 +329,7 @@ void vv_shake_r(PARAM *param,PBC *box,CONSTRAINT constList[],
 
 }
 
-void vv_shake_v(PARAM *param,CONSTRAINT constList[],
+void vv_shake_v(PARAM *param,CONSTRAINT constList[],PARALLEL *parallel,
 		double vx[],double vy[],double vz[],double ddx[],
 		double ddy[],double ddz[],double rmass[],int *nAtConst)
 {

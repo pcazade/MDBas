@@ -5,14 +5,15 @@
 extern "C" {
 #endif
 
-void init_system(int argc, char* argv[],IO *inout,CTRL *ctrl,PARAM *param,ENERGY *ener,BATH *bath,
-		 NEIGH *neigh,EWALD *ewald,PBC *box,ATOM **atom,CONSTRAINT **constList,
-		 BOND **bond,ANGLE **angle,DIHE **dihe,DIHE **impr,BOND **ub,double **x,
-		 double **y, double **z,double **vx,double **vy,double **vz,double **fx,
-		 double **fy, double **fz,double **mass,double **rmass,double **q,
-		 double **eps,double **sig,double **eps14,double **sig14,int **frozen,
-		 int **nAtConst,int **neighList,int **neighPair,int **neighOrder,
-		 int **neighList14,int ***exclList,int **exclPair);
+void init_system(int argc, char* argv[],IO *inout,CTRL *ctrl,PARAM *param,PARALLEL *parallel,
+		 ENERGY *ener,BATH *bath,NEIGH *neigh,EWALD *ewald,PBC *box,ATOM **atom,
+		 CONSTRAINT **constList,BOND **bond,ANGLE **angle,DIHE **dihe,DIHE **impr,
+		 BOND **ub,double **x,double **y, double **z,double **vx,double **vy,
+		 double **vz,double **fx,double **fy, double **fz,double **mass,
+		 double **rmass,double **q,double **eps,double **sig,double **eps14,
+		 double **sig14,int **frozen,int **nAtConst,int **neighList,
+		 int **neighPair,int **neighOrder,int **neighList14,int ***exclList,
+		 int **exclPair);
 
 void setup(CTRL *ctrl,PARAM *param,ATOM atom[],CONSTRAINT **constList,
 	   BOND **bond,ANGLE **angle,DIHE **dihe,DIHE **impr,BOND **ub,
