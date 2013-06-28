@@ -821,9 +821,9 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
       
-      vx[i]=0.5*(vxo[i]+vxu[i]);
-      vy[i]=0.5*(vyo[i]+vyu[i]);
-      vz[i]=0.5*(vzo[i]+vzu[i]);
+      vx[i]=0.5*(vxo[l]+vxu[i]);
+      vy[i]=0.5*(vyo[l]+vyu[i]);
+      vz[i]=0.5*(vzo[l]+vzu[i]);
       
       l++;
       
@@ -878,28 +878,24 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
   }
   
-// Free temporary arrays
-/*  
-  free(vxu);
-  free(vyu);
-  free(vzu);
-  
-  free(xo);
-  free(yo);
-  free(zo);
-  
-  free(vxo);
-  free(vyo);
-  free(vzo);
-  
-  if(param->nConst>0)
+  if(parallel->nProc>1)
   {
-    free(dd);
+    update_double_para(param,parallel,x,buffer);
+    update_double_para(param,parallel,y,buffer);
+    update_double_para(param,parallel,z,buffer);
     
-    free(xt);
-    free(yt);
-    free(zt);
-  }*/
+    update_double_para(param,parallel,vx,buffer);
+    update_double_para(param,parallel,vy,buffer);
+    update_double_para(param,parallel,vz,buffer);
+    
+    if(parallel->nCtProc>0)
+    {
+      update_double_para(param,parallel,fx,buffer);
+      update_double_para(param,parallel,fy,buffer);
+      update_double_para(param,parallel,fz,buffer);
+    }
+    
+  }
       
 }
 
@@ -909,28 +905,11 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	      double *fx,double *fy,double *fz,
 	      double *mass,double *rmass,int *nAtConst)
 {
-  int i,k,ia,ib,nosecycle;
+  int i,k,l,ia,ib,nosecycle;
   double lambda,lambdb,lambdc,rts2,qmass;
-//   double *xo=NULL,*yo=NULL,*zo=NULL;
-//   double *vxo=NULL,*vyo=NULL,*vzo=NULL;
-//   double *xt=NULL,*yt=NULL,*zt=NULL;
-//   double *vxu=NULL,*vyu=NULL,*vzu=NULL;
-  double virshake=0.,virshakt=0.,stress[6]={0.},strest[6]={0.},stresk[6]={0.};
-//   DELTA *dd=NULL;
-//   
-//   vxu=(double*)my_malloc(param->nAtom*sizeof(*vxu));
-//   vyu=(double*)my_malloc(param->nAtom*sizeof(*vyu));
-//   vzu=(double*)my_malloc(param->nAtom*sizeof(*vzu));
-//   
-//   xo=(double*)my_malloc(param->nAtom*sizeof(*xo));
-//   yo=(double*)my_malloc(param->nAtom*sizeof(*yo));
-//   zo=(double*)my_malloc(param->nAtom*sizeof(*zo));
-//   
-//   vxo=(double*)my_malloc(param->nAtom*sizeof(*vxo));
-//   vyo=(double*)my_malloc(param->nAtom*sizeof(*vyo));
-//   vzo=(double*)my_malloc(param->nAtom*sizeof(*vzo));
-    
+  double virshake=0.,virshakt=0.,stress[6]={0.},strest[6]={0.},stresk[6]={0.};  
   
+  l=0;
   #ifdef _OPENMP
   #pragma omp parallel for default(none) shared(xo,yo,zo,vxo,vyo,vzo,param,atom) private(i)
   #endif
@@ -939,39 +918,36 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
 // Store old coordinates and old velocities.
 
-    xo[i]=x[i];
-    yo[i]=y[i];
-    zo[i]=z[i];
+    xo[l]=x[i];
+    yo[l]=y[i];
+    zo[l]=z[i];
     
-    vxo[i]=vx[i];
-    vyo[i]=vy[i];
-    vzo[i]=vz[i];
+    vxo[l]=vx[i];
+    vyo[l]=vy[i];
+    vzo[l]=vz[i];
     
+    l++;
   }
   
   if(param->nConst>0)
   {
-//     dd=(DELTA*)my_malloc(param->nConst*sizeof(*dd));
-    
+    l=0;
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(param,atom,dd,constList) private(i,ia,ib)
     #endif
-    for(i=0;i<param->nConst;i++)
+    for(i=parallel->fConst;i<parallel->lConst;i++)
     {
       ia=constList[i].a;
       ib=constList[i].b;
       
-      ddx[i]=x[ib]-x[ia];
-      ddy[i]=y[ib]-y[ia];
-      ddz[i]=z[ib]-z[ia];
+      ddx[l]=x[ib]-x[ia];
+      ddy[l]=y[ib]-y[ia];
+      ddz[l]=z[ib]-z[ia];
+      
+      l++;
     }
     
-//     image_array(param->nConst,dd,simulCond,box);
     image_array(box,ddx,ddy,ddz,param->nConst);
-    
-//     xt=(double*)my_malloc(param->nAtom*sizeof(*xt));
-//     yt=(double*)my_malloc(param->nAtom*sizeof(*yt));
-//     zt=(double*)my_malloc(param->nAtom*sizeof(*zt));
     
   }
   
@@ -1006,7 +982,7 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   {
     
 // move atoms by leapfrog algorithm
-    
+    l=0;
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(xt,yt,zt,xo,yo,zo,vxo,vyo,vzo,vxu,vyu,vzu,param,atom,lambda) private(i)
     #endif
@@ -1015,38 +991,47 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       
 // update velocities
       
-      vxu[i]=vxo[i]+param->timeStep*(fx[i]*rmass[i]-vx[i]*lambda);
-      vyu[i]=vyo[i]+param->timeStep*(fy[i]*rmass[i]-vy[i]*lambda);
-      vzu[i]=vzo[i]+param->timeStep*(fz[i]*rmass[i]-vz[i]*lambda);
+      vxu[i]=vxo[l]+param->timeStep*(fx[i]*rmass[i]-vx[i]*lambda);
+      vyu[i]=vyo[l]+param->timeStep*(fy[i]*rmass[i]-vy[i]*lambda);
+      vzu[i]=vzo[l]+param->timeStep*(fz[i]*rmass[i]-vz[i]*lambda);
       
 // update positions
       
-      x[i]=xo[i]+param->timeStep*vxu[i];
-      y[i]=yo[i]+param->timeStep*vyu[i];
-      z[i]=zo[i]+param->timeStep*vzu[i];
+      x[i]=xo[l]+param->timeStep*vxu[i];
+      y[i]=yo[l]+param->timeStep*vyu[i];
+      z[i]=zo[l]+param->timeStep*vzu[i];
       
 // Temporary storage of the uncorrected positions
       
       if(param->nConst>0)
       {
-	xt[i]=x[i];
-	yt[i]=y[i];
-	zt[i]=z[i];
+	xt[l]=x[i];
+	yt[l]=y[i];
+	zt[l]=z[i];
       }
       
+      l++;
     }
     
     if( (param->nConst>0) && (k==0) )
     {
+      
+      if(parallel->nProc>1)
+      {
+	update_double_para(param,parallel,x,buffer);
+	update_double_para(param,parallel,y,buffer);
+	update_double_para(param,parallel,z,buffer);
+      }
+      
 // Apply constraint with Shake algorithm.
       
-//       lf_shake(atom,simulCond,constList,dd,box,&virshakt,strest);
-      lf_shake(param,box,constList,x,y,z,ddx,ddy,ddz,rmass,nAparallel->tConst,strest,&virshakt);
+      lf_shake(param,box,constList,parallel,y,z,ddx,ddy,ddz,rmass,nAtConst,strest,&virshakt);
       
       virshake+=virshakt;
       for(i=0;i<6;i++)
 	stress[i]+=strest[i];
       
+      l=0;
       #ifdef _OPENMP
       #pragma omp parallel for default(none) shared(xt,yt,zt,vxu,vyu,vzu,param,atom,rts2) private(i)
       #endif
@@ -1055,31 +1040,34 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
         
 // Corrected velocities
       
-	vxu[i]+=(x[i]-xt[i])*param->rTimeStep;
-	vyu[i]+=(y[i]-yt[i])*param->rTimeStep;
-	vzu[i]+=(z[i]-zt[i])*param->rTimeStep;
+	vxu[i]+=(x[i]-xt[l])*param->rTimeStep;
+	vyu[i]+=(y[i]-yt[l])*param->rTimeStep;
+	vzu[i]+=(z[i]-zt[l])*param->rTimeStep;
       
 // Corrected Forces
       
-	fx[i]+=(x[i]-xt[i])*mass[i]*rts2;
-	fy[i]+=(y[i]-yt[i])*mass[i]*rts2;
-	fz[i]+=(z[i]-zt[i])*mass[i]*rts2;
-      
+	fx[i]+=(x[i]-xt[l])*mass[i]*rts2;
+	fy[i]+=(y[i]-yt[l])*mass[i]*rts2;
+	fz[i]+=(z[i]-zt[l])*mass[i]*rts2;
+	
+	l++;
       }
     }
     
 // calculate full timestep velocity
 
+    l=0;
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(vxo,vyo,vzo,vxu,vyu,vzu,param,atom) private(i)
     #endif
     for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
       
-      vx[i]=0.5*(vxo[i]+vxu[i]);
-      vy[i]=0.5*(vyo[i]+vyu[i]);
-      vz[i]=0.5*(vzo[i]+vzu[i]);
+      vx[i]=0.5*(vxo[l]+vxu[i]);
+      vy[i]=0.5*(vyo[l]+vyu[i]);
+      vz[i]=0.5*(vzo[l]+vzu[i]);
       
+      l++;
     }
     
 // calculate kinetic energy
@@ -1094,7 +1082,6 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   
   ener->virshake=virshake;
   
-//   stress_kinetic(atom,simulCond,stresk);
   stress_kinetic(param,vx,vy,vz,mass,stresk);
   
   box->stress1+=stress[0]+stresk[0];
@@ -1114,7 +1101,6 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   
 // periodic boundary condition
   
-//   image_update(atom,simulCond,box);
   image_update(param,box,x,y,z);
   
 // updated velocity
@@ -1131,29 +1117,25 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
   }
   
-// Free temporary arrays
+  if(parallel->nProc>1)
+  {
+    update_double_para(param,parallel,x,buffer);
+    update_double_para(param,parallel,y,buffer);
+    update_double_para(param,parallel,z,buffer);
+    
+    update_double_para(param,parallel,vx,buffer);
+    update_double_para(param,parallel,vy,buffer);
+    update_double_para(param,parallel,vz,buffer);
+    
+    if(parallel->nCtProc>0)
+    {
+      update_double_para(param,parallel,fx,buffer);
+      update_double_para(param,parallel,fy,buffer);
+      update_double_para(param,parallel,fz,buffer);
+    }
+    
+  }
   
-//   free(vxu);
-//   free(vyu);
-//   free(vzu);
-//   
-//   free(xo);
-//   free(yo);
-//   free(zo);
-//   
-//   free(vxo);
-//   free(vyo);
-//   free(vzo);
-//   
-//   if(param->nConst>0)
-//   {
-//     free(dd);
-//     
-//     free(xt);
-//     free(yt);
-//     free(zt);
-//   }
-      
 }
 
 void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
@@ -1162,30 +1144,13 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	      double *fx,double *fy,double *fz,
 	      double *mass,double *rmass,int *nAtConst)
 {
-  int i,k,ia,ib,nosecycle;
+  int i,k,l,ia,ib,nosecycle;
   double lambda,lambdb,lambdc,rts2,qmass;
   double gamma,gammb,gammc,cbrga,pmass;
-//   double *xo=NULL,*yo=NULL,*zo=NULL;
-//   double *vxo=NULL,*vyo=NULL,*vzo=NULL;
-//   double *xt=NULL,*yt=NULL,*zt=NULL;
-//   double *vxu=NULL,*vyu=NULL,*vzu=NULL;
   double volume,masst=0.,cell0[9],com[3]={0.},vom[3]={0.};
   double virshake=0.,virshakt=0.,stress[6]={0.},strest[6]={0.},stresk[6]={0.};
-//   DELTA *dd=NULL;
   
-//   vxu=(double*)my_malloc(param->nAtom*sizeof(*vxu));
-//   vyu=(double*)my_malloc(param->nAtom*sizeof(*vyu));
-//   vzu=(double*)my_malloc(param->nAtom*sizeof(*vzu));
-//   
-//   xo=(double*)my_malloc(param->nAtom*sizeof(*xo));
-//   yo=(double*)my_malloc(param->nAtom*sizeof(*yo));
-//   zo=(double*)my_malloc(param->nAtom*sizeof(*zo));
-//   
-//   vxo=(double*)my_malloc(param->nAtom*sizeof(*vxo));
-//   vyo=(double*)my_malloc(param->nAtom*sizeof(*vyo));
-//   vzo=(double*)my_malloc(param->nAtom*sizeof(*vzo));
-    
-  
+  l=0;
   #ifdef _OPENMP
   #pragma omp parallel for default(none) shared(xo,yo,zo,vxo,vyo,vzo,param,atom) private(i)
   #endif
@@ -1194,13 +1159,15 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
 // Store old coordinates and old velocities.
 
-    xo[i]=x[i];
-    yo[i]=y[i];
-    zo[i]=z[i];
+    xo[l]=x[i];
+    yo[l]=y[i];
+    zo[l]=z[i];
     
-    vxo[i]=vx[i];
-    vyo[i]=vy[i];
-    vzo[i]=vz[i];
+    vxo[l]=vx[i];
+    vyo[l]=vy[i];
+    vzo[l]=vz[i];
+    
+    l++;
     
   }
   
@@ -1220,27 +1187,24 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   
   if(param->nConst>0)
   {
-//     dd=(DELTA*)my_malloc(param->nConst*sizeof(*dd));
     
+    l=0;
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(param,atom,dd,constList) private(i,ia,ib)
     #endif
-    for(i=0;i<param->nConst;i++)
+    for(i=parallel->fConst;i<parallel->lConst;i++)
     {
       ia=constList[i].a;
       ib=constList[i].b;
       
-      ddx[i]=x[ib]-x[ia];
-      ddy[i]=y[ib]-y[ia];
-      ddz[i]=z[ib]-z[ia];
+      ddx[l]=x[ib]-x[ia];
+      ddy[l]=y[ib]-y[ia];
+      ddz[l]=z[ib]-z[ia];
+      
+      l++;
     }
     
-//     image_array(param->nConst,dd,simulCond,box);
     image_array(box,ddx,ddy,ddz,param->nConst);
-    
-//     xt=(double*)my_malloc(param->nAtom*sizeof(*xt));
-//     yt=(double*)my_malloc(param->nAtom*sizeof(*yt));
-//     zt=(double*)my_malloc(param->nAtom*sizeof(*zt));
     
   }
   
@@ -1250,7 +1214,7 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   com[0]=0.;
   com[1]=0.;
   com[2]=0.;
-  for(i=parallel->fAtom;i<parallel->lAtom;i++)
+  for(i=0;i<param->nAtom;i++)
   {
     masst+=mass[i];
     com[0]+=mass[i]*x[i];
@@ -1278,7 +1242,18 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     vz[i]+=0.5*param->timeStep*fz[i]*rmass[i];
   }
   
+  /* *************************************************
+   * This part has to be rework by improving kinetic()*/
+  
+  if(parallel->nProc>1)
+  {
+    update_double_para(param,parallel,vx,buffer);
+    update_double_para(param,parallel,vy,buffer);
+    update_double_para(param,parallel,vz,buffer);
+  }
+  
   ener->kin=kinetic(param,vx,vy,vz,mass);
+  /* **************************************************/
   
   gammb=(2.0*ener->kin - ener->virpot - virshake - 3.0*param->press0*volume)/pmass-
     bath->chiT*bath->chiP;
@@ -1300,6 +1275,7 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
 // move atoms by leapfrog algorithm
     
+    l=0;
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(xt,yt,zt,xo,yo,zo,vxo,vyo,vzo,vxu,vyu,vzu,param,atom,lambda,gamma,com,gammc) private(i)
     #endif
@@ -1308,44 +1284,52 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       
 // update velocities
       
-      vxu[i]=vxo[i]+param->timeStep*(fx[i]*rmass[i]-vx[i]*(lambda+gamma));
-      vyu[i]=vyo[i]+param->timeStep*(fy[i]*rmass[i]-vy[i]*(lambda+gamma));
-      vzu[i]=vzo[i]+param->timeStep*(fz[i]*rmass[i]-vz[i]*(lambda+gamma));
+      vxu[i]=vxo[l]+param->timeStep*(fx[i]*rmass[i]-vx[i]*(lambda+gamma));
+      vyu[i]=vyo[l]+param->timeStep*(fy[i]*rmass[i]-vy[i]*(lambda+gamma));
+      vzu[i]=vzo[l]+param->timeStep*(fz[i]*rmass[i]-vz[i]*(lambda+gamma));
       
 // update positions
       
-      x[i]=xo[i]+param->timeStep*(vxu[i]+gammc*(0.5*(x[i]+xo[i])-com[0]));
-      y[i]=yo[i]+param->timeStep*(vyu[i]+gammc*(0.5*(y[i]+yo[i])-com[1]));
-      z[i]=zo[i]+param->timeStep*(vzu[i]+gammc*(0.5*(z[i]+zo[i])-com[2]));
+      x[i]=xo[l]+param->timeStep*(vxu[i]+gammc*(0.5*(x[i]+xo[l])-com[0]));
+      y[i]=yo[l]+param->timeStep*(vyu[i]+gammc*(0.5*(y[i]+yo[l])-com[1]));
+      z[i]=zo[l]+param->timeStep*(vzu[i]+gammc*(0.5*(z[i]+zo[l])-com[2]));
       
 // Temporary storage of the uncorrected positions
       
       if(param->nConst>0)
       {
-	xt[i]=x[i];
-	yt[i]=y[i];
-	zt[i]=z[i];
+	xt[l]=x[i];
+	yt[l]=y[i];
+	zt[l]=z[i];
       }
       
+      l++;
     }
     
     if(param->nConst>0)
     {
+      
+      if(parallel->nProc>1)
+      {
+	update_double_para(param,parallel,x,buffer);
+	update_double_para(param,parallel,y,buffer);
+	update_double_para(param,parallel,z,buffer);
+      }
+      
 // Apply constraint with Shake algorithm.
       
       cbrga=exp(3.*param->timeStep*gammc);
       cbrga=cbrt(cbrga);
       
-//       scale_box(box,cbrga,cell0);
       scale_box(box,cell0,cbrga);
       
-//       lf_shake(atom,simulCond,constList,dd,box,&virshakt,strest);
-      lf_shake(param,box,constList,x,y,z,ddx,ddy,ddz,rmass,nAparallel->tConst,strest,&virshakt);
+      lf_shake(param,box,constList,parallel,x,y,z,ddx,ddy,ddz,rmass,nAtConst,strest,&virshakt);
       
       virshake+=virshakt;
       for(i=0;i<6;i++)
 	stress[i]+=strest[i];
       
+      l=0;
       #ifdef _OPENMP
       #pragma omp parallel for default(none) shared(xt,yt,zt,vxu,vyu,vzu,param,atom,rts2) private(i)
       #endif
@@ -1354,36 +1338,52 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
         
 // Corrected velocities
       
-	vxu[i]+=(x[i]-xt[i])*param->rTimeStep;
-	vyu[i]+=(y[i]-yt[i])*param->rTimeStep;
-	vzu[i]+=(z[i]-zt[i])*param->rTimeStep;
+	vxu[i]+=(x[i]-xt[l])*param->rTimeStep;
+	vyu[i]+=(y[i]-yt[l])*param->rTimeStep;
+	vzu[i]+=(z[i]-zt[l])*param->rTimeStep;
       
 // Corrected Forces
       
-	fx[i]+=(x[i]-xt[i])*mass[i]*rts2;
-	fy[i]+=(y[i]-yt[i])*mass[i]*rts2;
-	fz[i]+=(z[i]-zt[i])*mass[i]*rts2;
-      
+	fx[i]+=(x[i]-xt[l])*mass[i]*rts2;
+	fy[i]+=(y[i]-yt[l])*mass[i]*rts2;
+	fz[i]+=(z[i]-zt[l])*mass[i]*rts2;
+	
+	l++;
       }
     }
     
 // calculate full timestep velocity
-
+    
+    l=0;
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(vxo,vyo,vzo,vxu,vyu,vzu,param,atom) private(i)
     #endif
     for(i=parallel->fAtom;i<parallel->lAtom;i++)
     {
       
-      vx[i]=0.5*(vxo[i]+vxu[i]);
-      vy[i]=0.5*(vyo[i]+vyu[i]);
-      vz[i]=0.5*(vzo[i]+vzu[i]);
+      vx[i]=0.5*(vxo[l]+vxu[i]);
+      vy[i]=0.5*(vyo[l]+vyu[i]);
+      vz[i]=0.5*(vzo[l]+vzu[i]);
       
+      l++;
     }
     
 // calculate kinetic energy
+
+    /* *************************************************
+    * This part has to be rework by improving kinetic()*/
+    
+    if(parallel->nProc>1)
+    {
+      update_double_para(param,parallel,vx,buffer);
+      update_double_para(param,parallel,vy,buffer);
+      update_double_para(param,parallel,vz,buffer);
+    }
     
     ener->kin=kinetic(param,vx,vy,vz,mass);
+    /* **************************************************/
+    
+    //ener->kin=kinetic(param,vx,vy,vz,mass);
     
     gammb=(2.0*ener->kin-ener->virpot-virshake-3.0*param->press0*volume)/pmass-
       bath->chiT*bath->chiP;
@@ -1397,9 +1397,8 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 
   }
   
-  ener->virshake=virshake;
+  ener->virshake=virshake; // Has to be checked
   
-//   stress_kinetic(atom,simulCond,stresk);
   stress_kinetic(param,vx,vy,vz,mass,stresk);
   
   box->stress1+=stress[0]+stresk[0];
@@ -1415,7 +1414,6 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   cbrga=exp(3.*param->timeStep*gammc);
   cbrga=cbrt(cbrga);
   
-//   scale_box(box,cbrga,cell0);
   scale_box(box,cell0,cbrga);
   
   bath->chiT=lambdc;
@@ -1426,7 +1424,6 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   
 // periodic boundary condition
   
-//   image_update(atom,simulCond,box);
   image_update(param,box,x,y,z);
   
 // updated velocity
@@ -1446,7 +1443,7 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   vom[0]=0.;
   vom[1]=0.;
   vom[2]=0.;
-  for(i=parallel->fAtom;i<parallel->lAtom;i++)
+  for(i=0;i<param->nAtom;i++)
   {
     vom[0]+=mass[i]*vx[i];
     vom[1]+=mass[i]*vy[i];
@@ -1463,29 +1460,25 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     vz[i]-=vom[2];
   }
   
-// Free temporary arrays
+  if(parallel->nProc>1)
+  {
+    update_double_para(param,parallel,x,buffer);
+    update_double_para(param,parallel,y,buffer);
+    update_double_para(param,parallel,z,buffer);
+    
+    update_double_para(param,parallel,vx,buffer);
+    update_double_para(param,parallel,vy,buffer);
+    update_double_para(param,parallel,vz,buffer);
+    
+    if(parallel->nCtProc>0)
+    {
+      update_double_para(param,parallel,fx,buffer);
+      update_double_para(param,parallel,fy,buffer);
+      update_double_para(param,parallel,fz,buffer);
+    }
+    
+  }
   
-//   free(vxu);
-//   free(vyu);
-//   free(vzu);
-//   
-//   free(xo);
-//   free(yo);
-//   free(zo);
-//   
-//   free(vxo);
-//   free(vyo);
-//   free(vzo);
-//   
-//   if(param->nConst>0)
-//   {
-//     free(dd);
-//     
-//     free(xt);
-//     free(yt);
-//     free(zt);
-//   }
-      
 }
 
 void vv_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,BATH *bath,
@@ -1532,28 +1525,28 @@ void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *
 	    double *fx,double *fy,double *fz,
 	    double *mass,double *rmass,int *nAtConst,int stage)
 {
-  int i,ia,ib;
+  int i,l,ia,ib;
   double virshake,stress[6]={0.},stresk[6]={0.};
-//   DELTA *dd=NULL;
   
   if(param->nConst>0)
   {
-//     dd=(DELTA*)my_malloc(param->nConst*sizeof(*dd));
     
+    l=0;
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(constList,dd,param,atom) private(i,ia,ib)
     #endif
-    for(i=0;i<param->nConst;i++)
+    for(i=parallel->fConst;i<parallel->lConst;i++)
     {
       ia=constList[i].a;
       ib=constList[i].b;
       
-      ddx[i]=x[ib]-x[ia];
-      ddy[i]=y[ib]-y[ia];
-      ddz[i]=z[ib]-z[ia];
+      ddx[l]=x[ib]-x[ia];
+      ddy[l]=y[ib]-y[ia];
+      ddz[l]=z[ib]-z[ia];
+      
+      l++;
     }
     
-//     image_array(param->nConst,dd,simulCond,box);
     image_array(box,ddx,ddy,ddz,param->nConst);
     
   }
@@ -1587,13 +1580,26 @@ void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *
       
     }
     
+    if(parallel->nProc>1)
+    {
+      update_double_para(param,parallel,x,buffer);
+      update_double_para(param,parallel,y,buffer);
+      update_double_para(param,parallel,z,buffer);
+    }
+    
     if(param->nConst>0)
     {
       
+      if(parallel->nProc>1)
+      {
+	update_double_para(param,parallel,vx,buffer);
+	update_double_para(param,parallel,vy,buffer);
+	update_double_para(param,parallel,vz,buffer);
+      }
+      
 // Apply constraint with Shake algorithm.
 
-//       vv_shake_r(atom,simulCond,constList,dd,box,&virshake,stress);
-      vv_shake_r(param,box,constList,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAparallel->tConst,stress,&virshake);
+      vv_shake_r(param,box,constList,parallel,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst,stress,&virshake);
       ener->virshake=virshake;
       
     }
@@ -1601,6 +1607,14 @@ void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *
   }
   else
   {
+    
+    if(parallel->nProc>1)
+    {
+      update_double_para(param,parallel,vx,buffer);
+      update_double_para(param,parallel,vy,buffer);
+      update_double_para(param,parallel,vz,buffer);
+    }
+    
 // calculate kinetic energy
 
     if(param->nConst>0)
@@ -1608,13 +1622,12 @@ void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *
       
 // Apply constraint with Shake algorithm.
 
-      vv_shake_v(param,constList,vx,vy,vz,ddx,ddy,ddz,rmass,nAparallel->tConst);
+      vv_shake_v(param,constList,parallel,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst);
       
     }
   
     ener->kin=kinetic(param,vx,vy,vz,mass);
   
-//     stress_kinetic(atom,simulCond,stresk);
     stress_kinetic(param,vx,vy,vz,mass,stresk);
     
     box->stress1+=stress[0]+stresk[0];
@@ -1634,14 +1647,15 @@ void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *
     
 // periodic boundary condition
     
-//     image_update(atom,simulCond,box);
     image_update(param,box,x,y,z);
+    
+    if(parallel->nProc>1)
+    {
+      update_double_para(param,parallel,x,buffer);
+      update_double_para(param,parallel,y,buffer);
+      update_double_para(param,parallel,z,buffer);
+    }
   }
-  
-//   if(param->nConst>0)
-//   {
-//     free(dd);
-//   }
    
 }
 
@@ -1650,29 +1664,29 @@ void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	      double *fx,double *fy,double *fz,
 	      double *mass,double *rmass,int *nAtConst,int stage)
 {
-  int i,ia,ib;
+  int i,l,ia,ib;
   double lambda;
   double virshake,stress[6]={0.},stresk[6]={0.};
-//   DELTA *dd=NULL;
   
+  l=0;
   if(param->nConst>0)
   {
-//     dd=(DELTA*)my_malloc(param->nConst*sizeof(*dd));
     
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(constList,dd,param,atom) private(i,ia,ib)
     #endif
-    for(i=0;i<param->nConst;i++)
+    for(i=parallel->fConst;i<parallel->lConst;i++)
     {
       ia=constList[i].a;
       ib=constList[i].b;
       
-      ddx[i]=x[ib]-x[ia];
-      ddy[i]=y[ib]-y[ia];
-      ddz[i]=z[ib]-z[ia];
+      ddx[l]=x[ib]-x[ia];
+      ddy[l]=y[ib]-y[ia];
+      ddz[l]=z[ib]-z[ia];
+      
+      l++;
     }
     
-//     image_array(param->nConst,dd,simulCond,box);
     image_array(box,ddx,ddy,ddz,param->nConst);
     
   }
@@ -1706,13 +1720,26 @@ void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       
     }
     
+    if(parallel->nProc>1)
+    {
+      update_double_para(param,parallel,x,buffer);
+      update_double_para(param,parallel,y,buffer);
+      update_double_para(param,parallel,z,buffer);
+    }
+    
     if(param->nConst>0)
     {
       
+      if(parallel->nProc>1)
+      {
+	update_double_para(param,parallel,vx,buffer);
+	update_double_para(param,parallel,vy,buffer);
+	update_double_para(param,parallel,vz,buffer);
+      }
+      
 // Apply constraint with Shake algorithm.
 
-//       vv_shake_r(atom,simulCond,constList,dd,box,&virshake,stress);
-      vv_shake_r(param,box,constList,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAparallel->tConst,stress,&virshake);
+      vv_shake_r(param,box,constList,parallel,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst,stress,&virshake);
       ener->virshake=virshake;
       
     }
@@ -1720,6 +1747,14 @@ void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   }
   else
   {
+    
+    if(parallel->nProc>1)
+    {
+      update_double_para(param,parallel,vx,buffer);
+      update_double_para(param,parallel,vy,buffer);
+      update_double_para(param,parallel,vz,buffer);
+    }
+      
 // calculate kinetic energy
 
     if(param->nConst>0)
@@ -1727,8 +1762,7 @@ void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       
 // Apply constraint with Shake algorithm.
 
-//       vv_shake_v(atom,simulCond,constList,dd);
-      vv_shake_v(param,constList,vx,vy,vz,ddx,ddy,ddz,rmass,nAparallel->tConst);
+      vv_shake_v(param,constList,parallel,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst);
       
     }
   
@@ -1747,8 +1781,14 @@ void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     }
     
     ener->kin*=X2(lambda);
+    
+    if(parallel->nProc>1)
+    {
+      update_double_para(param,parallel,vx,buffer);
+      update_double_para(param,parallel,vy,buffer);
+      update_double_para(param,parallel,vz,buffer);
+    }
   
-//     stress_kinetic(atom,simulCond,stresk);
     stress_kinetic(param,vx,vy,vz,mass,stresk);
     
     box->stress1+=stress[0]+stresk[0];
@@ -1768,14 +1808,15 @@ void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
 // periodic boundary condition
     
-//     image_update(atom,simulCond,box);
     image_update(param,box,x,y,z);
+    
+    if(parallel->nProc>1)
+    {
+      update_double_para(param,parallel,x,buffer);
+      update_double_para(param,parallel,y,buffer);
+      update_double_para(param,parallel,z,buffer);
+    }
   }
-  
-//   if(param->nConst>0)
-//   {
-//     free(dd);
-//   }
    
 }
 
@@ -1784,41 +1825,30 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	      double *fx,double *fy,double *fz,
 	      double *mass,double *rmass,int *nAtConst,int stage)
 {
-  int i,ia,ib,k,nosecycle;
+  int i,l,ia,ib,k,nosecycle;
   double lambda,gamma,cbrga,volume,pp;
-//   double *xo=NULL,*yo=NULL,*zo=NULL;
-//   double *vxo=NULL,*vyo=NULL,*vzo=NULL;
   double virshake,stress[6]={0.},stresk[6]={0.};
-//   DELTA *dd=NULL;
-  
-//   xo=(double*)my_malloc(param->nAtom*sizeof(*xo));
-//   yo=(double*)my_malloc(param->nAtom*sizeof(*yo));
-//   zo=(double*)my_malloc(param->nAtom*sizeof(*zo));
-//   
-//   vxo=(double*)my_malloc(param->nAtom*sizeof(*vxo));
-//   vyo=(double*)my_malloc(param->nAtom*sizeof(*vyo));
-//   vzo=(double*)my_malloc(param->nAtom*sizeof(*vzo));
     
   volume=box->vol;
   
   if(param->nConst>0)
   {
-//     dd=(DELTA*)my_malloc(param->nConst*sizeof(*dd));
-    
+    l=0;
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(constList,dd,param,atom) private(i,ia,ib)
     #endif
-    for(i=0;i<param->nConst;i++)
+    for(i=parallel->fConst;i<parallel>lConst;i++)
     {
       ia=constList[i].a;
       ib=constList[i].b;
       
-      ddx[i]=x[ib]-x[ia];
-      ddy[i]=y[ib]-y[ia];
-      ddz[i]=z[ib]-z[ia];
+      ddx[l]=x[ib]-x[ia];
+      ddy[l]=y[ib]-y[ia];
+      ddz[l]=z[ib]-z[ia];
+      
+      l++;
     }
     
-//     image_array(param->nConst,dd,simulCond,box);
     image_array(box,ddx,ddy,ddz,param->nConst);
     
   }
@@ -1842,6 +1872,7 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
     if(param->nConst>0)
     {
+      l=0;
       #ifdef _OPENMP
       #pragma omp parallel for default(none) shared(xo,yo,zo,vxo,vyo,vzo,param,atom) private(i)
       #endif
@@ -1850,13 +1881,15 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	
     // Store old coordinates and old velocities.
 
-	xo[i]=x[i];
-	yo[i]=y[i];
-	zo[i]=z[i];
+	xo[l]=x[i];
+	yo[l]=y[i];
+	zo[l]=z[i];
 	
-	vxo[i]=vx[i];
-	vyo[i]=vy[i];
-	vzo[i]=vz[i];
+	vxo[l]=vx[i];
+	vyo[l]=vy[i];
+	vzo[l]=vz[i];
+	
+	l++;
 	
       }
     }
@@ -1893,19 +1926,33 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	
       }
       
+      if(parallel->nProc>1)
+      {
+	update_double_para(param,parallel,x,buffer);
+	update_double_para(param,parallel,y,buffer);
+	update_double_para(param,parallel,z,buffer);
+      }
+      
       if(param->nConst>0)
       {
 	
+	if(parallel->nProc>1)
+	{
+	  update_double_para(param,parallel,vx,buffer);
+	  update_double_para(param,parallel,vy,buffer);
+	  update_double_para(param,parallel,vz,buffer);
+	}
+	
   // Apply constraint with Shake algorithm.
 
-// 	vv_shake_r(atom,simulCond,constList,dd,box,&virshake,stress);
-	vv_shake_r(param,box,constList,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAparallel->tConst,stress,&virshake);
+	vv_shake_r(param,box,constList,parallel,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst,stress,&virshake);
 	ener->virshake=virshake;
 	
       }
       
       if(k<nosecycle-1)
       {
+	l=0;
 	#ifdef _OPENMP
 	#pragma omp parallel for default(none) shared(xo,yo,zo,vxo,vyo,vzo,param,atom) private(i)
 	#endif
@@ -1914,13 +1961,15 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	  
       // Store old coordinates and old velocities.
 
-	  x[i]=xo[i];
-	  y[i]=yo[i];
-	  z[i]=zo[i];
+	  x[i]=xo[l];
+	  y[i]=yo[l];
+	  z[i]=zo[l];
 	  
-	  vx[i]=vxo[i];
-	  vy[i]=vyo[i];
-	  vz[i]=vzo[i];
+	  vx[i]=vxo[l];
+	  vy[i]=vyo[l];
+	  vz[i]=vzo[l];
+	  
+	  l++;
 	  
 	}
       }
@@ -1955,20 +2004,25 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       vy[i]*=lambda;
       vz[i]*=lambda;
     }
-
+    
+    if(parallel->nProc>1)
+    {
+      update_double_para(param,parallel,vx,buffer);
+      update_double_para(param,parallel,vy,buffer);
+      update_double_para(param,parallel,vz,buffer);
+    }
+    
     if(param->nConst>0)
     {
       
 // Apply constraint with Shake algorithm.
 
-//       vv_shake_v(atom,simulCond,constList,dd);
-      vv_shake_v(param,constList,vx,vy,vz,ddx,ddy,ddz,rmass,nAparallel->tConst);
+      vv_shake_v(param,constList,parallel,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst);
       
     }
     
     ener->kin=kinetic(param,vx,vy,vz,mass);
   
-//     stress_kinetic(atom,simulCond,stresk);
     stress_kinetic(param,vx,vy,vz,mass,stresk);
     
     box->stress1+=stress[0]+stresk[0];
@@ -1988,22 +2042,15 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
 // periodic boundary condition
     
-//     image_update(atom,simulCond,box);
     image_update(param,box,x,y,z);
+    
+    if(parallel->nProc>1)
+    {
+      update_double_para(param,parallel,x,buffer);
+      update_double_para(param,parallel,y,buffer);
+      update_double_para(param,parallel,z,buffer);
+    }
   }
-  
-//   free(xo);
-//   free(yo);
-//   free(zo);
-//   
-//   free(vxo);
-//   free(vyo);
-//   free(vzo);
-//   
-//   if(param->nConst>0)
-//   {
-//     free(dd);
-//   }
    
 }
 
@@ -2012,29 +2059,29 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	      double *fx,double *fy,double *fz,
 	      double *mass,double *rmass,int *nAtConst,int stage)
 {
-  int i,ia,ib;
+  int i,l,ia,ib;
   double lambda,qmass;
   double virshake,stress[6]={0.},stresk[6]={0.};
-//   DELTA *dd=NULL;
   
+  l=0;
   if(param->nConst>0)
   {
-//     dd=(DELTA*)my_malloc(param->nConst*sizeof(*dd));
     
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(constList,dd,param,atom) private(i,ia,ib)
     #endif
-    for(i=0;i<param->nConst;i++)
+    for(i=parallel->fConst;i<parallel>lConst;i++)
     {
       ia=constList[i].a;
       ib=constList[i].b;
       
-      ddx[i]=x[ib]-x[ia];
-      ddy[i]=y[ib]-y[ia];
-      ddz[i]=z[ib]-z[ia];
+      ddx[l]=x[ib]-x[ia];
+      ddy[l]=y[ib]-y[ia];
+      ddz[l]=z[ib]-z[ia];
+      
+      l++;
     }
     
-//     image_array(param->nConst,dd,simulCond,box);
     image_array(box,ddx,ddy,ddz,param->nConst);
     
   }
@@ -2087,13 +2134,26 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       
     }
     
+    if(parallel->nProc>1)
+    {
+      update_double_para(param,parallel,x,buffer);
+      update_double_para(param,parallel,y,buffer);
+      update_double_para(param,parallel,z,buffer);
+    }
+    
     if(param->nConst>0)
     {
       
+      if(parallel->nProc>1)
+      {
+	update_double_para(param,parallel,vx,buffer);
+	update_double_para(param,parallel,vy,buffer);
+	update_double_para(param,parallel,vz,buffer);
+      }
+      
 // Apply constraint with Shake algorithm.
 
-//       vv_shake_r(atom,simulCond,constList,dd,box,&virshake,stress);
-      vv_shake_r(param,box,constList,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAparallel->tConst,stress,&virshake);
+      vv_shake_r(param,box,constList,parallel,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst,stress,&virshake);
       ener->virshake=virshake;
       
     }
@@ -2118,10 +2178,16 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     if(param->nConst>0)
     {
       
+      if(parallel->nProc>1)
+      {
+	update_double_para(param,parallel,vx,buffer);
+	update_double_para(param,parallel,vy,buffer);
+	update_double_para(param,parallel,vz,buffer);
+      }
+      
 // Apply constraint with Shake algorithm.
 
-//       vv_shake_v(atom,simulCond,constList,dd);
-      vv_shake_v(param,constList,vx,vy,vz,ddx,ddy,ddz,rmass,nAparallel->tConst);
+      vv_shake_v(param,constList,parallel,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst);
       
     }
   
@@ -2149,7 +2215,13 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
     ener->consv=ener->conint+0.5*qmass*X2(bath->chiT);
     
-//     stress_kinetic(atom,simulCond,stresk);
+    if(parallel->nProc>1)
+    {
+      update_double_para(param,parallel,vx,buffer);
+      update_double_para(param,parallel,vy,buffer);
+      update_double_para(param,parallel,vz,buffer);
+    }
+    
     stress_kinetic(param,vx,vy,vz,mass,stresk);
     
     box->stress1+=stress[0]+stresk[0];
@@ -2169,14 +2241,15 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
 // periodic boundary condition
     
-//     image_update(atom,simulCond,box);
     image_update(param,box,x,y,z);
+    
+    if(parallel->nProc>1)
+    {
+      update_double_para(param,parallel,x,buffer);
+      update_double_para(param,parallel,y,buffer);
+      update_double_para(param,parallel,z,buffer);
+    }
   }
-  
-//   if(param->nConst>0)
-//   {
-//     free(dd);
-//   }
    
 }
 
@@ -2185,23 +2258,12 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	      double *fx,double *fy,double *fz,
 	      double *mass,double *rmass,int *nAtConst,int stage)
 {
-  int i,ia,ib,k,kk,nosecycle,hoovercycle=5;
+  int i,l,ia,ib,k,kk,nosecycle,hoovercycle=5;
   double hts,chts,cqts;
   double cons0,lambda,lambda0,qmass;
   double gamma,gamma0,pmass,cbrga,scale;
-//   double *xo=NULL,*yo=NULL,*zo=NULL;
-//   double *vxo=NULL,*vyo=NULL,*vzo=NULL;
   double volume,volume0,cell0[9],masst=0.,com[3]={0.},vom[3]={0.};
   double virshake,stress[6]={0.},stresk[6]={0.};
-//   DELTA *dd=NULL;
-  
-//   xo=(double*)my_malloc(param->nAtom*sizeof(*xo));
-//   yo=(double*)my_malloc(param->nAtom*sizeof(*yo));
-//   zo=(double*)my_malloc(param->nAtom*sizeof(*zo));
-//   
-//   vxo=(double*)my_malloc(param->nAtom*sizeof(*vxo));
-//   vyo=(double*)my_malloc(param->nAtom*sizeof(*vyo));
-//   vzo=(double*)my_malloc(param->nAtom*sizeof(*vzo));
   
   hts=0.5*param->timeStep;
   chts=hts/(double)hoovercycle;
@@ -2223,7 +2285,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   volume0=box->vol;
   
   masst=0.;
-  for(i=parallel->fAtom;i<parallel->lAtom;i++)
+  for(i=0;i<param->nAtom;i++)
     masst+=mass[i];
   
   qmass=2.0*param->kinTemp0*X2(bath->tauT);
@@ -2231,8 +2293,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   
   if(param->nConst>0)
   {
-//     dd=(DELTA*)my_malloc(param->nConst*sizeof(*dd));
-    
+    l=0;
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(param,constList,dd,atom) private(i,ia,ib)
     #endif
@@ -2241,13 +2302,14 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       ia=constList[i].a;
       ib=constList[i].b;
       
-      ddx[i]=x[ib]-x[ia];
-      ddy[i]=y[ib]-y[ia];
-      ddz[i]=z[ib]-z[ia];
+      ddx[l]=x[ib]-x[ia];
+      ddy[l]=y[ib]-y[ia];
+      ddz[l]=z[ib]-z[ia];
+      
+      l++;
     }
     
-//     image_array(param->nConst,dd,simulCond,box);
-    image_array(box,ddx,ddy,ddz,param->nConst);
+    image_array(box,ddx,ddy,ddz,parallel->tConst);
     
   }
   
@@ -2258,6 +2320,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     gamma0=bath->chiP;
     cons0=ener->conint;
     
+    l=0;
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(param,xo,yo,zo,vxo,vyo,vzo,atom) private(i)
     #endif
@@ -2266,14 +2329,15 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       
   // Store old coordinates and old velocities.
 
-      xo[i]=x[i];
-      yo[i]=y[i];
-      zo[i]=z[i];
+      xo[l]=x[i];
+      yo[l]=y[i];
+      zo[l]=z[i];
       
-      vxo[i]=vx[i];
-      vyo[i]=vy[i];
-      vzo[i]=vz[i];
+      vxo[l]=vx[i];
+      vyo[l]=vy[i];
+      vzo[l]=vz[i];
       
+      l++;
     }
     
     if( (stage==1) && (param->nConst>0) )
@@ -2341,6 +2405,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	
       // apply nvt
 	
+	/**************** check **************/
 	ener->kin=kinetic(param,vx,vy,vz,mass);
 	
 	bath->chiT+=0.5*cqts*(2.0*(ener->kin-param->kinTemp0)+
@@ -2370,7 +2435,6 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       }
       
       scale=cbrt(volume/volume0);
-//       scale_box(box,scale,cell0);
       scale_box(box,cell0,scale);
       
       #ifdef _OPENMP
@@ -2388,7 +2452,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       com[0]=0.;
       com[1]=0.;
       com[2]=0.;
-      for(i=parallel->fAtom;i<parallel->lAtom;i++)
+      for(i=0;i<param->nAtom;i++)
       {
 	com[0]+=mass[i]*x[i];
 	com[1]+=mass[i]*y[i];
@@ -2412,14 +2476,27 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	z[i]=cbrga*(z[i]-com[2])+param->timeStep*vz[i]+com[2];
 	
       }
+      
+      if(parallel->nProc>1)
+      {
+	update_double_para(param,parallel,x,buffer);
+	update_double_para(param,parallel,y,buffer);
+	update_double_para(param,parallel,z,buffer);
+      }
     
       if(param->nConst>0)
       {
 	
+	if(parallel->nProc>1)
+	{
+	  update_double_para(param,parallel,vx,buffer);
+	  update_double_para(param,parallel,vy,buffer);
+	  update_double_para(param,parallel,vz,buffer);
+	}
+	
   // Apply constraint with Shake algorithm.
 
-// 	vv_shake_r(atom,simulCond,constList,dd,box,&virshake,stress);
-	vv_shake_r(param,box,constList,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAparallel->tConst,stress,&virshake);
+	vv_shake_r(param,box,constList,parallel,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst,stress,&virshake);
 	ener->virshake=virshake;
 	
       }
@@ -2431,6 +2508,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	bath->chiP=gamma0;
 	ener->conint=cons0;
 	
+	l=0;
 	#ifdef _OPENMP
 	#pragma omp parallel for default(none) shared(xo,yo,zo,vxo,vyo,vzo,atom,param) private(i)
 	#endif
@@ -2439,13 +2517,15 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	  
       // Store old coordinates and old velocities.
 
-	  xo[i]=x[i];
-	  yo[i]=y[i];
-	  zo[i]=z[i];
+	  xo[l]=x[i];
+	  yo[l]=y[i];
+	  zo[l]=z[i];
 	  
-	  vxo[i]=vx[i];
-	  vyo[i]=vy[i];
-	  vzo[i]=vz[i];
+	  vxo[l]=vx[i];
+	  vyo[l]=vy[i];
+	  vzo[l]=vz[i];
+	  
+	  l++;
 	  
 	}
 	
@@ -2471,10 +2551,16 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     if(param->nConst>0)
     {
       
+      if(parallel->nProc>1)
+      {
+	update_double_para(param,parallel,vx,buffer);
+	update_double_para(param,parallel,vy,buffer);
+	update_double_para(param,parallel,vz,buffer);
+      }
+      
 // Apply constraint with Shake algorithm.
 
-//       vv_shake_v(atom,simulCond,constList,dd);
-      vv_shake_v(param,constList,vx,vy,vz,ddx,ddy,ddz,rmass,nAparallel->tConst);
+      vv_shake_v(param,constList,parallel,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst);
       
     }
     
@@ -2535,6 +2621,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       
     // apply nvt
       
+      /*************** check *******************/
       ener->kin=kinetic(param,vx,vy,vz,mass);
       
       bath->chiT+=0.5*cqts*(2.0*(ener->kin-param->kinTemp0)+
@@ -2566,7 +2653,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     vom[0]=0.;
     vom[1]=0.;
     vom[2]=0.;
-    for(i=parallel->fAtom;i<parallel->lAtom;i++)
+    for(i=0;i<param->nAtom;i++)
     {
       vom[0]+=mass[i]*vx[i];
       vom[1]+=mass[i]*vy[i];
@@ -2583,15 +2670,20 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       vz[i]-=vom[2];
     }
     
+    if(parallel->nProc>1)
+    {
+      update_double_para(param,parallel,vx,buffer);
+      update_double_para(param,parallel,vy,buffer);
+      update_double_para(param,parallel,vz,buffer);
+    }
+    
     scale=cbrt(volume/volume0);
-//     scale_box(box,scale,cell0);
     scale_box(box,cell0,scale);
     
     ener->consv=ener->conint+param->press0*volume+0.5*(qmass*X2(bath->chiT)+pmass*X2(bath->chiP));
     
     ener->kin=kinetic(param,vx,vy,vz,mass);
     
-//     stress_kinetic(atom,simulCond,stresk);
     stress_kinetic(param,vx,vy,vz,mass,stresk);
     
     box->stress1+=stress[0]+stresk[0];
@@ -2611,21 +2703,14 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
 // periodic boundary condition
     
-//     image_update(atom,simulCond,box);
     image_update(param,box,x,y,z);
+    
+    if(parallel->nProc>1)
+    {
+      update_double_para(param,parallel,x,buffer);
+      update_double_para(param,parallel,y,buffer);
+      update_double_para(param,parallel,z,buffer);
+    }
   }
-  
-//   free(xo);
-//   free(yo);
-//   free(zo);
-//   
-//   free(vxo);
-//   free(vyo);
-//   free(vzo);
-//   
-//   if(param->nConst>0)
-//   {
-//     free(dd);
-//   }
    
 }

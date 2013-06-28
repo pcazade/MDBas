@@ -35,6 +35,7 @@
 #include "io.h"
 #include "errors.h"
 #include "memory.h"
+#include "parallel.h"
 
 #if (defined TIMING && defined __unix__ && !defined __STRICT_ANSI__)
 #define TIMER
@@ -72,7 +73,7 @@ void lf_shake(PARAM *param,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
 	      double ddx[],double ddy[],double ddz[],double rmass[],
 	      int *nAtConst,double stress[6],double *virshake)
 {
-  int i,ia,ib,icycle,converged;
+  int i,l,ia,ib,icycle,converged;
   double ts2,maxdist,dist;
   double lambda,lambdai,lambdaj,t2rmi,t2rmj,nia,nib;
   
@@ -95,25 +96,33 @@ void lf_shake(PARAM *param,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
   {
     maxdist=0.;
     
-    for(i=0;i<param->nConst;i++)
+    l=0;
+    for(i=parallel->fConst;i<parallel->lConst;i++)
     {
       ia=constList[i].a;
       ib=constList[i].b;
       
-      dtx[i]=x[ib]-x[ia];
-      dty[i]=y[ib]-y[ia];
-      dtz[i]=z[ib]-z[ia];
+      dtx[l]=x[ib]-x[ia];
+      dty[l]=y[ib]-y[ia];
+      dtz[l]=z[ib]-z[ia];
       
-      rt2[i]=dist2(box,&(dtx[i]),&(dty[i]),&(dtz[i]));
+      rt2[l]=dist2(box,&(dtx[l]),&(dty[l]),&(dtz[l]));
       
-      dist=fabs(rt2[i]-constList[i].rc2)/sqrt(constList[i].rc2);
+      dist=fabs(rt2[l]-constList[i].rc2)/sqrt(constList[i].rc2);
       maxdist=MAX(maxdist,dist);
+      
+      l++;
     }
     
     maxdist=0.5*maxdist;
     
     if(maxdist<param->tolShake)
       converged=1;
+    
+    if(parallel->nProc>1)
+    {
+      sum_double_para(converged);
+    }
     
     if(!converged)
     {
@@ -124,7 +133,8 @@ void lf_shake(PARAM *param,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
 	zt[i]=0.;
       }
       
-      for(i=0;i<param->nConst;i++)
+      l=0;
+      for(i=parallel->fConst;i<parallel->lConst;i++)
       {
 	ia=constList[i].a;
 	ib=constList[i].b;
@@ -132,46 +142,62 @@ void lf_shake(PARAM *param,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
 	t2rmi=ts2*rmass[ia];
 	t2rmj=ts2*rmass[ib];
 	
-	lambda=-(constList[i].rc2-rt2[i])/(2.*(t2rmi+t2rmj)*
-	  ((ddx[i]*dtx[i])+(ddy[i]*dty[i])+(ddz[i]*dtz[i])));
+	lambda=-(constList[i].rc2-rt2[l])/(2.*(t2rmi+t2rmj)*
+	  ((ddx[l]*dtx[l])+(ddy[l]*dty[l])+(ddz[l]*dtz[l])));
 	
-	*virshake+=lambda*(X2(ddx[i])+X2(ddy[i])+X2(ddz[i]));
+	*virshake+=lambda*(X2(ddx[l])+X2(ddy[l])+X2(ddz[l]));
 	
-	stress[0]-=lambda*X2(ddx[i]);
-	stress[1]-=lambda*ddx[i]*ddy[i];
-	stress[2]-=lambda*ddx[i]*ddz[i];
-	stress[3]-=lambda*X2(ddy[i]);
-	stress[4]-=lambda*ddy[i]*ddz[i];
-	stress[5]-=lambda*X2(ddz[i]);
+	stress[0]-=lambda*X2(ddx[l]);
+	stress[1]-=lambda*ddx[l]*ddy[l];
+	stress[2]-=lambda*ddx[l]*ddz[l];
+	stress[3]-=lambda*X2(ddy[l]);
+	stress[4]-=lambda*ddy[l]*ddz[l];
+	stress[5]-=lambda*X2(ddz[l]);
 	
 	lambdai=lambda*t2rmi;
-	xt[ia]+=ddx[i]*lambdai;
-	yt[ia]+=ddy[i]*lambdai;
-	zt[ia]+=ddz[i]*lambdai;
+	xt[ia]+=ddx[l]*lambdai;
+	yt[ia]+=ddy[l]*lambdai;
+	zt[ia]+=ddz[l]*lambdai;
             
 	lambdaj=-lambda*t2rmj;
-	xt[ib]+=ddx[i]*lambdaj;
-	yt[ib]+=ddy[i]*lambdaj;
-	zt[ib]+=ddz[i]*lambdaj;
+	xt[ib]+=ddx[l]*lambdaj;
+	yt[ib]+=ddy[l]*lambdaj;
+	zt[ib]+=ddz[l]*lambdaj;
+	
+	l++;
 	
       }
       
-      for(i=0;i<param->nConst;i++)
+      if(parallel->nProc>1)
       {
-	ia=constList[i].a;
-	ib=constList[i].b;
-	
-	nia=1.0/(double)nAtConst[ia];
-	nib=1.0/(double)nAtConst[ib];
-	
-	x[ia]+=xt[ia]*nia;
-	y[ia]+=yt[ia]*nia;
-	z[ia]+=zt[ia]*nia;
-	
-	x[ib]+=xt[ib]*nib;
-	y[ib]+=yt[ib]*nib;
-	z[ib]+=zt[ib]*nib;
-	
+	sum_double_para(xt,buffer,param->nAtom);
+	sum_double_para(yt,buffer,param->nAtom);
+	sum_double_para(zt,buffer,param->nAtom);
+      }
+      
+//       for(i=parallel->fConst;i<parallel->lConst;i++)
+//       {
+// 	ia=constList[i].a;
+// 	ib=constList[i].b;
+// 	
+// 	nia=1.0/(double)nAtConst[ia];
+// 	nib=1.0/(double)nAtConst[ib];
+// 	
+// 	x[ia]+=xt[ia]*nia;
+// 	y[ia]+=yt[ia]*nia;
+// 	z[ia]+=zt[ia]*nia;
+// 	
+// 	x[ib]+=xt[ib]*nib;
+// 	y[ib]+=yt[ib]*nib;
+// 	z[ib]+=zt[ib]*nib;
+// 	
+//       }
+      
+      for(i=parallel->fAtom;i<parallel->lAtom;i++)
+      {
+	x[i]+=xt[i];
+	y[i]+=yt[i];
+	z[i]+=zt[i];
       }
       
     }
@@ -179,6 +205,15 @@ void lf_shake(PARAM *param,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
     icycle++;
     
   }while( (!converged) && (icycle<param->maxCycle) );
+  
+  if(parallel->nProc>1)
+  {
+    buffer[0]=virshake;
+    sum_double_para(buffer,&(buffer[1]),1);
+    virshake=buffer[0];
+    
+    sum_double_para(stress,buffer,6);
+  }
   
   if(!converged)
     my_error(CONVERG_SHAKE_ERROR,__FILE__,__LINE__,0);
