@@ -111,9 +111,13 @@ int main(int argc, char* argv[])
   double *q,*mass,*rmass;
   double *eps,*sig,*eps14,*sig14;
   
+  double *dBuffer;
+  
   int *frozen,*nAtConst;
   int *neighOrder,*neighList,*neighPair,*neighList14;
   int **exclList,*exclPair;
+  
+  int *iBuffer;
   
   /** End of structures declarations. */
   

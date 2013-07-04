@@ -302,13 +302,18 @@ typedef struct
 {
   int nProc,idProc;
   
+  int maxAtProc,maxCtProc;
+  int maxBdProc,maxAgProc;
+  int maxUbProc,maxDiProc;
+  int maxImProc;
+  
   int nAtProc,nCtProc;
   int nBdProc,nAgProc;
   int nUbProc,nDiProc;
   int nImProc;
   
-  int fAtom,lAtom,tAtom;
-  int fConst,lConst,tConst;
+  int fAtProc,lAtProc;
+  int fCtProc,lCtProc;
   
   int buffSize;
 }PARALLEL;

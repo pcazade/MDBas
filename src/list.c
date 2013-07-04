@@ -36,6 +36,7 @@
 #include "io.h"
 #include "list.h"
 #include "errors.h"
+#include "parallel.h"
 
 #if (defined TIMING && defined __unix__ && !defined __STRICT_ANSI__)
 #define TIMER
@@ -48,7 +49,7 @@ extern FILE *outFile;
 
 int *counter;
 
-void makelist(CTRL *ctrl,PARAM *param,PBC *box,NEIGH *neigh,CONSTRAINT constList[],
+void makelist(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,CONSTRAINT constList[],
 	      BOND bond[],ANGLE angle[],DIHE dihe[],DIHE impr[],double x[], double y[],
 	      double z[],int frozen[],int ***neighList,int **neighPair,int **neighList14,
 	      int ***exclList,int **exclPair)
@@ -102,7 +103,7 @@ void makelist(CTRL *ctrl,PARAM *param,PBC *box,NEIGH *neigh,CONSTRAINT constList
       exclude_list(ctrl,param,neigh,constList,bond,angle,dihe,impr,
 		   neighList14,exclList,exclPair);
       
-      counter=(int*)my_malloc(parallel->nAtProc*sizeof(*counter));
+      counter=(int*)my_malloc(parallel->maxAtProc*sizeof(*counter));
       
       init_verlet_list(param,box,neigh,x,y,z,frozen,neighList,neighPair,
 		       *exclList,*exclPair);
@@ -123,7 +124,7 @@ void makelist(CTRL *ctrl,PARAM *param,PBC *box,NEIGH *neigh,CONSTRAINT constList
       link_cell_verlet_list(param,box,neigh,x,y,z,frozen,neighList,*neighPair,
 			    *exclList,*exclPair);
     }
-    elspectra.shse
+    else
     {
       verlet_list(param,box,neigh,x,y,z,frozen,neighList,*neighPair,
 			 *exclList,*exclPair);
@@ -132,7 +133,7 @@ void makelist(CTRL *ctrl,PARAM *param,PBC *box,NEIGH *neigh,CONSTRAINT constList
   }
 }
 
-void exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT constList[],
+void exclude_list(CTRL *ctrl,PARAM *param,PARALLEL *parallel,NEIGH *neigh,CONSTRAINT constList[],
 		  BOND bond[],ANGLE angle[],DIHE dihe[],DIHE impr[],
 		  int **neighList14,int ***exclList,int **exclPair)
 {
@@ -795,14 +796,14 @@ void exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT constList[],
   
   int parallel->idProc=my_proc();
   int hnAtom,hm1nAtom;
-  int exclAtom;
+  int exclAtProc;
   
   hnAtom=param->nAtom/2;
   hm1nAtom=(param->nAtom-1)/2;
   
-  *exclPair=(int*)my_malloc(parallel->nAtProc*sizeof(**exclPair));
+  *exclPair=(int*)my_malloc(parallel->maxAtProc*sizeof(**exclPair));
   
-  *exclList=(int**)my_malloc((parallel->nAtProc)*sizeof(**exclList));
+  *exclList=(int**)my_malloc((parallel->maxAtProc)*sizeof(**exclList));
   
   if(ctrl->keyLink)
   {
@@ -814,9 +815,9 @@ void exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT constList[],
       jj=0;
       for(j=0;j<tmpPair[i];j++)
       {
-	exclAtom=tempAtom[i][j];
+	exclAtProc=tempAtom[i][j];
 	
-	(*exclList)[ii][jj]=exclAtom;
+	(*exclList)[ii][jj]=exclAtProc;
 	
 	jj++;
       }
@@ -836,14 +837,14 @@ void exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT constList[],
       jj=0;
       for(j=0;j<tmpPair[i];j++)
       {
-	exclAtom=tempAtom[i][j];
+	exclAtProc=tempAtom[i][j];
 	
 	if(
-	    ( ( exclAtom>i ) && ( (exclAtom-i) < hnAtom ) ) ||
-	    ( ( exclAtom<i ) && ( (exclAtom-i+param->nAtom) < hm1nAtom ) )
+	    ( ( exclAtProc>i ) && ( (exclAtProc-i) < hnAtom ) ) ||
+	    ( ( exclAtProc<i ) && ( (exclAtProc-i+param->nAtom) < hm1nAtom ) )
 	  )
 	{
-	  (*exclList)[ii][jj]=exclAtom;
+	  (*exclList)[ii][jj]=exclAtProc;
 	  
 	  if(jj>0)
 	  {
@@ -851,9 +852,9 @@ void exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT constList[],
 	    {
 	      if((*exclList)[ii][k]<(*exclList)[ii][k-1])
 	      {
-		exclAtom=(*exclList)[ii][k];
+		exclAtProc=(*exclList)[ii][k];
 		(*exclList)[ii][k]=(*exclList)[ii][k-1];
-		(*exclList)[ii][k-1]=exclAtom;
+		(*exclList)[ii][k-1]=exclAtProc;
 	      }
 	    }
 	  }
@@ -871,14 +872,14 @@ void exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT constList[],
       {
 	if((*exclList)[ii][0]<i)
 	{
-	  exclAtom=(*exclList)[ii][0];
+	  exclAtProc=(*exclList)[ii][0];
 	  
 	  for(kk=0;kk<(*exclPair)[ii]-1;kk++)
 	  {
 	    (*exclList)[ii][kk]=(*exclList)[ii][kk+1];
 	  }
 	  
-	  (*exclList)[ii][(*exclPair)[ii]]=exclAtom;
+	  (*exclList)[ii][(*exclPair)[ii]]=exclAtProc;
 	}
       }
       ii++;
@@ -890,7 +891,7 @@ void exclude_list(CTRL *ctrl,PARAM *param,NEIGH *neigh,CONSTRAINT constList[],
 
 }
 
-void init_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
+void init_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
 		      int frozen[],int ***neighList,int **neighPair,int **exclList,
 		      int exclPair[])
 {
@@ -901,22 +902,21 @@ void init_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double y[],d
   cutnb2=param->cutOff+param->delr;
   cutnb2=X2(cutnb2);
   
-  int parallel->idProc=my_proc();
   int hnAtom,hm1nAtom;
   
   latm=param->nAtom;
   hnAtom=param->nAtom/2;
   hm1nAtom=(param->nAtom-1)/2;
   
-  *neighPair=(int*)my_malloc(parallel->nAtProc*sizeof(**neighPair));
-  for(i=0;i<parallel->nAtProc;i++)
+  *neighPair=(int*)my_malloc(parallel->maxAtProc*sizeof(**neighPair));
+  for(i=0;i<parallel->maxAtProc;i++)
     (*neighPair)[i]=0;
   
 #ifdef TIMER
   update_timer_begin(TIMER_VERLET_BUILD,__func__);
 #endif
   
-  for(i=0;i<parallel->nAtProc;i++)
+  for(i=0;i<parallel->maxAtProc;i++)
   {
     counter[i]=0;
   }
@@ -966,7 +966,7 @@ void init_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double y[],d
   }
   
   neigh->sizeList=0;
-  for(i=0;i<parallel->nAtProc;i++)
+  for(i=0;i<parallel->maxAtProc;i++)
   {
     if((*neighPair)[i]>neigh->sizeList)
       neigh->sizeList=(*neighPair)[i];
@@ -974,8 +974,8 @@ void init_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double y[],d
   
   neigh->sizeList=(int)(neigh->sizeList*(1.+2.*TOLLIST))+1;
 
-  *neighList=(int**)my_malloc(parallel->nAtProc*sizeof(**neighList));
-  for(i=0;i<parallel->nAtProc;i++)
+  *neighList=(int**)my_malloc(parallel->maxAtProc*sizeof(**neighList));
+  for(i=0;i<parallel->maxAtProc;i++)
   {
     (*neighList)[i]=(int*)my_malloc(neigh->sizeList*sizeof(***neighList));
   }
@@ -986,9 +986,9 @@ void init_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double y[],d
   
 }
 
-void verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
-			int frozen[],int ***neighList,int neighPair[],int **exclList,
-			int exclPair[])
+void verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
+		 int frozen[],int ***neighList,int neighPair[],int **exclList,
+		 int exclPair[])
 {
   int i,ii,j,k,l,m,latm;
   int exclude;
@@ -997,14 +997,13 @@ void verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double y[],double
   cutnb2=param->cutOff+param->delr;
   cutnb2=X2(cutnb2);
   
-  int parallel->idProc=my_proc();
   int hnAtom,hm1nAtom;
   
   latm=param->nAtom;
   hnAtom=param->nAtom/2;
   hm1nAtom=(param->nAtom-1)/2;
   
-  for(i=0;i<parallel->nAtProc;i++)
+  for(i=0;i<parallel->maxAtProc;i++)
   {
     counter[i]=0;
     neighPair[i]=0;
@@ -1051,7 +1050,7 @@ void verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double y[],double
 	      neigh->sizeList=(int)(neigh->sizeList*(1.+TOLLIST))+1;
 	      fprintf(outFile," to %d.\n",neigh->sizeList);
 	      
-	      for(l=0;l<parallel->nAtProc;l++)
+	      for(l=0;l<parallel->maxAtProc;l++)
 	      {
 		(*neighList)[l]=(int*)realloc((*neighList)[l],neigh->sizeList*sizeof(***neighList));
 	      }
@@ -1069,7 +1068,7 @@ void verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double y[],double
 
 }
 
-void init_link_cell_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
+void init_link_cell_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
 				int frozen[],int ***neighList,int **neighPair,int **exclList,
 				int exclPair[])
 {
@@ -1138,8 +1137,6 @@ void init_link_cell_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],do
   int ix,iy,iz,jx,jy,jz;
   double r2,cutnb,cutnb2,dnlcx,dnlcy,dnlcz;
   double cx,cy,cz,xt,yt,zt,xd,yd,zd,*xu,*yu,*zu;
-  
-  int parallel->idProc=my_proc();
   
 #ifdef TIMER
   update_timer_begin(TIMER_LNKCEL_BUILD,__func__);
@@ -1246,8 +1243,8 @@ void init_link_cell_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],do
     
   }//end for
   
-  *neighPair=(int*)my_malloc(parallel->nAtProc*sizeof(**neighPair));
-  for(i=0;i<parallel->nAtProc;i++)
+  *neighPair=(int*)my_malloc(parallel->maxAtProc*sizeof(**neighPair));
+  for(i=0;i<parallel->maxAtProc;i++)
     (*neighPair)[i]=0;
   
   ix=0;
@@ -1393,7 +1390,7 @@ void init_link_cell_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],do
   }//for ncells
   
   neigh->sizeList=0;
-  for(i=0;i<parallel->nAtProc;i++)
+  for(i=0;i<parallel->maxAtProc;i++)
   {
     if((*neighPair)[i]>neigh->sizeList)
       neigh->sizeList=(*neighPair)[i];
@@ -1401,8 +1398,8 @@ void init_link_cell_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],do
   
   neigh->sizeList=(int)((double)neigh->sizeList*(1.+2.*TOLLIST))+1;
   
-  *neighList=(int**)my_malloc(parallel->nAtProc*sizeof(**neighList));
-  for(i=0;i<parallel->nAtProc;i++)
+  *neighList=(int**)my_malloc(parallel->maxAtProc*sizeof(**neighList));
+  for(i=0;i<parallel->maxAtProc;i++)
   {
     (*neighList)[i]=(int*)my_malloc(neigh->sizeList*sizeof(***neighList));
   }
@@ -1420,7 +1417,7 @@ void init_link_cell_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],do
   
 }
 
-void link_cell_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
+void link_cell_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
 			   int frozen[],int ***neighList,int neighPair[],int **exclList,
 			   int exclPair[])
 {
@@ -1489,8 +1486,6 @@ void link_cell_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double 
   int ix,iy,iz,jx,jy,jz;
   double r2,cutnb,cutnb2,dnlcx,dnlcy,dnlcz;
   double cx,cy,cz,xt,yt,zt,xd,yd,zd,*xu,*yu,*zu;
-  
-  int parallel->idProc=my_proc();
   
 #ifdef TIMER
   update_timer_begin(TIMER_LNKCEL_UPDATE,__func__);
@@ -1712,7 +1707,7 @@ void link_cell_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double 
 			neigh->sizeList=(int)(neigh->sizeList*(1.+TOLLIST))+1;
 			fprintf(outFile," to %d.\n",neigh->sizeList);
 			
-			for(ilist=0;ilist<parallel->nAtProc;ilist++)
+			for(ilist=0;ilist<parallel->maxAtProc;ilist++)
 			{
 			  (*neighList)[ilist]=(int*)realloc((*neighList)[ilist],neigh->sizeList*sizeof(***neighList));
 			}
@@ -1771,7 +1766,7 @@ void link_cell_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double 
 
 }
 
-void fast_verlet_list(PARAM *param,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
+void fast_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
 		      int frozen[],int ***neighList,int **neighPair,int **neighOrder,
 		      int **exclList,int exclPair[])
 {

@@ -27,6 +27,7 @@
 #include "global.h"
 #include "utils.h"
 #include "spme.h"
+#include "parallel.h"
 
 typedef double complex cplx;
 
@@ -41,8 +42,6 @@ static double **bsd1,**bsd2,**bsd3;
 static cplx *bspc1,*bspc2,*bspc3;
 static cplx *epl1,*epl2,*epl3;
 
-static int parallel->idProc,parallel->fAtom,parallel->lAtom,parallel->tAtom;
-
 static double *buf1,*buf2;
 
 #ifdef FFTW
@@ -53,18 +52,12 @@ static fftw_plan fft3d2;
 static cplx *ftqsp;
 #endif
 
-void init_spme(CTRL *ctrl,PARAM *param,EWALD *ewald,PBC *box)
+void init_spme(CTRL *ctrl,PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box)
 {
   
   int i,m1maxp2,m2maxp2,m3maxp2;
   
   newJob=1;
-  
-  parallel->idProc=my_proc();
-  
-  parallel->fAtom=(parallel->idProc*param->nAtom)/parallel->nProc;
-  parallel->lAtom=((parallel->idProc+1)*param->nAtom)/parallel->nProc;
-  parallel->tAtom=parallel->lAtom-parallel->fAtom;
   
   ewald->prec=fmin( fabs( ewald->prec ) , 0.5 );
   ewald->tol=sqrt( fabs( log( ewald->prec * param->cutOff ) ) );
@@ -305,7 +298,7 @@ void bspgen(PARAM *param,EWALD *ewald)
   int i,j,k;
   double tsx,tsy,tsz;
   
-  for(i=parallel->fAtom;i<parallel->lAtom;i++)
+  for(i=parallel->fAtProc;i<parallel->lAtProc;i++)
   {
     
     bsd1[i][0]=1.0;
@@ -329,7 +322,7 @@ void bspgen(PARAM *param,EWALD *ewald)
   for(k=2;k<ewald->nbsp;k++)
   {
     
-    for(i=parallel->fAtom;i<parallel->lAtom;i++)
+    for(i=parallel->fAtProc;i<parallel->lAtProc;i++)
     {
       bsp1[i][k]=0.0;
       bsp2[i][k]=0.0;
@@ -341,7 +334,7 @@ void bspgen(PARAM *param,EWALD *ewald)
     
       if( k == (ewald->nbsp-1) )
       {
-	for(i=parallel->fAtom;i<parallel->lAtom;i++)
+	for(i=parallel->fAtProc;i<parallel->lAtProc;i++)
 	{
 	  bsd1[i][j]=bsp1[i][j]-bsp1[i][j-1];
 	  bsd2[i][j]=bsp2[i][j]-bsp2[i][j-1];
@@ -349,7 +342,7 @@ void bspgen(PARAM *param,EWALD *ewald)
 	}
       }
       
-      for(i=parallel->fAtom;i<parallel->lAtom;i++)
+      for(i=parallel->fAtProc;i<parallel->lAtProc;i++)
       {
 	tsx=sx[i]+(double)j-(int)sx[i];
 	tsy=sy[i]+(double)j-(int)sy[i];
@@ -364,7 +357,7 @@ void bspgen(PARAM *param,EWALD *ewald)
     
     if( k == (ewald->nbsp-1) )
     {
-      for(i=parallel->fAtom;i<parallel->lAtom;i++)
+      for(i=parallel->fAtProc;i<parallel->lAtProc;i++)
       {
 	bsd1[i][0]=bsp1[i][0];
 	bsd2[i][0]=bsp2[i][0];
@@ -372,7 +365,7 @@ void bspgen(PARAM *param,EWALD *ewald)
       }
     }
     
-    for(i=parallel->fAtom;i<parallel->lAtom;i++)
+    for(i=parallel->fAtProc;i<parallel->lAtProc;i++)
     {
       tsx=sx[i]-(int)sx[i];
       tsy=sy[i]-(int)sy[i];
@@ -413,7 +406,7 @@ double spme_energy(PARAM *param,EWALD *ewald,PBC *box,const double x[],const dou
     systq=0.;
     eEwaldself=0.;
     
-    for(i=parallel->fAtom;i<parallel->lAtom;i++)
+    for(i=parallel->fAtProc;i<parallel->lAtProc;i++)
     { 
       systq+=q[i];
       eEwaldself+=X2(q[i]);
@@ -473,7 +466,7 @@ double spme_energy(PARAM *param,EWALD *ewald,PBC *box,const double x[],const dou
   recCutOff2=X2(recCutOff);
   
 //   Address atoms to the cells of the mesh [0...mimax]
-  for(i=parallel->fAtom;i<parallel->lAtom;i++)
+  for(i=parallel->fAtProc;i<parallel->lAtProc;i++)
   {
     sx[i]=(double)ewald->m1max*(x[i]*box->u1+y[i]*box->u2+z[i]*box->u3+0.5);
     sy[i]=(double)ewald->m2max*(x[i]*box->v1+y[i]*box->v2+z[i]*box->v3+0.5);
@@ -488,7 +481,7 @@ double spme_energy(PARAM *param,EWALD *ewald,PBC *box,const double x[],const dou
     qsp[i]=0.0;
   
 //   Fill charge array Q(k1,k2,k3)
-  for(l=parallel->fAtom;l<parallel->lAtom;l++)
+  for(l=parallel->fAtProc;l<parallel->lAtProc;l++)
   {
     for(i=0;i<ewald->nbsp;i++)
     {
@@ -636,7 +629,7 @@ double spme_energy(PARAM *param,EWALD *ewald,PBC *box,const double x[],const dou
   
   fact1=-2.0*rVol*param->chargeConst;
   
-  for(l=parallel->fAtom;l<parallel->lAtom;l++)
+  for(l=parallel->fAtProc;l<parallel->lAtProc;l++)
   { 
     for(i=0;i<ewald->nbsp;i++)
     {
@@ -695,7 +688,7 @@ double spme_energy(PARAM *param,EWALD *ewald,PBC *box,const double x[],const dou
   fm[1]=0.0;
   fm[2]=0.0;
   
-  for(l=parallel->fAtom;l<Last;l++)
+  for(l=parallel->fAtProc;l<Last;l++)
   {
     fm[0]+=fx[l];
     fm[1]+=fy[l];
@@ -708,7 +701,7 @@ double spme_energy(PARAM *param,EWALD *ewald,PBC *box,const double x[],const dou
   fm[1]/=(double)param->nAtom;
   fm[2]/=(double)param->nAtom;
   
-  for(l=parallel->fAtom;l<parallel->lAtom;l++)
+  for(l=parallel->fAtProc;l<parallel->lAtProc;l++)
   {
     fx[l]-=fm[0];
     fy[l]-=fm[1];

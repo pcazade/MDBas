@@ -64,6 +64,8 @@ void init_system(int argc, char* argv[],IO *inout,CTRL *ctrl,PARAM *param,PARALL
   /** Initialization of the simulation starts here. */
   
   init_para(int *argc, char ***argv,param);
+  parallel->idProc=my_proc();
+  parallel->nProc=num_proc();
   
   init_rand(time(NULL));
   
@@ -73,38 +75,41 @@ void init_system(int argc, char* argv[],IO *inout,CTRL *ctrl,PARAM *param,PARALL
   
   strcpy(inout->simuName,"SIMU");
   
-  i=1;
-  while(i<argc)
+  if(parallel->idProc==0)
   {
+    i=1;
+    while(i<argc)
+    {
+      
+      if(!strcmp(argv[i],"-i"))
+      {
+	strcpy(inout->simuName,argv[++i]);
+      }
+      else if (!strcmp(argv[i],"-o"))
+      {
+	strcpy(outName,argv[++i]);
+      }
+      else if (!strcmp(argv[i],"--help"))
+      {
+	printf("%s [-i input_file] [-o output_file] [--help]\n",argv[0]);
+	exit(0);
+      }
+      else
+	  my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
+      
+      i++;
+    }
     
-    if(!strcmp(argv[i],"-i"))
+    outFile=fopen(outName,"w");
+    if(outFile==NULL)
     {
-      strcpy(inout->simuName,argv[++i]);
+      outFile=stdout;
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
     }
-    else if (!strcmp(argv[i],"-o"))
-    {
-      strcpy(outName,argv[++i]);
-    }
-    else if (!strcmp(argv[i],"--help"))
-    {
-      printf("%s [-i input_file] [-o output_file] [--help]\n",argv[0]);
-      exit(0);
-    }
-    else
-        my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
     
-    i++;
+    read_SIMU(inout,ctrl,param,bath,neigh,ewald,box);
+    fprintf(outFile,"%s file read\n",inout->simuName);
   }
-    
-  outFile=fopen(outName,"w");
-  if(outFile==NULL)
-  {
-    outFile=stdout;
-    my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
-  }
-  
-  read_SIMU(inout,ctrl,param,bath,neigh,ewald,box);
-  fprintf(outFile,"%s file read\n",inout->simuName);
   
   #ifdef TIMER
   /** create timers **/
@@ -189,6 +194,12 @@ void init_system(int argc, char* argv[],IO *inout,CTRL *ctrl,PARAM *param,PARALL
   
   fprintf(outFile,"Setup done\n");
   
+  if(parallel->nProc>1)
+    setup_para(ctrl,param,parallel,ener,bath,neigh,ewald,box,atom,constList,
+	       bond,angle,dihe,impr,ub,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,q,
+	       eps,sig,eps14,sig14,frozen,nAtConst,neighList,neighPair,neighList14,
+	       exclList,exclPair);
+  
   get_kinfromtemp(param,box);
   
   init_box(box);
@@ -203,25 +214,31 @@ void init_system(int argc, char* argv[],IO *inout,CTRL *ctrl,PARAM *param,PARALL
   if(ctrl->keyEwald==1)
   {
     init_ewald(ctrl,param,ewald,box);
-    fprintf(outFile,"\n");
-    fprintf(outFile,"Ewald Sum requested for coulombic interaction.\n\n");
-    fprintf(outFile,"Ewald percision: %e\n",ewald->prec);
-    fprintf(outFile,"Ewald gaussian width: %lf\n",ewald->alpha);
-    fprintf(outFile,"Ewald wavevectors: %d %d %d\n",ewald->m1max,ewald->m2max,ewald->m3max);
-    fprintf(outFile,"Ewald maximum wavevectors: %d\n\n",ewald->mmax);
+    if(parallel->idProc==0)
+    {
+      fprintf(outFile,"\n");
+      fprintf(outFile,"Ewald Sum requested for coulombic interaction.\n\n");
+      fprintf(outFile,"Ewald percision: %e\n",ewald->prec);
+      fprintf(outFile,"Ewald gaussian width: %lf\n",ewald->alpha);
+      fprintf(outFile,"Ewald wavevectors: %d %d %d\n",ewald->m1max,ewald->m2max,ewald->m3max);
+      fprintf(outFile,"Ewald maximum wavevectors: %d\n\n",ewald->mmax);
+    }
   }
   else if(ctrl->keyEwald==2)
   {
     init_spme(ctrl,param,ewald,box);
-    fprintf(outFile,"\n");
-    fprintf(outFile,"Ewald Sum requested for coulombic interaction.\n\n");
-    fprintf(outFile,"The Smooth Particle-Mesh Ewald is used to calculate\n");
-    fprintf(outFile,"the reciprocal space contibution.\n\n");
-    fprintf(outFile,"B-splines order: %d\n",ewald->nbsp);
-    fprintf(outFile,"Ewald percision: %e\n",ewald->prec);
-    fprintf(outFile,"Ewald gaussian width: %lf\n",ewald->alpha);
-    fprintf(outFile,"Ewald wavevectors: %d %d %d\n",ewald->m1max,ewald->m2max,ewald->m3max);
-    fprintf(outFile,"Ewald maximum wavevectors: %d\n\n",ewald->mmax);
+    if(parallel->idProc==0)
+    {
+      fprintf(outFile,"\n");
+      fprintf(outFile,"Ewald Sum requested for coulombic interaction.\n\n");
+      fprintf(outFile,"The Smooth Particle-Mesh Ewald is used to calculate\n");
+      fprintf(outFile,"the reciprocal space contibution.\n\n");
+      fprintf(outFile,"B-splines order: %d\n",ewald->nbsp);
+      fprintf(outFile,"Ewald percision: %e\n",ewald->prec);
+      fprintf(outFile,"Ewald gaussian width: %lf\n",ewald->alpha);
+      fprintf(outFile,"Ewald wavevectors: %d %d %d\n",ewald->m1max,ewald->m2max,ewald->m3max);
+      fprintf(outFile,"Ewald maximum wavevectors: %d\n\n",ewald->mmax);
+    }
   }
   
   /** Initialization of the simulation ends here. */
@@ -259,17 +276,9 @@ void init_system(int argc, char* argv[],IO *inout,CTRL *ctrl,PARAM *param,PARALL
   
   if(ctrl->keyTraj)
   {
-    write_DCD_header(inout,ctrl,param,box,*frozen);
+    if(parallel->idProc==0)
+      write_DCD_header(inout,ctrl,param,box,*frozen);
   }
-  
-  parallel->nProc=num_proc();
-  parallel->nAtProc=(param->nAtom     + parallel->nProc-1)/parallel->nProc;
-  parallel->nCtProc=(param->nConst    + parallel->nProc-1)/parallel->nProc;
-  parallel->nBdProc=(param->nBond     + parallel->nProc-1)/parallel->nProc;
-  parallel->nAgProc=(param->nAngle    + parallel->nProc-1)/parallel->nProc;
-  parallel->nUbProc=(param->nUb       + parallel->nProc-1)/parallel->nProc;
-  parallel->nDiProc=(param->nDihedral + parallel->nProc-1)/parallel->nProc;
-  parallel->nImProc=(param->nImproper + parallel->nProc-1)/parallel->nProc;
   
   /** allocate arrays for integrators and for shake **/
   integrators_allocate_arrays(ctrl,param);

@@ -39,6 +39,7 @@
 #include "io.h"
 #include "errors.h"
 #include "memory.h"
+#include "parallel.h"
 
 #ifdef _OPENMP
 #undef _OPENMP
@@ -519,16 +520,21 @@ void box_to_crystal(const PBC *box,double crystal[6])
  *
  * \return On return, the kinetic energy : \f$ 1/2*m*v^2 \f$
  */
-double kinetic(const PARAM *param, const double vx[], const double vy[],
-	       const double vz[],const double mass[])
+double kinetic(const PARAM *param, const PARALLEL *parallel,const double vx[],
+	       const double vy[],const double vz[],const double mass[],double *dBuffer)
 {
   int i;
   double ekin;
   
   ekin=0.;
-  for(i=0;i<param->nAtom;i++)
+  for(i=parallel->fAtProc;i<parallel->lAtProc;i++)
   {
     ekin+=mass[i]*(X2(vx[i])+X2(vy[i])+X2(vz[i]));
+  }
+  
+  if(parallel->nProc>1)
+  {
+    sum_double_para(ekin,dBuffer,1);
   }
   
   return ( ekin*0.5 );

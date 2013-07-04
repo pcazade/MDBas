@@ -47,17 +47,17 @@ void bond_energy(const PARAM *param,ENERGY *ener,const PBC *box,const BOND bond[
   double delta[3]/*,stress[6]={0.}*/;
   
   int parallel->idProc=my_proc();
-  int parallel->fAtom,parallel->lAtom,parallel->tAtom;
+  int parallel->fAtProc,parallel->lAtProc,parallel->nAtProc;
   
-  parallel->fAtom=(parallel->idProc*param->nBond)/parallel->nProc;
-  parallel->lAtom=((parallel->idProc+1)*param->nBond)/parallel->nProc;
-  parallel->tAtom=parallel->lAtom-parallel->fAtom;
+  parallel->fAtProc=(parallel->idProc*param->nBond)/parallel->nProc;
+  parallel->lAtProc=((parallel->idProc+1)*param->nBond)/parallel->nProc;
+  parallel->nAtProc=parallel->lAtProc-parallel->fAtProc;
   
 #ifdef TIMER
   update_timer_begin(TIMER_ENERGY_BOND,__func__);
 #endif
   
-  for(ll=parallel->fAtom;ll<parallel->lAtom;ll++)
+  for(ll=parallel->fAtProc;ll<parallel->lAtProc;ll++)
   {
     
     i=bond[ll].a;
@@ -139,17 +139,17 @@ void ub_energy(const PARAM *param,ENERGY *ener,const PBC *box,const BOND ub[],co
   double delta[3]/*,stress[6]={0.}*/;
   
   int parallel->idProc=my_proc();
-  int parallel->fAtom,parallel->lAtom,parallel->tAtom;
+  int parallel->fAtProc,parallel->lAtProc,parallel->nAtProc;
   
-  parallel->fAtom=(parallel->idProc*param->nUb)/parallel->nProc;
-  parallel->lAtom=((parallel->idProc+1)*param->nUb)/parallel->nProc;
-  parallel->tAtom=parallel->lAtom-parallel->fAtom;
+  parallel->fAtProc=(parallel->idProc*param->nUb)/parallel->nProc;
+  parallel->lAtProc=((parallel->idProc+1)*param->nUb)/parallel->nProc;
+  parallel->nAtProc=parallel->lAtProc-parallel->fAtProc;
   
 #ifdef TIMER
   update_timer_begin(TIMER_ENERGY_UB,__func__);
 #endif
   
-  for(ll=parallel->fAtom;ll<parallel->lAtom;ll++)
+  for(ll=parallel->fAtProc;ll<parallel->lAtProc;ll++)
   {
     i=ub[ll].a;
     j=ub[ll].b;
@@ -213,17 +213,17 @@ void angle_energy(const PARAM *param,ENERGY *ener,const PBC *box,const ANGLE ang
   double fxa,fya,fza,fxc,fyc,fzc;
   
   int parallel->idProc=my_proc();
-  int parallel->fAtom,parallel->lAtom,parallel->tAtom;
+  int parallel->fAtProc,parallel->lAtProc,parallel->nAtProc;
   
-  parallel->fAtom=(parallel->idProc*param->nAngle)/parallel->nProc;
-  parallel->lAtom=((parallel->idProc+1)*param->nAngle)/parallel->nProc;
-  parallel->tAtom=parallel->lAtom-parallel->fAtom;
+  parallel->fAtProc=(parallel->idProc*param->nAngle)/parallel->nProc;
+  parallel->lAtProc=((parallel->idProc+1)*param->nAngle)/parallel->nProc;
+  parallel->nAtProc=parallel->lAtProc-parallel->fAtProc;
   
 #ifdef TIMER
   update_timer_begin(TIMER_ENERGY_ANGL,__func__);
 #endif
   
-  for(ll=parallel->fAtom;ll<parallel->lAtom;ll++)
+  for(ll=parallel->fAtProc;ll<parallel->lAtProc;ll++)
   {
     
     i=angle[ll].a;
@@ -307,17 +307,17 @@ void dihedral_energy(const PARAM *param,ENERGY *ener,const PBC *box,const DIHE d
   double fax,fay,faz,fbx,fby,fbz,fcx,fcy,fcz,fdx,fdy,fdz;
   
   int parallel->idProc=my_proc();
-  int parallel->fAtom,parallel->lAtom,parallel->tAtom;
+  int parallel->fAtProc,parallel->lAtProc,parallel->nAtProc;
   
-  parallel->fAtom=(parallel->idProc*param->nDihedral)/parallel->nProc;
-  parallel->lAtom=((parallel->idProc+1)*param->nDihedral)/parallel->nProc;
-  parallel->tAtom=parallel->lAtom-parallel->fAtom;
+  parallel->fAtProc=(parallel->idProc*param->nDihedral)/parallel->nProc;
+  parallel->lAtProc=((parallel->idProc+1)*param->nDihedral)/parallel->nProc;
+  parallel->nAtProc=parallel->lAtProc-parallel->fAtProc;
   
 #ifdef TIMER
   update_timer_begin(TIMER_ENERGY_DIHE,__func__);
 #endif
   
-  for(ll=parallel->fAtom;ll<parallel->lAtom;ll++)
+  for(ll=parallel->fAtProc;ll<parallel->lAtProc;ll++)
   {
     i=dihe[ll].a;
     j=dihe[ll].b;
@@ -485,17 +485,17 @@ void improper_energy(const PARAM *param,ENERGY *ener,const PBC *box,const DIHE i
   double fax,fay,faz,fbx,fby,fbz,fcx,fcy,fcz,fdx,fdy,fdz;
   
   int parallel->idProc=my_proc();
-  int parallel->fAtom,parallel->lAtom,parallel->tAtom;
+  int parallel->fAtProc,parallel->lAtProc,parallel->nAtProc;
   
-  parallel->fAtom=(parallel->idProc*param->nImproper)/parallel->nProc;
-  parallel->lAtom=((parallel->idProc+1)*param->nImproper)/parallel->nProc;
-  parallel->tAtom=parallel->lAtom-parallel->fAtom;
+  parallel->fAtProc=(parallel->idProc*param->nImproper)/parallel->nProc;
+  parallel->lAtProc=((parallel->idProc+1)*param->nImproper)/parallel->nProc;
+  parallel->nAtProc=parallel->lAtProc-parallel->fAtProc;
   
 #ifdef TIMER
   update_timer_begin(TIMER_ENERGY_UB,__func__);
 #endif
   
-  for(ll=parallel->fAtom;ll<parallel->lAtom;ll++)
+  for(ll=parallel->fAtProc;ll<parallel->lAtProc;ll++)
   {
     i=impr[ll].a;
     j=impr[ll].b;
