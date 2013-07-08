@@ -175,7 +175,7 @@ int main(int argc, char* argv[])
     steepestDescent(&ctrl,&param,&ener,&box,&neigh,atom,bond,ub,angle,dihe,impr,x,y,z,fx,fy,fz);
     
     makelist(&ctrl,&param,&box,&neigh,constList,bond,angle,dihe,impr,x,y,z,frozen,
-	     &neighList,&neighPair,&neighOrder,&neighList14,&exclList,&exclPair);
+	     &neighList,&neighPair,&neighList14,&exclList,&exclPair);
     
     init_vel(&param,&box,constList,x,y,z,vx,vy,vz,mass,rmass,frozen,nAtConst);
   }

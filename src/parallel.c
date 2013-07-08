@@ -48,7 +48,7 @@ int my_proc()
   
   int idProc,err;
   
-  err=MPI_Comm_rank(MPI_COMM_WORLD,&parallel->idProc);
+  err=MPI_Comm_rank(MPI_COMM_WORLD,&idProc);
   
   if(err!=MPI_SUCCESS)
     mpi_error(err,__FILE__,__LINE__);
@@ -130,20 +130,424 @@ void update_double_para(PARAM *param,PARALLEL *parallel,double *buf1,double *buf
 
 void test_para(int *buf1)
 {
-  int test1,test2,err;
+  int test,err;
   
-  test1=0;
-  
-  if(!*buf1)
-    test1=1;
-  
-  err=MPI_Allreduce(&test1,&test2,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
+  err=MPI_Allreduce(buf1,&test,1,MPI_INT,MPI_LAND,MPI_COMM_WORLD);
   
   if(err!=MPI_SUCCESS)
     mpi_error(err,__FILE__,__LINE__);
   
-  if(test2==0)
-    *buf1=1;
+    *buf1=test;
+  
+}
+
+void bcast_int_para(int *buf1,int size,int iNode)
+{
+  int err;
+  
+  err=MPI_Bcast(&buf1,size,MPI_INT,iNode,MPI_COMM_WORLD);
+  
+  if(err!=MPI_SUCCESS)
+    mpi_error(err,__FILE__,__LINE__);
+  
+}
+
+void bcast_double_para(double *buf1,int size,int iNode)
+{
+  int err;
+  
+  err=MPI_Bcast(&buf1,size,MPI_DOUBLE,iNode,MPI_COMM_WORLD);
+  
+  if(err!=MPI_SUCCESS)
+    mpi_error(err,__FILE__,__LINE__);
+  
+}
+
+void bcast_param_para(PARAM *param,PARALLEL *parallel,double *dBuffer,int *iBuffer)
+{
+  
+  if(parallel->idProc==0)
+  {
+    iBuffer[0]=param->step;
+    iBuffer[1]=param->nSteps;
+    iBuffer[2]=param->nAtom;
+    iBuffer[3]=param->nDegFree;
+    iBuffer[4]=param->nFrozen;
+    iBuffer[5]=param->nBond;
+    iBuffer[6]=param->nAngle;
+    iBuffer[7]=param->nUb;
+    iBuffer[8]=param->nDihedral;
+    iBuffer[9]=param->nImproper;
+    iBuffer[10]=param->nConst;
+    iBuffer[11]=param->maxCycle;
+    
+    dBuffer[0]=param->timeStep;
+    dBuffer[1]=param->rTimeStep;
+    dBuffer[2]=param->chargeConst;
+    dBuffer[3]=param->tolShake;
+    dBuffer[4]=param->scal14;
+    dBuffer[5]=param->cutOff;
+    dBuffer[6]=param->rcutOff;
+    dBuffer[7]=param->delr;
+    dBuffer[8]=param->cutOff2;
+    dBuffer[9]=param->rcutOff2;
+    dBuffer[10]=param->cutOn;
+    dBuffer[11]=param->cutOn2;
+    dBuffer[12]=param->switch2;
+    dBuffer[13]=param->temp0;
+    dBuffer[14]=param->press0;
+    dBuffer[15]=param->kinTemp0;
+  }
+  
+  bcast_int_para(iBuffer,12,0);
+  bcast_double_para(dBuffer,16,0);
+  
+  if(parallel->idProc>0)
+  {
+    param->step=iBuffer[0];
+    param->nSteps=iBuffer[1];
+    param->nAtom=iBuffer[2];
+    param->nDegFree=iBuffer[3];
+    param->nFrozen=iBuffer[4];
+    param->nBond=iBuffer[5];
+    param->nAngle=iBuffer[6];
+    param->nUb=iBuffer[7];
+    param->nDihedral=iBuffer[8];
+    param->nImproper=iBuffer[9];
+    param->nConst=iBuffer[10];
+    param->maxCycle=iBuffer[11];
+    
+    param->timeStep=dBuffer[0];
+    param->rTimeStep=dBuffer[1];
+    param->chargeConst=dBuffer[2];
+    param->tolShake=dBuffer[3];
+    param->scal14=dBuffer[4];
+    param->cutOff=dBuffer[5];
+    param->rcutOff=dBuffer[6];
+    param->delr=dBuffer[7];
+    param->cutOff2=dBuffer[8];
+    param->rcutOff2=dBuffer[9];
+    param->cutOn=dBuffer[10];
+    param->cutOn2=dBuffer[11];
+    param->switch2=dBuffer[12];
+    param->temp0=dBuffer[13];
+    param->press0=dBuffer[14];
+    param->kinTemp0=dBuffer[15];
+  }
+   
+}
+
+void bcast_ctrl_para(CTRL *ctrl,PARALLEL *parallel,int *iBuffer)
+{
+  
+  if(parallel->idProc==0)
+  {
+    iBuffer[0]=ctrl->newjob;
+    iBuffer[1]=ctrl->keyRand;
+    iBuffer[2]=ctrl->keyTraj;
+    iBuffer[3]=ctrl->keyProp;
+    iBuffer[4]=ctrl->keyForF;
+    iBuffer[5]=ctrl->keyRest;
+    iBuffer[6]=ctrl->printOut;
+    iBuffer[7]=ctrl->printProp;
+    iBuffer[8]=ctrl->printTraj;
+    iBuffer[9]=ctrl->printRest;
+    iBuffer[10]=ctrl->keyMd;
+    iBuffer[11]=ctrl->mdType;
+    iBuffer[12]=ctrl->seed;
+    iBuffer[13]=ctrl->keyMinim;
+    iBuffer[14]=ctrl->keyLink;
+    iBuffer[15]=ctrl->noLink;
+    iBuffer[16]=ctrl->keyConstH;
+    iBuffer[17]=ctrl->keyNb14;
+    iBuffer[18]=ctrl->keyNumForce;
+    iBuffer[19]=ctrl->keyEwald;
+    iBuffer[20]=ctrl->keyAlpha;
+    iBuffer[21]=ctrl->keyMmax;
+    iBuffer[22]=ctrl->elecType;
+    iBuffer[23]=ctrl->vdwType;
+    iBuffer[24]=ctrl->integrator;
+    iBuffer[25]=ctrl->ens;
+  }
+  
+  bcast_int_para(iBuffer,26,0);
+  
+  if(parallel->idProc>0)
+  {
+    ctrl->newjob=iBuffer[0];
+    ctrl->keyRand=iBuffer[1];
+    ctrl->keyTraj=iBuffer[2];
+    ctrl->keyProp=iBuffer[3];
+    ctrl->keyForF=iBuffer[4];
+    ctrl->keyRest=iBuffer[5];
+    ctrl->printOut=iBuffer[6];
+    ctrl->printProp=iBuffer[7];
+    ctrl->printTraj=iBuffer[8];
+    ctrl->printRest=iBuffer[9];
+    ctrl->keyMd=iBuffer[10];
+    ctrl->mdType=iBuffer[11];
+    ctrl->seed=iBuffer[12];
+    ctrl->keyMinim=iBuffer[13];
+    ctrl->keyLink=iBuffer[14];
+    ctrl->noLink=iBuffer[15];
+    ctrl->keyConstH=iBuffer[16];
+    ctrl->keyNb14=iBuffer[17];
+    ctrl->keyNumForce=iBuffer[18];
+    ctrl->keyEwald=iBuffer[19];
+    ctrl->keyAlpha=iBuffer[20];
+    ctrl->keyMmax=iBuffer[21];
+    ctrl->elecType=iBuffer[22];
+    ctrl->vdwType=iBuffer[23];
+    ctrl->integrator=iBuffer[24];
+    ctrl->ens=iBuffer[25];
+  }
+   
+}
+
+void bcast_bath_para(BATH *bath,PARALLEL *parallel,double *dBuffer)
+{
+  
+  if(parallel->idProc==0)
+  {
+    dBuffer[0]=bath->tauT;
+    dBuffer[1]=bath->tauP;
+    dBuffer[2]=bath->compress;
+  }
+  
+  bcast_double_para(dBuffer,3,0);
+  
+  if(parallel->idProc>0)
+  {
+    bath->tauT=dBuffer[0];
+    bath->tauP=dBuffer[1];
+    bath->compress=dBuffer[2];
+  }
+   
+}
+
+void bcast_pbc_para(PBC *box,PARALLEL *parallel,double *dBuffer)
+{
+  int boxType;
+  
+  if(parallel->idProc==0)
+  {
+    boxType=box->type;
+    
+    dBuffer[0]=box->a1;
+    dBuffer[1]=box->a2;
+    dBuffer[2]=box->a3;
+    
+    dBuffer[3]=box->b1;
+    dBuffer[4]=box->b2;
+    dBuffer[5]=box->b3;
+    
+    dBuffer[6]=box->c1;
+    dBuffer[7]=box->c2;
+    dBuffer[8]=box->c3;
+    
+  }
+  
+  bcast_int_para(&boxType,1,0);
+  bcast_double_para(dBuffer,9,0);
+  
+  if(parallel->idProc>0)
+  {
+    box->type=boxType;
+    
+    box->a1=dBuffer[0];
+    box->a2=dBuffer[1];
+    box->a3=dBuffer[2];
+    
+    box->b1=dBuffer[3];
+    box->b2=dBuffer[4];
+    box->b3=dBuffer[5];
+    
+    box->c1=dBuffer[6];
+    box->c2=dBuffer[7];
+    box->c3=dBuffer[8];
+  }
+   
+}
+
+void bcast_neigh_para(NEIGH *neigh,PARALLEL *parallel,int *iBuffer)
+{
+  
+  if(parallel->idProc==0)
+  {
+    iBuffer[0]=neigh->update;
+    iBuffer[1]=neigh->linkRatio;
+  }
+  
+  bcast_int_para(iBuffer,2,0);
+  
+  if(parallel->idProc>0)
+  {
+    neigh->update=iBuffer[0];
+    neigh->linkRatio=iBuffer[1];
+  }
+   
+}
+
+void bcast_ewald_para(EWALD *ewald,PARALLEL *parallel,int *iBuffer,double *dBuffer)
+{
+  
+  if(parallel->idProc==0)
+  {
+    iBuffer[0]=ewald->nbsp;
+    iBuffer[1]=ewald->mmax;
+    iBuffer[2]=ewald->m1max;
+    iBuffer[3]=ewald->m2max;
+    iBuffer[4]=ewald->m3max;
+    
+    dBuffer[0]=ewald->prec;
+    dBuffer[1]=ewald->tol;
+    dBuffer[2]=ewald->tol1;
+    dBuffer[3]=ewald->alpha;
+  }
+  
+  bcast_int_para(iBuffer,5,0);
+  bcast_double_para(dBuffer,5,0);
+  
+  if(parallel->idProc>0)
+  {
+    ewald->nbsp=iBuffer[0];
+    ewald->mmax=iBuffer[1];
+    ewald->m1max=iBuffer[2];
+    ewald->m2max=iBuffer[3];
+    ewald->m3max=iBuffer[4];
+    
+    ewald->prec=dBuffer[0];
+    ewald->tol=dBuffer[1];
+    ewald->tol1=dBuffer[2];
+    ewald->alpha=dBuffer[3];
+  }
+  
+}
+
+void bcast_bond_para(BOND *bond,PARALLEL *parallel,int *iBuffer,double *dBuffer,int size)
+{
+  int idx;
+  
+  if(parallel->idProc==0)
+  {
+    idx=0;
+    for(int i=0;i<size;i++)
+    {
+      iBuffer[idx]=bond[i].type;
+      dBuffer[idx++]=bond[i].k;
+      
+      iBuffer[idx]=bond[i].a;
+      dBuffer[idx++]=bond[i].r0;
+      
+      iBuffer[idx]=bond[i].b;
+      dBuffer[idx++]=bond[i].beta;
+    }
+  }
+  
+  bcast_int_para(iBuffer,3*size,0);
+  bcast_double_para(dBuffer,3*size,0);
+  
+  if(parallel->idProc>0)
+  {
+    idx=0;
+    for(int i=0;i<size;i++)
+    {
+      bond[i].type=iBuffer[idx];
+      bond[i].k=dBuffer[idx++];
+      
+      bond[i].a=iBuffer[idx];
+      bond[i].r0=dBuffer[idx++];
+      
+      bond[i].b=iBuffer[idx];
+      bond[i].beta=dBuffer[idx++];
+    }
+  }
+  
+}
+
+void bcast_angle_para(ANGLE *angle,PARALLEL *parallel,int *iBuffer,double *dBuffer,int size)
+{
+  int idx1,idx2;
+  
+  if(parallel->idProc==0)
+  {
+    idx1=0;
+    idx2=0;
+    for(int i=0;i<size;i++)
+    {
+      iBuffer[idx1++]=angle[i].a;
+      iBuffer[idx1++]=angle[i].b;
+      iBuffer[idx1++]=angle[i].c;
+      
+      dBuffer[idx2++]=angle[i].k;
+      dBuffer[idx2++]=angle[i].theta0;
+    }
+  }
+  
+  bcast_int_para(iBuffer,3*size,0);
+  bcast_double_para(dBuffer,2*size,0);
+  
+  if(parallel->idProc>0)
+  {
+    idx1=0;
+    idx2=0;
+    for(int i=0;i<size;i++)
+    {
+      angle[i].a=iBuffer[idx1++];
+      angle[i].b=iBuffer[idx1++];
+      angle[i].c=iBuffer[idx1++];
+      
+      angle[i].k=dBuffer[idx2++];
+      angle[i].theta0=dBuffer[idx2++];
+    }
+  }
+  
+}
+
+void bcast_dihe_para(DIHE *dihe,PARALLEL *parallel,int *iBuffer,double *dBuffer,int size)
+{
+  int idx1,idx2;
+  
+  if(parallel->idProc==0)
+  {
+    idx1=0;
+    idx2=0;
+    for(int i=0;i<size;i++)
+    {
+      iBuffer[idx1++]=dihe[i].type;
+      iBuffer[idx1++]=dihe[i].order;
+      iBuffer[idx1++]=dihe[i].a;
+      iBuffer[idx1++]=dihe[i].b;
+      iBuffer[idx1++]=dihe[i].c;
+      iBuffer[idx1++]=dihe[i].d;
+      
+      dBuffer[idx2++]=dihe[i].k;
+      dBuffer[idx2++]=dihe[i].phi0;
+      dBuffer[idx2++]=dihe[i].mult;
+    }
+  }
+  
+  bcast_int_para(iBuffer,6*size,0);
+  bcast_double_para(dBuffer,3*size,0);
+  
+  if(parallel->idProc>0)
+  {
+    idx1=0;
+    idx2=0;
+    for(int i=0;i<size;i++)
+    {
+      dihe[i].type=iBuffer[idx1++];
+      dihe[i].order=iBuffer[idx1++];
+      dihe[i].a=iBuffer[idx1++];
+      dihe[i].b=iBuffer[idx1++];
+      dihe[i].c=iBuffer[idx1++];
+      dihe[i].d=iBuffer[idx1++];
+      
+      dihe[i].k=dBuffer[idx2++];
+      dihe[i].phi0=dBuffer[idx2++];
+      dihe[i].mult=dBuffer[idx2++];
+    }
+  }
   
 }
 
@@ -154,8 +558,20 @@ void setup_para(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,
 		double **fy, double **fz,double **mass,double **rmass,double **q,
 		double **eps,double **sig,double **eps14,double **sig14,int **frozen,
 		int **nAtConst,int **neighList,int **neighPair,int **neighList14,
-		int ***exclList,int **exclPair)
+		int ***exclList,int **exclPair,double *dBuffer,int *iBuffer)
 {
+    
+  bcast_param_para(param,parallel,dBuffer,iBuffer);
+  
+  bcast_ctrl_para(ctrl,parallel,iBuffer);
+  
+  bcast_bath_para(bath,parallel,dBuffer);
+  
+  bcast_pbc_para(box,parallel,dBuffer);
+  
+  bcast_neigh_para(neigh,parallel,iBuffer);
+  
+  bcast_ewald_para(ewald,parallel,iBuffer,dBuffer);
   
   parallel->maxAtProc=(param->nAtom     + parallel->nProc-1)/parallel->nProc;
   parallel->maxCtProc=(param->nConst    + parallel->nProc-1)/parallel->nProc;
@@ -167,11 +583,31 @@ void setup_para(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,
   
   parallel->fAtProc=(parallel->idProc*param->nAtom)/parallel->nProc;
   parallel->lAtProc=((parallel->idProc+1)*param->nAtom)/parallel->nProc;
-  parallel->nAtProc=parallel->lAtProc-parallel->fAtProc;
+  parallel->nAtProc=parallel->lAtProc-parallel->fAtProc+1;
   
   parallel->fCtProc=(parallel->idProc*param->nConst)/parallel->nProc;
   parallel->lCtProc=((parallel->idProc+1)*param->nConst)/parallel->nProc;
-  parallel->nCtProc=parallel->lCtProc-parallel->fCtProc;
+  parallel->nCtProc=parallel->lCtProc-parallel->fCtProc+1;
+  
+  parallel->fBdProc=(parallel->idProc*param->nBond)/parallel->nProc;
+  parallel->lBdProc=((parallel->idProc+1)*param->nBond)/parallel->nProc;
+  parallel->nBdProc=parallel->lBdProc-parallel->fBdProc+1;
+  
+  parallel->fAgProc=(parallel->idProc*param->nAngle)/parallel->nProc;
+  parallel->lAgProc=((parallel->idProc+1)*param->nAngle)/parallel->nProc;
+  parallel->nAgProc=parallel->lAgProc-parallel->fAgProc+1;
+  
+  parallel->fUbProc=(parallel->idProc*param->nUb)/parallel->nProc;
+  parallel->lUbProc=((parallel->idProc+1)*param->nUb)/parallel->nProc;
+  parallel->nUbProc=parallel->lUbProc-parallel->fUbProc+1;
+  
+  parallel->fDhProc=(parallel->idProc*param->nDihedral)/parallel->nProc;
+  parallel->lDhProc=((parallel->idProc+1)*param->nDihedral)/parallel->nProc;
+  parallel->nDhProc=parallel->lDhProc-parallel->fDhProc+1;
+  
+  parallel->fIpProc=(parallel->idProc*param->nImproper)/parallel->nProc;
+  parallel->lIpProc=((parallel->idProc+1)*param->nImproper)/parallel->nProc;
+  parallel->nIpProc=parallel->lIpProc-parallel->fIpProc+1;
   
   if(parallel->idProc>0)
   {
@@ -220,6 +656,38 @@ void setup_para(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,
     if(param->nImproper>0)
       *impr=(DIHE*)my_malloc(param->nImproper*sizeof(DIHE));
   }
+  
+  bcast_double_para(*x,param->nAtom,0);
+  bcast_double_para(*y,param->nAtom,0);
+  bcast_double_para(*z,param->nAtom,0);
+  
+  bcast_double_para(*vx,param->nAtom,0);
+  bcast_double_para(*vy,param->nAtom,0);
+  bcast_double_para(*vz,param->nAtom,0);
+  
+  bcast_double_para(*q,param->nAtom,0);
+  
+  bcast_double_para(*mass,param->nAtom,0);
+  bcast_double_para(*rmass,param->nAtom,0);
+  
+  bcast_double_para(*eps,param->nAtom,0);
+  bcast_double_para(*sig,param->nAtom,0);
+  bcast_double_para(*eps14,param->nAtom,0);
+  bcast_double_para(*sig14,param->nAtom,0);
+  
+  bcast_int_para(*frozen,param->nAtom,0);
+  bcast_int_para(*nAtConst,param->nAtom,0);
+  
+  bcast_bond_para(*bond,parallel,iBuffer,dBuffer,param->nBond);
+  
+  bcast_angle_para(*angle,parallel,iBuffer,dBuffer,param->nAngle);
+  
+  bcast_bond_para(*ub,parallel,iBuffer,dBuffer,param->nUb);
+  
+  bcast_dihe_para(*dihe,parallel,iBuffer,dBuffer,param->nDihedral);
+  
+  bcast_dihe_para(*impr,parallel,iBuffer,dBuffer,param->nImproper);
+  
 }
 
 void close_para()
@@ -233,9 +701,9 @@ void close_para()
 void mpi_error(int err, char file[],int line)
 {
   char errString[BUFSIZ];
-  int parallel->idProc,lenErrString, errClass;
+  int idProc,lenErrString, errClass;
   
-  parallel->idProc=myproc();
+  idProc=myproc();
   
   MPI_Error_class(err, &errClass);
   

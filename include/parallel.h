@@ -19,6 +19,28 @@ extern "C" {
   
   void test_para(int *buf1);
   
+  void bcast_int_para(int *buf1,int size,int iNode);
+  
+  void bcast_double_para(double *buf1,int size,int iNode);
+  
+  void bcast_param_para(PARAM *param,PARALLEL *parallel,double *dBuffer,int *iBuffer);
+  
+  void bcast_ctrl_para(CTRL *ctrl,PARALLEL *parallel,int *iBuffer);
+  
+  void bcast_bath_para(BATH *bath,PARALLEL *parallel,double *dBuffer);
+  
+  void bcast_pbc_para(PBC *box,PARALLEL *parallel,double *dBuffer);
+  
+  void bcast_neigh_para(NEIGH *neigh,PARALLEL *parallel,int *iBuffer);
+  
+  void bcast_ewald_para(EWALD *ewald,PARALLEL *parallel,int *iBuffer,double *dBuffer);
+  
+  void bcast_bond_para(BOND *bond,PARALLEL *parallel,int *iBuffer,double *dBuffer,int size);
+  
+  void bcast_angle_para(ANGLE *angle,PARALLEL *parallel,int *iBuffer,double *dBuffer,int size);
+  
+  void bcast_dihe_para(DIHE *dihe,PARALLEL *parallel,int *iBuffer,double *dBuffer,int size);
+  
   void setup_para(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,
 		  BATH *bath,NEIGH *neigh,EWALD *ewald,PBC *box,ATOM **atom,CONSTRAINT **constList,
 		  BOND **bond,ANGLE **angle,DIHE **dihe,DIHE **impr,BOND **ub,double **x,

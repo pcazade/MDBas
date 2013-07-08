@@ -199,31 +199,28 @@ typedef struct
 typedef struct
 {
   int step,nSteps;
+  int nAtom,nDegFree,nFrozen;
+  int nConst,maxCycle;
+  
+  int nBond,nAngle,nUb,nDihedral,nImproper;
+  
   double timeStep,rTimeStep;
   
-  int nAtom,nDegFree,nFrozen;
+  double chargeConst,tolShake,scal14;
   
-  int nBond,nAngle,nDihedral,nImproper,nUb;
-  
-  int nConst,maxCycle;
-  double tolShake;
-  
-  double chargeConst,delr,scal14;
-  double cutOff,rcutOff,cutOff2,rcutOff2;
+  double cutOff,rcutOff,delr;
+  double cutOff2,rcutOff2;
   double cutOn,cutOn2,switch2;
   
   double temp0,press0,kinTemp0;
   
   double tolMinim,maxminsiz,maxminst;
   
-  int nProc,nAtProc;
-  
 }PARAM;
 
 typedef struct
 {
   double tauT,chiT;
-  
   double tauP,chiP,compress;
 }BATH;
 
@@ -309,11 +306,16 @@ typedef struct
   
   int nAtProc,nCtProc;
   int nBdProc,nAgProc;
-  int nUbProc,nDiProc;
-  int nImProc;
+  int nUbProc,nDhProc;
+  int nIpProc;
   
   int fAtProc,lAtProc;
   int fCtProc,lCtProc;
+  int fBdProc,lBdProc;
+  int fAgProc,lAgProc;
+  int fUbProc,lUbProc;
+  int fDhProc,lDhProc;
+  int fIpProc,lIpProc;
   
   int buffSize;
 }PARALLEL;

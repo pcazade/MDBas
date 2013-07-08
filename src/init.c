@@ -207,7 +207,7 @@ void init_system(int argc, char* argv[],IO *inout,CTRL *ctrl,PARAM *param,PARALL
   image_update(param,box,*x,*y,*z);
 
   makelist(ctrl,param,box,neigh,*constList,*bond,*angle,*dihe,*impr,*x,*y,*z,*frozen,
-	   neighList,neighPair,neighOrder,neighList14,exclList,exclPair);
+	   neighList,neighPair,neighList14,exclList,exclPair);
   
   init_energy_ptrs(ctrl);
   
