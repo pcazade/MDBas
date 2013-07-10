@@ -55,7 +55,7 @@ static double *xt,*yt,*zt;
 static double *vxo,*vyo,*vzo;
 static double *vxu,*vyu,*vzu;
 
-void integrators_allocate_arrays(CTRL *ctrl, PARAM *param, PARALLEL *parallel)
+void integrators_allocate_arrays(CTRL *ctrl,PARALLEL *parallel)
 {
   ddx=ddy=ddz=NULL;
   xo=yo=zo=xt=yt=zt=vxo=vyo=vzo=vxu=vyu=vzu=NULL;
@@ -129,7 +129,7 @@ void integrators_allocate_arrays(CTRL *ctrl, PARAM *param, PARALLEL *parallel)
   }
 }
 
-void integrators_free_arrays(CTRL *ctrl, PARAM *param, PARALLEL *parallel)
+void integrators_free_arrays(CTRL *ctrl,PARALLEL *parallel)
 {
   if(ctrl->integrator == LEAPFROG)
   {
@@ -206,7 +206,7 @@ void lf_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,
 		  double *x,double *y,double *z,
 		  double *vx,double *vy,double *vz,
 		  double *fx,double *fy,double *fz,
-		  double *mass,double *rmass,int *nAtConst)
+		  double *mass,double *rmass,int *nAtConst,double dBuffer[])
 {
   
 #ifdef TIMER
@@ -216,22 +216,22 @@ void lf_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,
   switch (ctrl->ens)
   {
     case NVE:
-      lf_nve(param,ener,box,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst);
+      lf_nve(param,ener,box,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,dBuffer);
       break;
     case NVT_B:
-      lf_nvt_b(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst);
+      lf_nvt_b(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,dBuffer);
       break;
     case NPT_B:
-      lf_npt_b(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst);
+      lf_npt_b(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,dBuffer);
       break;
     case NVT_H:
-      lf_nvt_h(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst);
+      lf_nvt_h(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,dBuffer);
       break;
     case NPT_H:
-      lf_npt_h(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst);
+      lf_npt_h(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,dBuffer);
       break;
     default:
-      lf_nve(param,ener,box,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst);
+      lf_nve(param,ener,box,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,dBuffer);
       break;
   }
   
@@ -241,15 +241,15 @@ void lf_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,
   
 }
 
-void lf_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
+void lf_nve(PARAM *param,ENERGY *ener,PBC *box,
+	    CONSTRAINT constList[],PARALLEL *parallel,
 	    double *x,double *y,double *z,
 	    double *vx,double *vy,double *vz,
 	    double *fx,double *fy,double *fz,
-	    double *mass,double *rmass,int *nAtConst)
+	    double *mass,double *rmass,int *nAtConst,double dBuffer[])
 {
   int i,ia,ib,l;
   double virshake=0.,stress[6]={0.},stresk[6]={0.};
-  double *buffer;
   
   if(parallel->maxCtProc>0)
   {
@@ -318,14 +318,14 @@ void lf_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *
     
     if(parallel->nProc>1)
     {
-      update_double_para(param,parallel,x,buffer);
-      update_double_para(param,parallel,y,buffer);
-      update_double_para(param,parallel,z,buffer);
+      update_double_para(param,parallel,x,dBuffer);
+      update_double_para(param,parallel,y,dBuffer);
+      update_double_para(param,parallel,z,dBuffer);
     }
     
 // Apply constraint with Shake algorithm.
 
-    lf_shake(param,box,constList,parallel,x,y,z,ddx,ddy,ddz,rmass,nAtConst,stress,&virshake);
+    lf_shake(param,box,constList,parallel,x,y,z,ddx,ddy,ddz,rmass,nAtConst,stress,&virshake,dBuffer);
     
     l=0;
     #ifdef _OPENMP
@@ -369,12 +369,12 @@ void lf_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *
   
 // calculate kinetic energy
   
-  ener->kin=kinetic(param,vx,vy,vz,mass);
+  ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
   
   ener->virshake=virshake;
   
 //   stress_kinetic(atom,simulCond,stresk);
-  stress_kinetic(param,vx,vy,vz,mass,stresk);
+  stress_kinetic(parallel,vx,vy,vz,mass,stresk,dBuffer);
   
   box->stress1+=stress[0]+stresk[0];
   box->stress2+=stress[1]+stresk[1];
@@ -389,7 +389,7 @@ void lf_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *
 // periodic boundary condition
   
 //   image_update(atom,simulCond,box);
-  image_update(param,box,x,y,z);
+  image_update(parallel,box,x,y,z);
   
 // updated velocity
   l=0;
@@ -409,19 +409,19 @@ void lf_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *
   
   if(parallel->nProc>1)
   {
-    update_double_para(param,parallel,x,buffer);
-    update_double_para(param,parallel,y,buffer);
-    update_double_para(param,parallel,z,buffer);
+    update_double_para(param,parallel,x,dBuffer);
+    update_double_para(param,parallel,y,dBuffer);
+    update_double_para(param,parallel,z,dBuffer);
     
-    update_double_para(param,parallel,vx,buffer);
-    update_double_para(param,parallel,vy,buffer);
-    update_double_para(param,parallel,vz,buffer);
+    update_double_para(param,parallel,vx,dBuffer);
+    update_double_para(param,parallel,vy,dBuffer);
+    update_double_para(param,parallel,vz,dBuffer);
     
     if(parallel->maxCtProc>0)
     {
-      update_double_para(param,parallel,fx,buffer);
-      update_double_para(param,parallel,fy,buffer);
-      update_double_para(param,parallel,fz,buffer);
+      update_double_para(param,parallel,fx,dBuffer);
+      update_double_para(param,parallel,fy,dBuffer);
+      update_double_para(param,parallel,fz,dBuffer);
     }
     
   }
@@ -431,7 +431,7 @@ void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	      double *x,double *y,double *z,
 	      double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int *nAtConst)
+	      double *mass,double *rmass,int *nAtConst,double dBuffer[])
 {
   int i,k,l,ia,ib,bercycle;
   double lambda,rts2;
@@ -490,7 +490,7 @@ void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     vz[i]+=0.5*param->timeStep*fz[i]*rmass[i];
   }
   
-  ener->kin=kinetic(param,vx,vy,vz,mass);
+  ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
   
   if(param->nConst>0)
     bercycle=2;
@@ -539,14 +539,14 @@ void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       
       if(parallel->nProc>1)
       {
-	update_double_para(param,parallel,x,buffer);
-	update_double_para(param,parallel,y,buffer);
-	update_double_para(param,parallel,z,buffer);
+	update_double_para(param,parallel,x,dBuffer);
+	update_double_para(param,parallel,y,dBuffer);
+	update_double_para(param,parallel,z,dBuffer);
       }
       
 // Apply constraint with Shake algorithm.
       
-      lf_shake(param,box,constList,parallel,x,y,z,ddx,ddy,ddz,rmass,nAtConst,strest,&virshakt);
+      lf_shake(param,box,constList,parallel,x,y,z,ddx,ddy,ddz,rmass,nAtConst,strest,&virshakt,dBuffer);
       
       virshake+=virshakt;
       for(i=0;i<6;i++)
@@ -593,14 +593,14 @@ void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
 // calculate kinetic energy
     
-    ener->kin=kinetic(param,vx,vy,vz,mass);
+    ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
     
   }
   
   ener->virshake=virshake;
   
 //   stress_kinetic(atom,simulCond,stresk);
-  stress_kinetic(param,vx,vy,vz,mass,stresk);
+  stress_kinetic(parallel,vx,vy,vz,mass,stresk,dBuffer);
   
   box->stress1+=stress[0]+stresk[0];
   box->stress2+=stress[1]+stresk[1];
@@ -615,7 +615,7 @@ void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 // periodic boundary condition
   
 //   image_update(atom,simulCond,box);
-  image_update(param,box,x,y,z);
+  image_update(parallel,box,x,y,z);
   
 // updated velocity
   l=0;
@@ -635,19 +635,19 @@ void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   
   if(parallel->nProc>1)
   {
-    update_double_para(param,parallel,x,buffer);
-    update_double_para(param,parallel,y,buffer);
-    update_double_para(param,parallel,z,buffer);
+    update_double_para(param,parallel,x,dBuffer);
+    update_double_para(param,parallel,y,dBuffer);
+    update_double_para(param,parallel,z,dBuffer);
     
-    update_double_para(param,parallel,vx,buffer);
-    update_double_para(param,parallel,vy,buffer);
-    update_double_para(param,parallel,vz,buffer);
+    update_double_para(param,parallel,vx,dBuffer);
+    update_double_para(param,parallel,vy,dBuffer);
+    update_double_para(param,parallel,vz,dBuffer);
     
     if(parallel->maxCtProc>0)
     {
-      update_double_para(param,parallel,fx,buffer);
-      update_double_para(param,parallel,fy,buffer);
-      update_double_para(param,parallel,fz,buffer);
+      update_double_para(param,parallel,fx,dBuffer);
+      update_double_para(param,parallel,fy,dBuffer);
+      update_double_para(param,parallel,fz,dBuffer);
     }
     
   }
@@ -658,7 +658,7 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	      double *x,double *y,double *z,
 	      double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int *nAtConst)
+	      double *mass,double *rmass,int *nAtConst,double dBuffer[])
 {
   int i,k,l,ia,ib,bercycle;
   double lambda,gamma,cbrga,pp,rts2;
@@ -734,7 +734,7 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     vz[i]+=0.5*param->timeStep*fz[i]*rmass[i];
   }
   
-  ener->kin=kinetic(param,vx,vy,vz,mass);
+  ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
   
   pp=(2.*ener->kin-ener->virpot-virshake)/(3.*volume);
   gamma=1.+bath->compress*param->timeStep*(pp-param->press0)/bath->tauP;
@@ -788,16 +788,16 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       
       if(parallel->nProc>1)
       {
-	update_double_para(param,parallel,x,buffer);
-	update_double_para(param,parallel,y,buffer);
-	update_double_para(param,parallel,z,buffer);
+	update_double_para(param,parallel,x,dBuffer);
+	update_double_para(param,parallel,y,dBuffer);
+	update_double_para(param,parallel,z,dBuffer);
       }
       
       scale_box(box,cell0,cbrga);
       
 // Apply constraint with Shake algorithm.
       
-      lf_shake(param,box,constList,parallel,x,y,z,ddx,ddy,ddz,rmass,nAtConst,strest,&virshakt);
+      lf_shake(param,box,constList,parallel,x,y,z,ddx,ddy,ddz,rmass,nAtConst,strest,&virshakt,dBuffer);
       
       virshake+=virshakt;
       for(i=0;i<6;i++)
@@ -845,7 +845,7 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
 // calculate kinetic energy
     
-    ener->kin=kinetic(param,vx,vy,vz,mass);
+    ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
     
     pp=(2.*ener->kin-ener->virpot-virshake)/(3.*volume);
     gamma=1.+watercomp*param->timeStep*(pp-param->press0)/bath->tauP;
@@ -858,7 +858,7 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   ener->virshake=virshake;
   
 //   stress_kinetic(atom,simulCond,stresk);
-  stress_kinetic(param,vx,vy,vz,mass,stresk);
+  stress_kinetic(parallel,vx,vy,vz,mass,stresk,dBuffer);
   
   box->stress1+=stress[0]+stresk[0];
   box->stress2+=stress[1]+stresk[1];
@@ -876,7 +876,7 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 // periodic boundary condition
   
 //   image_update(atom,simulCond,box);
-  image_update(param,box,x,y,z);
+  image_update(parallel,box,x,y,z);
   
 // updated velocity
   l=0;
@@ -895,19 +895,19 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   
   if(parallel->nProc>1)
   {
-    update_double_para(param,parallel,x,buffer);
-    update_double_para(param,parallel,y,buffer);
-    update_double_para(param,parallel,z,buffer);
+    update_double_para(param,parallel,x,dBuffer);
+    update_double_para(param,parallel,y,dBuffer);
+    update_double_para(param,parallel,z,dBuffer);
     
-    update_double_para(param,parallel,vx,buffer);
-    update_double_para(param,parallel,vy,buffer);
-    update_double_para(param,parallel,vz,buffer);
+    update_double_para(param,parallel,vx,dBuffer);
+    update_double_para(param,parallel,vy,dBuffer);
+    update_double_para(param,parallel,vz,dBuffer);
     
     if(parallel->maxCtProc>0)
     {
-      update_double_para(param,parallel,fx,buffer);
-      update_double_para(param,parallel,fy,buffer);
-      update_double_para(param,parallel,fz,buffer);
+      update_double_para(param,parallel,fx,dBuffer);
+      update_double_para(param,parallel,fy,dBuffer);
+      update_double_para(param,parallel,fz,dBuffer);
     }
     
   }
@@ -918,7 +918,7 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	      double *x,double *y,double *z,
 	      double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int *nAtConst)
+	      double *mass,double *rmass,int *nAtConst,double dBuffer[])
 {
   int i,k,l,ia,ib,nosecycle;
   double lambda,lambdb,lambdc,rts2,qmass;
@@ -982,7 +982,7 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     vz[i]+=0.5*param->timeStep*fz[i]*rmass[i];
   }
   
-  ener->kin=kinetic(param,vx,vy,vz,mass);
+  ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
   
   lambdb=2.0*(ener->kin-param->kinTemp0)/qmass;
   lambdc=bath->chiT+param->timeStep*lambdb;
@@ -1033,14 +1033,14 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       
       if(parallel->nProc>1)
       {
-	update_double_para(param,parallel,x,buffer);
-	update_double_para(param,parallel,y,buffer);
-	update_double_para(param,parallel,z,buffer);
+	update_double_para(param,parallel,x,dBuffer);
+	update_double_para(param,parallel,y,dBuffer);
+	update_double_para(param,parallel,z,dBuffer);
       }
       
 // Apply constraint with Shake algorithm.
       
-      lf_shake(param,box,constList,parallel,y,z,ddx,ddy,ddz,rmass,nAtConst,strest,&virshakt);
+      lf_shake(param,box,constList,parallel,x,y,z,ddx,ddy,ddz,rmass,nAtConst,strest,&virshakt,dBuffer);
       
       virshake+=virshakt;
       for(i=0;i<6;i++)
@@ -1087,7 +1087,7 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
 // calculate kinetic energy
     
-    ener->kin=kinetic(param,vx,vy,vz,mass);
+    ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
     
     lambdb=2.0*(ener->kin-param->kinTemp0)/qmass;
     lambdc=bath->chiT+param->timeStep*lambdb;
@@ -1097,7 +1097,7 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   
   ener->virshake=virshake;
   
-  stress_kinetic(param,vx,vy,vz,mass,stresk);
+  stress_kinetic(parallel,vx,vy,vz,mass,stresk,dBuffer);
   
   box->stress1+=stress[0]+stresk[0];
   box->stress2+=stress[1]+stresk[1];
@@ -1116,7 +1116,7 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   
 // periodic boundary condition
   
-  image_update(param,box,x,y,z);
+  image_update(parallel,box,x,y,z);
   
 // updated velocity
   
@@ -1137,19 +1137,19 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   
   if(parallel->nProc>1)
   {
-    update_double_para(param,parallel,x,buffer);
-    update_double_para(param,parallel,y,buffer);
-    update_double_para(param,parallel,z,buffer);
+    update_double_para(param,parallel,x,dBuffer);
+    update_double_para(param,parallel,y,dBuffer);
+    update_double_para(param,parallel,z,dBuffer);
     
-    update_double_para(param,parallel,vx,buffer);
-    update_double_para(param,parallel,vy,buffer);
-    update_double_para(param,parallel,vz,buffer);
+    update_double_para(param,parallel,vx,dBuffer);
+    update_double_para(param,parallel,vy,dBuffer);
+    update_double_para(param,parallel,vz,dBuffer);
     
     if(parallel->maxCtProc>0)
     {
-      update_double_para(param,parallel,fx,buffer);
-      update_double_para(param,parallel,fy,buffer);
-      update_double_para(param,parallel,fz,buffer);
+      update_double_para(param,parallel,fx,dBuffer);
+      update_double_para(param,parallel,fy,dBuffer);
+      update_double_para(param,parallel,fz,dBuffer);
     }
     
   }
@@ -1160,7 +1160,7 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	      double *x,double *y,double *z,
 	      double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int *nAtConst)
+	      double *mass,double *rmass,int *nAtConst,double dBuffer[])
 {
   int i,k,l,ia,ib,nosecycle;
   double lambda,lambdb,lambdc,rts2,qmass;
@@ -1265,12 +1265,12 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   
   if(parallel->nProc>1)
   {
-    update_double_para(param,parallel,vx,buffer);
-    update_double_para(param,parallel,vy,buffer);
-    update_double_para(param,parallel,vz,buffer);
+    update_double_para(param,parallel,vx,dBuffer);
+    update_double_para(param,parallel,vy,dBuffer);
+    update_double_para(param,parallel,vz,dBuffer);
   }
   
-  ener->kin=kinetic(param,vx,vy,vz,mass);
+  ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
   /* **************************************************/
   
   gammb=(2.0*ener->kin - ener->virpot - virshake - 3.0*param->press0*volume)/pmass-
@@ -1329,9 +1329,9 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       
       if(parallel->nProc>1)
       {
-	update_double_para(param,parallel,x,buffer);
-	update_double_para(param,parallel,y,buffer);
-	update_double_para(param,parallel,z,buffer);
+	update_double_para(param,parallel,x,dBuffer);
+	update_double_para(param,parallel,y,dBuffer);
+	update_double_para(param,parallel,z,dBuffer);
       }
       
 // Apply constraint with Shake algorithm.
@@ -1341,7 +1341,7 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       
       scale_box(box,cell0,cbrga);
       
-      lf_shake(param,box,constList,parallel,x,y,z,ddx,ddy,ddz,rmass,nAtConst,strest,&virshakt);
+      lf_shake(param,box,constList,parallel,x,y,z,ddx,ddy,ddz,rmass,nAtConst,strest,&virshakt,dBuffer);
       
       virshake+=virshakt;
       for(i=0;i<6;i++)
@@ -1393,15 +1393,15 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
     if(parallel->nProc>1)
     {
-      update_double_para(param,parallel,vx,buffer);
-      update_double_para(param,parallel,vy,buffer);
-      update_double_para(param,parallel,vz,buffer);
+      update_double_para(param,parallel,vx,dBuffer);
+      update_double_para(param,parallel,vy,dBuffer);
+      update_double_para(param,parallel,vz,dBuffer);
     }
     
-    ener->kin=kinetic(param,vx,vy,vz,mass);
+    ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
     /* **************************************************/
     
-    //ener->kin=kinetic(param,vx,vy,vz,mass);
+    //ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
     
     gammb=(2.0*ener->kin-ener->virpot-virshake-3.0*param->press0*volume)/pmass-
       bath->chiT*bath->chiP;
@@ -1417,7 +1417,7 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   
   ener->virshake=virshake; // Has to be checked
   
-  stress_kinetic(param,vx,vy,vz,mass,stresk);
+  stress_kinetic(parallel,vx,vy,vz,mass,stresk,dBuffer);
   
   box->stress1+=stress[0]+stresk[0];
   box->stress2+=stress[1]+stresk[1];
@@ -1442,7 +1442,7 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   
 // periodic boundary condition
   
-  image_update(param,box,x,y,z);
+  image_update(parallel,box,x,y,z);
   
 // updated velocity
   l=0;
@@ -1481,19 +1481,19 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   
   if(parallel->nProc>1)
   {
-    update_double_para(param,parallel,x,buffer);
-    update_double_para(param,parallel,y,buffer);
-    update_double_para(param,parallel,z,buffer);
+    update_double_para(param,parallel,x,dBuffer);
+    update_double_para(param,parallel,y,dBuffer);
+    update_double_para(param,parallel,z,dBuffer);
     
-    update_double_para(param,parallel,vx,buffer);
-    update_double_para(param,parallel,vy,buffer);
-    update_double_para(param,parallel,vz,buffer);
+    update_double_para(param,parallel,vx,dBuffer);
+    update_double_para(param,parallel,vy,dBuffer);
+    update_double_para(param,parallel,vz,dBuffer);
     
     if(parallel->maxCtProc>0)
     {
-      update_double_para(param,parallel,fx,buffer);
-      update_double_para(param,parallel,fy,buffer);
-      update_double_para(param,parallel,fz,buffer);
+      update_double_para(param,parallel,fx,dBuffer);
+      update_double_para(param,parallel,fy,dBuffer);
+      update_double_para(param,parallel,fz,dBuffer);
     }
     
   }
@@ -1504,7 +1504,7 @@ void vv_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,BATH *bath,
 		  CONSTRAINT constList[],PARALLEL *parallel,double *x,double *y,
 		  double *z,double *vx,double *vy,double *vz,
 		  double *fx,double *fy,double *fz,
-		  double *mass,double *rmass,int *nAtConst,int stage)
+		  double *mass,double *rmass,int *nAtConst,double dBuffer[],int stage)
 {
   
 #ifdef TIMER
@@ -1514,22 +1514,22 @@ void vv_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,BATH *bath,
   switch (ctrl->ens)
   {
     case NVE:
-      vv_nve(param,ener,box,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,stage);
+      vv_nve(param,ener,box,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,dBuffer,stage);
       break;
     case NVT_B:
-      vv_nvt_b(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,stage);
+      vv_nvt_b(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,dBuffer,stage);
       break;
     case NPT_B:
-      vv_npt_b(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,stage);
+      vv_npt_b(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,dBuffer,stage);
       break;
     case NVT_H:
-      vv_nvt_h(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,stage);
+      vv_nvt_h(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,dBuffer,stage);
       break;
     case NPT_H:
-      vv_npt_h(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,stage);
+      vv_npt_h(param,ener,box,bath,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,dBuffer,stage);
       break;
     default:
-      vv_nve(param,ener,box,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,stage);
+      vv_nve(param,ener,box,constList,parallel,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,dBuffer,stage);
       break;
   }
   
@@ -1542,7 +1542,7 @@ void vv_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,BATH *bath,
 void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
 	    double *x,double *y,double *z,double *vx,double *vy,double *vz,
 	    double *fx,double *fy,double *fz,
-	    double *mass,double *rmass,int *nAtConst,int stage)
+	    double *mass,double *rmass,int *nAtConst,double dBuffer[],int stage)
 {
   int i,l,ia,ib;
   double virshake,stress[6]={0.},stresk[6]={0.};
@@ -1601,9 +1601,9 @@ void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *
     
     if(parallel->nProc>1)
     {
-      update_double_para(param,parallel,x,buffer);
-      update_double_para(param,parallel,y,buffer);
-      update_double_para(param,parallel,z,buffer);
+      update_double_para(param,parallel,x,dBuffer);
+      update_double_para(param,parallel,y,dBuffer);
+      update_double_para(param,parallel,z,dBuffer);
     }
     
     if(param->nConst>0)
@@ -1611,14 +1611,14 @@ void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *
       
       if(parallel->nProc>1)
       {
-	update_double_para(param,parallel,vx,buffer);
-	update_double_para(param,parallel,vy,buffer);
-	update_double_para(param,parallel,vz,buffer);
+	update_double_para(param,parallel,vx,dBuffer);
+	update_double_para(param,parallel,vy,dBuffer);
+	update_double_para(param,parallel,vz,dBuffer);
       }
       
 // Apply constraint with Shake algorithm.
 
-      vv_shake_r(param,box,constList,parallel,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst,stress,&virshake);
+      vv_shake_r(param,box,constList,parallel,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst,stress,&virshake,dBuffer);
       ener->virshake=virshake;
       
     }
@@ -1629,9 +1629,9 @@ void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *
     
     if(parallel->nProc>1)
     {
-      update_double_para(param,parallel,vx,buffer);
-      update_double_para(param,parallel,vy,buffer);
-      update_double_para(param,parallel,vz,buffer);
+      update_double_para(param,parallel,vx,dBuffer);
+      update_double_para(param,parallel,vy,dBuffer);
+      update_double_para(param,parallel,vz,dBuffer);
     }
     
 // calculate kinetic energy
@@ -1641,13 +1641,13 @@ void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *
       
 // Apply constraint with Shake algorithm.
 
-      vv_shake_v(param,constList,parallel,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst);
+      vv_shake_v(param,constList,parallel,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst,dBuffer);
       
     }
   
-    ener->kin=kinetic(param,vx,vy,vz,mass);
+    ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
   
-    stress_kinetic(param,vx,vy,vz,mass,stresk);
+    stress_kinetic(parallel,vx,vy,vz,mass,stresk,dBuffer);
     
     box->stress1+=stress[0]+stresk[0];
     box->stress2+=stress[1]+stresk[1];
@@ -1666,13 +1666,13 @@ void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *
     
 // periodic boundary condition
     
-    image_update(param,box,x,y,z);
+    image_update(parallel,box,x,y,z);
     
     if(parallel->nProc>1)
     {
-      update_double_para(param,parallel,x,buffer);
-      update_double_para(param,parallel,y,buffer);
-      update_double_para(param,parallel,z,buffer);
+      update_double_para(param,parallel,x,dBuffer);
+      update_double_para(param,parallel,y,dBuffer);
+      update_double_para(param,parallel,z,dBuffer);
     }
   }
    
@@ -1681,7 +1681,7 @@ void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *
 void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
 	      double *x,double *y,double *z,double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int *nAtConst,int stage)
+	      double *mass,double *rmass,int *nAtConst,double dBuffer[],int stage)
 {
   int i,l,ia,ib;
   double lambda;
@@ -1741,9 +1741,9 @@ void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
     if(parallel->nProc>1)
     {
-      update_double_para(param,parallel,x,buffer);
-      update_double_para(param,parallel,y,buffer);
-      update_double_para(param,parallel,z,buffer);
+      update_double_para(param,parallel,x,dBuffer);
+      update_double_para(param,parallel,y,dBuffer);
+      update_double_para(param,parallel,z,dBuffer);
     }
     
     if(param->nConst>0)
@@ -1751,14 +1751,14 @@ void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       
       if(parallel->nProc>1)
       {
-	update_double_para(param,parallel,vx,buffer);
-	update_double_para(param,parallel,vy,buffer);
-	update_double_para(param,parallel,vz,buffer);
+	update_double_para(param,parallel,vx,dBuffer);
+	update_double_para(param,parallel,vy,dBuffer);
+	update_double_para(param,parallel,vz,dBuffer);
       }
       
 // Apply constraint with Shake algorithm.
 
-      vv_shake_r(param,box,constList,parallel,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst,stress,&virshake);
+      vv_shake_r(param,box,constList,parallel,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst,stress,&virshake,dBuffer);
       ener->virshake=virshake;
       
     }
@@ -1769,9 +1769,9 @@ void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
     if(parallel->nProc>1)
     {
-      update_double_para(param,parallel,vx,buffer);
-      update_double_para(param,parallel,vy,buffer);
-      update_double_para(param,parallel,vz,buffer);
+      update_double_para(param,parallel,vx,dBuffer);
+      update_double_para(param,parallel,vy,dBuffer);
+      update_double_para(param,parallel,vz,dBuffer);
     }
       
 // calculate kinetic energy
@@ -1781,11 +1781,11 @@ void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       
 // Apply constraint with Shake algorithm.
 
-      vv_shake_v(param,constList,parallel,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst);
+      vv_shake_v(param,constList,parallel,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst,dBuffer);
       
     }
   
-    ener->kin=kinetic(param,vx,vy,vz,mass);
+    ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
     
     lambda=sqrt(1.0+param->timeStep/bath->tauT*(param->kinTemp0/ener->kin-1.0));
     
@@ -1803,12 +1803,12 @@ void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
     if(parallel->nProc>1)
     {
-      update_double_para(param,parallel,vx,buffer);
-      update_double_para(param,parallel,vy,buffer);
-      update_double_para(param,parallel,vz,buffer);
+      update_double_para(param,parallel,vx,dBuffer);
+      update_double_para(param,parallel,vy,dBuffer);
+      update_double_para(param,parallel,vz,dBuffer);
     }
   
-    stress_kinetic(param,vx,vy,vz,mass,stresk);
+    stress_kinetic(parallel,vx,vy,vz,mass,stresk,dBuffer);
     
     box->stress1+=stress[0]+stresk[0];
     box->stress2+=stress[1]+stresk[1];
@@ -1827,13 +1827,13 @@ void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
 // periodic boundary condition
     
-    image_update(param,box,x,y,z);
+    image_update(parallel,box,x,y,z);
     
     if(parallel->nProc>1)
     {
-      update_double_para(param,parallel,x,buffer);
-      update_double_para(param,parallel,y,buffer);
-      update_double_para(param,parallel,z,buffer);
+      update_double_para(param,parallel,x,dBuffer);
+      update_double_para(param,parallel,y,dBuffer);
+      update_double_para(param,parallel,z,dBuffer);
     }
   }
    
@@ -1842,7 +1842,7 @@ void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
 	      double *x,double *y,double *z,double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int *nAtConst,int stage)
+	      double *mass,double *rmass,int *nAtConst,double dBuffer[],int stage)
 {
   int i,l,ia,ib,k,nosecycle;
   double lambda,gamma,cbrga,volume,pp;
@@ -1856,7 +1856,7 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(constList,dd,param,atom) private(i,ia,ib)
     #endif
-    for(i=parallel->fCtProc;i<parallel>lCtProc;i++)
+    for(i=parallel->fCtProc;i<parallel->lCtProc;i++)
     {
       ia=constList[i].a;
       ib=constList[i].b;
@@ -1875,7 +1875,7 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   if(stage==1)
   {
     
-    ener->kin=kinetic(param,vx,vy,vz,mass);
+    ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
     
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(param,atom) private(i)
@@ -1947,9 +1947,9 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       
       if(parallel->nProc>1)
       {
-	update_double_para(param,parallel,x,buffer);
-	update_double_para(param,parallel,y,buffer);
-	update_double_para(param,parallel,z,buffer);
+	update_double_para(param,parallel,x,dBuffer);
+	update_double_para(param,parallel,y,dBuffer);
+	update_double_para(param,parallel,z,dBuffer);
       }
       
       if(param->nConst>0)
@@ -1957,14 +1957,14 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	
 	if(parallel->nProc>1)
 	{
-	  update_double_para(param,parallel,vx,buffer);
-	  update_double_para(param,parallel,vy,buffer);
-	  update_double_para(param,parallel,vz,buffer);
+	  update_double_para(param,parallel,vx,dBuffer);
+	  update_double_para(param,parallel,vy,dBuffer);
+	  update_double_para(param,parallel,vz,dBuffer);
 	}
 	
   // Apply constraint with Shake algorithm.
 
-	vv_shake_r(param,box,constList,parallel,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst,stress,&virshake);
+	vv_shake_r(param,box,constList,parallel,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst,stress,&virshake,dBuffer);
 	ener->virshake=virshake;
 	
       }
@@ -2011,7 +2011,7 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
 // calculate kinetic energy
 
-    ener->kin=kinetic(param,vx,vy,vz,mass);
+    ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
     
     lambda=sqrt(1.0+param->timeStep/bath->tauT*(param->kinTemp0/ener->kin-1.0));
     
@@ -2026,9 +2026,9 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
     if(parallel->nProc>1)
     {
-      update_double_para(param,parallel,vx,buffer);
-      update_double_para(param,parallel,vy,buffer);
-      update_double_para(param,parallel,vz,buffer);
+      update_double_para(param,parallel,vx,dBuffer);
+      update_double_para(param,parallel,vy,dBuffer);
+      update_double_para(param,parallel,vz,dBuffer);
     }
     
     if(param->nConst>0)
@@ -2036,13 +2036,13 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       
 // Apply constraint with Shake algorithm.
 
-      vv_shake_v(param,constList,parallel,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst);
+      vv_shake_v(param,constList,parallel,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst,dBuffer);
       
     }
     
-    ener->kin=kinetic(param,vx,vy,vz,mass);
+    ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
   
-    stress_kinetic(param,vx,vy,vz,mass,stresk);
+    stress_kinetic(parallel,vx,vy,vz,mass,stresk,dBuffer);
     
     box->stress1+=stress[0]+stresk[0];
     box->stress2+=stress[1]+stresk[1];
@@ -2061,13 +2061,13 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
 // periodic boundary condition
     
-    image_update(param,box,x,y,z);
+    image_update(parallel,box,x,y,z);
     
     if(parallel->nProc>1)
     {
-      update_double_para(param,parallel,x,buffer);
-      update_double_para(param,parallel,y,buffer);
-      update_double_para(param,parallel,z,buffer);
+      update_double_para(param,parallel,x,dBuffer);
+      update_double_para(param,parallel,y,dBuffer);
+      update_double_para(param,parallel,z,dBuffer);
     }
   }
    
@@ -2076,7 +2076,7 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
 	      double *x,double *y,double *z,double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int *nAtConst,int stage)
+	      double *mass,double *rmass,int *nAtConst,double dBuffer[],int stage)
 {
   int i,l,ia,ib;
   double lambda,qmass;
@@ -2089,7 +2089,7 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     #ifdef _OPENMP
     #pragma omp parallel for default(none) shared(constList,dd,param,atom) private(i,ia,ib)
     #endif
-    for(i=parallel->fCtProc;i<parallel>lCtProc;i++)
+    for(i=parallel->fCtProc;i<parallel->lCtProc;i++)
     {
       ia=constList[i].a;
       ib=constList[i].b;
@@ -2110,7 +2110,7 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
   if(stage==1)
   {
     
-    ener->kin=kinetic(param,vx,vy,vz,mass);
+    ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
     
     bath->chiT+=0.5*param->timeStep*(ener->kin-param->kinTemp0)/qmass;
     
@@ -2155,9 +2155,9 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
     if(parallel->nProc>1)
     {
-      update_double_para(param,parallel,x,buffer);
-      update_double_para(param,parallel,y,buffer);
-      update_double_para(param,parallel,z,buffer);
+      update_double_para(param,parallel,x,dBuffer);
+      update_double_para(param,parallel,y,dBuffer);
+      update_double_para(param,parallel,z,dBuffer);
     }
     
     if(param->nConst>0)
@@ -2165,14 +2165,14 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       
       if(parallel->nProc>1)
       {
-	update_double_para(param,parallel,vx,buffer);
-	update_double_para(param,parallel,vy,buffer);
-	update_double_para(param,parallel,vz,buffer);
+	update_double_para(param,parallel,vx,dBuffer);
+	update_double_para(param,parallel,vy,dBuffer);
+	update_double_para(param,parallel,vz,dBuffer);
       }
       
 // Apply constraint with Shake algorithm.
 
-      vv_shake_r(param,box,constList,parallel,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst,stress,&virshake);
+      vv_shake_r(param,box,constList,parallel,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst,stress,&virshake,dBuffer);
       ener->virshake=virshake;
       
     }
@@ -2199,18 +2199,18 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       
       if(parallel->nProc>1)
       {
-	update_double_para(param,parallel,vx,buffer);
-	update_double_para(param,parallel,vy,buffer);
-	update_double_para(param,parallel,vz,buffer);
+	update_double_para(param,parallel,vx,dBuffer);
+	update_double_para(param,parallel,vy,dBuffer);
+	update_double_para(param,parallel,vz,dBuffer);
       }
       
 // Apply constraint with Shake algorithm.
 
-      vv_shake_v(param,constList,parallel,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst);
+      vv_shake_v(param,constList,parallel,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst,dBuffer);
       
     }
   
-    ener->kin=kinetic(param,vx,vy,vz,mass);
+    ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
     
     bath->chiT+=0.5*param->timeStep*(ener->kin-param->kinTemp0)/qmass;
     
@@ -2236,12 +2236,12 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
     if(parallel->nProc>1)
     {
-      update_double_para(param,parallel,vx,buffer);
-      update_double_para(param,parallel,vy,buffer);
-      update_double_para(param,parallel,vz,buffer);
+      update_double_para(param,parallel,vx,dBuffer);
+      update_double_para(param,parallel,vy,dBuffer);
+      update_double_para(param,parallel,vz,dBuffer);
     }
     
-    stress_kinetic(param,vx,vy,vz,mass,stresk);
+    stress_kinetic(parallel,vx,vy,vz,mass,stresk,dBuffer);
     
     box->stress1+=stress[0]+stresk[0];
     box->stress2+=stress[1]+stresk[1];
@@ -2260,13 +2260,13 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
 // periodic boundary condition
     
-    image_update(param,box,x,y,z);
+    image_update(parallel,box,x,y,z);
     
     if(parallel->nProc>1)
     {
-      update_double_para(param,parallel,x,buffer);
-      update_double_para(param,parallel,y,buffer);
-      update_double_para(param,parallel,z,buffer);
+      update_double_para(param,parallel,x,dBuffer);
+      update_double_para(param,parallel,y,dBuffer);
+      update_double_para(param,parallel,z,dBuffer);
     }
   }
    
@@ -2275,7 +2275,7 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
 	      double *x,double *y,double *z,double *vx,double *vy,double *vz,
 	      double *fx,double *fy,double *fz,
-	      double *mass,double *rmass,int *nAtConst,int stage)
+	      double *mass,double *rmass,int *nAtConst,double dBuffer[],int stage)
 {
   int i,l,ia,ib,k,kk,nosecycle,hoovercycle=5;
   double hts,chts,cqts;
@@ -2371,7 +2371,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       {
 	
       // apply nvt
-	ener->kin=kinetic(param,vx,vy,vz,mass);
+	ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
 	
 	bath->chiT+=0.5*cqts*(2.0*(ener->kin-param->kinTemp0)+
 	  pmass*X2(bath->chiP)-rboltzui*param->temp0)/qmass;
@@ -2425,7 +2425,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       // apply nvt
 	
 	/**************** check **************/
-	ener->kin=kinetic(param,vx,vy,vz,mass);
+	ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
 	
 	bath->chiT+=0.5*cqts*(2.0*(ener->kin-param->kinTemp0)+
 	  pmass*X2(bath->chiP)-rboltzui*param->temp0)/qmass;
@@ -2498,9 +2498,9 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       
       if(parallel->nProc>1)
       {
-	update_double_para(param,parallel,x,buffer);
-	update_double_para(param,parallel,y,buffer);
-	update_double_para(param,parallel,z,buffer);
+	update_double_para(param,parallel,x,dBuffer);
+	update_double_para(param,parallel,y,dBuffer);
+	update_double_para(param,parallel,z,dBuffer);
       }
     
       if(param->nConst>0)
@@ -2508,14 +2508,14 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 	
 	if(parallel->nProc>1)
 	{
-	  update_double_para(param,parallel,vx,buffer);
-	  update_double_para(param,parallel,vy,buffer);
-	  update_double_para(param,parallel,vz,buffer);
+	  update_double_para(param,parallel,vx,dBuffer);
+	  update_double_para(param,parallel,vy,dBuffer);
+	  update_double_para(param,parallel,vz,dBuffer);
 	}
 	
   // Apply constraint with Shake algorithm.
 
-	vv_shake_r(param,box,constList,parallel,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst,stress,&virshake);
+	vv_shake_r(param,box,constList,parallel,x,y,z,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst,stress,&virshake,dBuffer);
 	ener->virshake=virshake;
 	
       }
@@ -2572,14 +2572,14 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
       
       if(parallel->nProc>1)
       {
-	update_double_para(param,parallel,vx,buffer);
-	update_double_para(param,parallel,vy,buffer);
-	update_double_para(param,parallel,vz,buffer);
+	update_double_para(param,parallel,vx,dBuffer);
+	update_double_para(param,parallel,vy,dBuffer);
+	update_double_para(param,parallel,vz,dBuffer);
       }
       
 // Apply constraint with Shake algorithm.
 
-      vv_shake_v(param,constList,parallel,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst);
+      vv_shake_v(param,constList,parallel,vx,vy,vz,ddx,ddy,ddz,rmass,nAtConst,dBuffer);
       
     }
     
@@ -2587,7 +2587,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     {
       
     // apply nvt
-      ener->kin=kinetic(param,vx,vy,vz,mass);
+      ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
       
       bath->chiT+=0.5*cqts*(2.0*(ener->kin-param->kinTemp0)+
 	pmass*X2(bath->chiP)-rboltzui*param->temp0)/qmass;
@@ -2641,7 +2641,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     // apply nvt
       
       /*************** check *******************/
-      ener->kin=kinetic(param,vx,vy,vz,mass);
+      ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
       
       bath->chiT+=0.5*cqts*(2.0*(ener->kin-param->kinTemp0)+
 	pmass*X2(bath->chiP)-rboltzui*param->temp0)/qmass;
@@ -2691,9 +2691,9 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
     if(parallel->nProc>1)
     {
-      update_double_para(param,parallel,vx,buffer);
-      update_double_para(param,parallel,vy,buffer);
-      update_double_para(param,parallel,vz,buffer);
+      update_double_para(param,parallel,vx,dBuffer);
+      update_double_para(param,parallel,vy,dBuffer);
+      update_double_para(param,parallel,vz,dBuffer);
     }
     
     scale=cbrt(volume/volume0);
@@ -2701,9 +2701,9 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
     ener->consv=ener->conint+param->press0*volume+0.5*(qmass*X2(bath->chiT)+pmass*X2(bath->chiP));
     
-    ener->kin=kinetic(param,vx,vy,vz,mass);
+    ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
     
-    stress_kinetic(param,vx,vy,vz,mass,stresk);
+    stress_kinetic(parallel,vx,vy,vz,mass,stresk,dBuffer);
     
     box->stress1+=stress[0]+stresk[0];
     box->stress2+=stress[1]+stresk[1];
@@ -2722,13 +2722,13 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     
 // periodic boundary condition
     
-    image_update(param,box,x,y,z);
+    image_update(parallel,box,x,y,z);
     
     if(parallel->nProc>1)
     {
-      update_double_para(param,parallel,x,buffer);
-      update_double_para(param,parallel,y,buffer);
-      update_double_para(param,parallel,z,buffer);
+      update_double_para(param,parallel,x,dBuffer);
+      update_double_para(param,parallel,y,dBuffer);
+      update_double_para(param,parallel,z,dBuffer);
     }
   }
    

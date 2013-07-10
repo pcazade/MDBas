@@ -49,7 +49,8 @@ extern FILE *outFile;
 
 int *counter;
 
-void makelist(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,CONSTRAINT constList[],
+void makelist(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,
+	      CONSTRAINT constList[],
 	      BOND bond[],ANGLE angle[],DIHE dihe[],DIHE impr[],double x[], double y[],
 	      double z[],int frozen[],int ***neighList,int **neighPair,int **neighList14,
 	      int ***exclList,int **exclPair)
@@ -85,13 +86,13 @@ void makelist(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,C
       create_new_timer(TIMER_LNKCEL_BUILD);
       create_new_timer(TIMER_LNKCEL_UPDATE);
 #endif
-      exclude_list(ctrl,param,neigh,constList,bond,angle,dihe,impr,
+      exclude_list(ctrl,param,parallel,neigh,constList,bond,angle,dihe,impr,
 		   neighList14,exclList,exclPair);
       
-      init_link_cell_verlet_list(param,box,neigh,x,y,z,frozen,neighList,neighPair,
+      init_link_cell_verlet_list(param,parallel,box,neigh,x,y,z,frozen,neighList,neighPair,
 				 *exclList,*exclPair);
       
-      link_cell_verlet_list(param,box,neigh,x,y,z,frozen,neighList,*neighPair,
+      link_cell_verlet_list(param,parallel,box,neigh,x,y,z,frozen,neighList,*neighPair,
 			    *exclList,*exclPair);
     }
     else
@@ -100,15 +101,15 @@ void makelist(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,C
       create_new_timer(TIMER_VERLET_BUILD);
       create_new_timer(TIMER_VERLET_UPDATE);
 #endif
-      exclude_list(ctrl,param,neigh,constList,bond,angle,dihe,impr,
+      exclude_list(ctrl,param,parallel,neigh,constList,bond,angle,dihe,impr,
 		   neighList14,exclList,exclPair);
       
       counter=(int*)my_malloc(parallel->maxAtProc*sizeof(*counter));
       
-      init_verlet_list(param,box,neigh,x,y,z,frozen,neighList,neighPair,
+      init_verlet_list(param,parallel,box,neigh,x,y,z,frozen,neighList,neighPair,
 		       *exclList,*exclPair);
       
-      verlet_list(param,box,neigh,x,y,z,frozen,neighList,*neighPair,
+      verlet_list(param,parallel,box,neigh,x,y,z,frozen,neighList,*neighPair,
 		  *exclList,*exclPair);
       
     }
@@ -121,12 +122,12 @@ void makelist(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,C
     
     if(ctrl->keyLink)
     {
-      link_cell_verlet_list(param,box,neigh,x,y,z,frozen,neighList,*neighPair,
+      link_cell_verlet_list(param,parallel,box,neigh,x,y,z,frozen,neighList,*neighPair,
 			    *exclList,*exclPair);
     }
     else
     {
-      verlet_list(param,box,neigh,x,y,z,frozen,neighList,*neighPair,
+      verlet_list(param,parallel,box,neigh,x,y,z,frozen,neighList,*neighPair,
 			 *exclList,*exclPair);
     }
     
@@ -783,7 +784,7 @@ void exclude_list(CTRL *ctrl,PARAM *param,PARALLEL *parallel,NEIGH *neigh,CONSTR
   for(i=parallel->idProc;i<neigh->nPair14;i+=parallel->nProc)
   {
     (*neighList14)[2*ii]=tempVer14[i][0];
-    (*neighList14)[2*ii+1]=tempVer14[i][1];\
+    (*neighList14)[2*ii+1]=tempVer14[i][1];
     ii++;
   }
   
@@ -794,7 +795,6 @@ void exclude_list(CTRL *ctrl,PARAM *param,PARALLEL *parallel,NEIGH *neigh,CONSTR
   
   /** Brode-Ahlrichs sorted exclude list **/
   
-  int parallel->idProc=my_proc();
   int hnAtom,hm1nAtom;
   int exclAtProc;
   
@@ -1201,7 +1201,7 @@ void init_link_cell_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *
     head[i]=-1;
   }
   
-  image_update(param,box,x,y,z); //if new job.
+  image_update(parallel,box,x,y,z); //if new job.
   
   #ifdef _OPENMP
   #pragma omp parallel for default(none) shared(param,atom,box,xu,yu,zu) private(i)
@@ -1483,6 +1483,7 @@ void link_cell_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh
     
   int cellCheck,enoughLinkCells,nlcx,nlcy,nlcz;
   int i,j,k,l,ll,kk,ilist,icell,exclude;
+  int ih,ii;
   int ix,iy,iz,jx,jy,jz;
   double r2,cutnb,cutnb2,dnlcx,dnlcy,dnlcz;
   double cx,cy,cz,xt,yt,zt,xd,yd,zd,*xu,*yu,*zu;
@@ -1766,347 +1767,347 @@ void link_cell_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh
 
 }
 
-void fast_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
-		      int frozen[],int ***neighList,int **neighPair,int **neighOrder,
-		      int **exclList,int exclPair[])
-{
-  /**
-   * This routine is derived from the algorithm described
-   * by Tim. N. Heinz and Philippe H. Hunenberger
-   * J. Comput. Chem., Vol. 25, No. 12, 1474--1486 (2004)
-   * DOI: 10.1002/jcc.20071
-   */
-  
-  int i,j,k,kk,m,dm,s,m1,m2,stripes,atpercell;
-  int nlcx,nlcy,nlcz;
-  int dmx,dmy,dmz,dnx,dny,dnz;
-  int t1ny,t2ny,t1nz,t2nz;
-  int exclude,offset,iorder;
-  
-  double r2,rlcx,rlcy,rlcz,rlcx2,rlcy2,rlcz2,cutnb,cutnb2;
-  double dnlcx,dnlcy,dnlcz;
-  
-  int ix,iy,iz;
-  
-  double delta[3];
-  
-  int *ptrmask=NULL,*ptrcell=NULL,*cell=NULL,*tempcell=NULL;
-  double *xu=NULL,*yu=NULL,*zu=NULL;
-  
-  xu=(double*)my_malloc(param->nAtom*sizeof(*xu));
-  yu=(double*)my_malloc(param->nAtom*sizeof(*yu));
-  zu=(double*)my_malloc(param->nAtom*sizeof(*zu));;
-  
-  cutnb=param->cutOff+param->delr;
-  cutnb2=X2(cutnb);
-  
-  nlcx=(int)(box->pa*(double)neigh->linkRatio/cutnb);
-  nlcy=(int)(box->pb*(double)neigh->linkRatio/cutnb);
-  nlcz=(int)(box->pc*(double)neigh->linkRatio/cutnb);
-  
-  neigh->nCells=nlcx*nlcy*nlcz;
-  
-  dnlcx=(double)nlcx;
-  dnlcy=(double)nlcy;
-  dnlcz=(double)nlcz;
-  
-  rlcx=box->pa*dnlcx;
-  rlcy=box->pb*dnlcy;
-  rlcz=box->pc*dnlcz;
-  
-  rlcx2=X2(rlcx);
-  rlcy2=X2(rlcy);
-  rlcz2=X2(rlcz);
-  
-  stripes=(int)(1.5*PI*cutnb2*dnlcy*dnlcz/(box->pb*box->pc));
-  atpercell=(int)(1.5*param->nAtom/neigh->nCells);
-  
-  ptrmask=(int*)my_malloc(2*stripes*sizeof(*ptrmask));
-  for(i=0;i<2*stripes;i++)
-    ptrmask[i]=-1;
-  
-  cell=(int*)my_malloc(param->nAtom*sizeof(*cell));
-  tempcell=(int*)my_malloc(neigh->nCells*atpercell*sizeof(*tempcell));
-  
-  ptrcell=(int*)my_malloc((neigh->nCells+1)*sizeof(*ptrcell));
-  for(i=0;i<neigh->nCells+1;i++)
-    ptrcell[i]=i*atpercell;
-  
-  ptrcell[neigh->nCells]=param->nAtom;
-  
-  k=0;
-  for(dm=1;dm<neigh->nCells-1;dm++)
-  {
-    
-    dmz=(int)( dm / ( nlcx * nlcy ) ) ;
-    dmy=(int)( ( dm % ( nlcx * nlcy ) ) / nlcx ) ;
-    dmx= dm % nlcx ;
-    
-    dnx=abs(dmx-nlcx*nint((double)dmx/(double)nlcx));
-    
-    if( ( dmx==0 ) || ( ( dmy==nlcy-1 ) && ( dmz==nlcz-1 ) ) )
-      dny=dmy-nlcy*nint((double)dmy/(double)nlcy);
-    else
-    {
-      t1ny=abs( dmy-nlcy*nint((double)dmy/(double)nlcy)) ;
-      t2ny=abs( (dmy+1)-nlcy*nint((double)(dmy+1)/(double)nlcy) );
-      dny=MIN(t1ny,t2ny);
-    }
-    
-    if( ( dmz==nlcz-1 ) || ( ( dmx==0 ) && ( dmy==0 ) ) )
-      dnz=dmz-nlcz*nint((double)dmz/(double)nlcz);
-    else
-    {
-      t1nz=abs( dmz-nlcz*nint((double)dmz/(double)nlcz) );
-      t2nz=abs( (dmz+1)-nlcz*nint((double)(dmz+1)/(double)nlcz) );
-      dnz=MIN(t1nz,t2nz);
-    }
-    
-    r2=X2( MAX(dnx,1)-1 )*rlcx2+X2( MAX(dny,1)-1 )*rlcy2+X2( MAX(dnz,1)-1 )*rlcz2;
-    
-    if(r2<=cutnb2)
-    {
-      
-      if(ptrmask[k]==-1)
-	ptrmask[k]=dm;
-      
-      ptrmask[k+1]=dm;
-      
-    }
-    else
-    {
-      if(ptrmask[k]!=-1)
-	k+=2;
-    }
-    
-  }
-  
-  for(i=0;i<param->nAtom;i++)
-  {
-    xu[i]=(x[i]*box->u1+y[i]*box->u2+z[i]*box->u3)+0.5;
-    yu[i]=(x[i]*box->v1+y[i]*box->v2+z[i]*box->v3)+0.5;
-    zu[i]=(x[i]*box->w1+y[i]*box->w2+z[i]*box->w3)+0.5;
-  }
-  
-  for(i=0;i<param->nAtom;i++)
-  {
-    
-    ix=(int)dnlcx*xu[i];
-    ix=MIN(ix,nlcx-1);
-    
-    iy=(int)dnlcy*yu[i];
-    iy=MIN(iy,nlcy-1);
-    
-    iz=(int)dnlcz*zu[i];
-    iz=MIN(iz,nlcz-1);
-    
-    m=ix+nlcx*(iy+nlcy*iz);
-    
-    cell[ptrcell[m]]=i;
-    if(ptrcell[m]<(m+1)*atpercell)
-      ptrcell[m]++;
-    else
-      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
-    
-  }
-  
-  k=ptrcell[0];
-  ptrcell[0]=0;
-  for(m=1;m<neigh->nCells;m++)
-  {
-    j=ptrcell[m];
-    ptrcell[m]=k;
-    for(i=m*atpercell;i<j;i++)
-    {
-      cell[k]=cell[i];
-      k++;
-    }
-  }
-  
-  cell=(int*)realloc(cell,param->nAtom*sizeof(*cell));
-  
-  neigh->sizeList=0;
-  
-  for(m=0;m<neigh->nCells;m++)
-  {
-    for(i=ptrcell[m];i<ptrcell[m+1];i++)
-    {
-      for(j=i+1;i<ptrcell[m+1];i++)
-      {
-	exclude=0;
-	
-	if( (frozen[i]*frozen[j]) )
-	{
-	  exclude=1;
-	}
-	else
-	{
-	  for (kk=0;kk<exclPair[i];kk++)
-	  {
-	    if(exclList[i][kk]==j)
-	    {
-	      exclude=1;
-	      break;
-	    }
-	  }
-	}
-	
-	if(!exclude)
-	{	  
-	  neigh->sizeList++;
-	}
-      }
-      
-      for(s=0;s<stripes;s++)
-      {
-	m1=m+ptrmask[2*s];
-	if(m1<neigh->nCells)
-	{
-	  m2=MIN(m+ptrmask[2*s+1],neigh->nCells-1);
-	  for(j=ptrcell[m1];j<ptrcell[m2+1];j++)
-	  {
-	    
-	    delta[0]=x[j]-x[i];
-	    delta[1]=y[j]-y[i];
-	    delta[2]=z[j]-z[i];
-	  
-	    r2=dist(box,delta);
-	    
-	    if(r2<=cutnb2)
-	    {
-	      exclude=0;
-	      
-	      if( (frozen[i]*frozen[j]) )
-	      {
-		exclude=1;
-	      }
-	      else
-	      {
-		for (kk=0;kk<exclPair[i];kk++)
-		{
-		  if(exclList[i][kk]==j)
-		  {
-		    exclude=1;
-		    break;
-		  }
-		}
-	      }
-	      
-	      if(!exclude)
-	      {
-		neigh->sizeList++;
-	      }
-	    }
-	  }
-	}
-      }
-    }
-  }
-  
-  *neighList=(int*)my_malloc(neigh->sizeList*sizeof(**neighList));
-  
-  *neighPair=(int*)my_malloc(param->nAtom*sizeof(**neighPair));
-  
-  for(i=0;i<param->nAtom;i++)
-  {
-    (*neighPair)[i]=0;
-  }
-  
-  *neighOrder=(int*)my_malloc(param->nAtom*sizeof(**neighOrder));
-  
-  iorder=0;
-  offset=0;
-  
-  for(m=0;m<neigh->nCells;m++)
-  {
-    for(i=ptrcell[m];i<ptrcell[m+1];i++)
-    {
-      (*neighOrder)[iorder++]=i;
-      
-      for(j=i+1;i<ptrcell[m+1];i++)
-      {
-	exclude=0;
-	
-	if( (frozen[i]*frozen[j]) )
-	{
-	  exclude=1;
-	}
-	else
-	{
-	  for (kk=0;kk<exclPair[i];kk++)
-	  {
-	    if(exclList[i][kk]==j)
-	    {
-	      exclude=1;
-	      break;
-	    }
-	  }
-	}
-	
-	if(!exclude)
-	{ 
-	  (*neighList)[offset]=j;
-	  (*neighPair)[i]++;
-	  offset++;
-	}
-      }
-      
-      for(s=0;s<stripes;s++)
-      {
-	m1=m+ptrmask[2*s];
-	if(m1<neigh->nCells)
-	{
-	  m2=MIN(m+ptrmask[2*s+1],neigh->nCells-1);
-	  for(j=ptrcell[m1];j<ptrcell[m2+1];j++)
-	  {
-	    delta[0]=x[j]-x[i];
-	    delta[1]=y[j]-y[i];
-	    delta[2]=z[j]-z[i];
-	  
-	    r2=dist(box,delta);
-	    
-	    if(r2<=cutnb2)
-	    {
-	      exclude=0;
-	      
-	      if( (frozen[i]*frozen[j]) )
-	      {
-		exclude=1;
-	      }
-	      else
-	      {
-		for (kk=0;kk<exclPair[i];kk++)
-		{
-		  if(exclList[i][kk]==j)
-		  {
-		    exclude=1;
-		    break;
-		  }
-		}
-	      }
-	      
-	      if(!exclude)
-	      {
-		
-		if(offset>=neigh->sizeList)
-		{
-		  fprintf(outFile,"WARNING: List larger than estimated. Size increased from %d",neigh->sizeList);
-		  neigh->sizeList=(int)(neigh->sizeList*(1.+TOLLIST))+1;
-		  fprintf(outFile," to %d.\n",neigh->sizeList);
-		  
-		  *neighList=(int*)realloc(*neighList,neigh->sizeList*sizeof(**neighList));
-		}
-		
-		(*neighList)[offset]=j;
-		(*neighPair)[i]++;
-		offset++;
-	      }
-	    }
-	  }
-	}
-      }
-    }
-  }
-  
-  
-}
+// void fast_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
+// 		      int frozen[],int ***neighList,int **neighPair,
+// 		      int **exclList,int exclPair[])
+// {
+//   /**
+//    * This routine is derived from the algorithm described
+//    * by Tim. N. Heinz and Philippe H. Hunenberger
+//    * J. Comput. Chem., Vol. 25, No. 12, 1474--1486 (2004)
+//    * DOI: 10.1002/jcc.20071
+//    */
+//   
+//   int i,j,k,kk,m,dm,s,m1,m2,stripes,atpercell;
+//   int nlcx,nlcy,nlcz;
+//   int dmx,dmy,dmz,dnx,dny,dnz;
+//   int t1ny,t2ny,t1nz,t2nz;
+//   int exclude,offset,iorder;
+//   
+//   double r2,rlcx,rlcy,rlcz,rlcx2,rlcy2,rlcz2,cutnb,cutnb2;
+//   double dnlcx,dnlcy,dnlcz;
+//   
+//   int ix,iy,iz;
+//   
+//   double delta[3];
+//   
+//   int *ptrmask=NULL,*ptrcell=NULL,*cell=NULL,*tempcell=NULL;
+//   double *xu=NULL,*yu=NULL,*zu=NULL;
+//   
+//   xu=(double*)my_malloc(param->nAtom*sizeof(*xu));
+//   yu=(double*)my_malloc(param->nAtom*sizeof(*yu));
+//   zu=(double*)my_malloc(param->nAtom*sizeof(*zu));;
+//   
+//   cutnb=param->cutOff+param->delr;
+//   cutnb2=X2(cutnb);
+//   
+//   nlcx=(int)(box->pa*(double)neigh->linkRatio/cutnb);
+//   nlcy=(int)(box->pb*(double)neigh->linkRatio/cutnb);
+//   nlcz=(int)(box->pc*(double)neigh->linkRatio/cutnb);
+//   
+//   neigh->nCells=nlcx*nlcy*nlcz;
+//   
+//   dnlcx=(double)nlcx;
+//   dnlcy=(double)nlcy;
+//   dnlcz=(double)nlcz;
+//   
+//   rlcx=box->pa*dnlcx;
+//   rlcy=box->pb*dnlcy;
+//   rlcz=box->pc*dnlcz;
+//   
+//   rlcx2=X2(rlcx);
+//   rlcy2=X2(rlcy);
+//   rlcz2=X2(rlcz);
+//   
+//   stripes=(int)(1.5*PI*cutnb2*dnlcy*dnlcz/(box->pb*box->pc));
+//   atpercell=(int)(1.5*param->nAtom/neigh->nCells);
+//   
+//   ptrmask=(int*)my_malloc(2*stripes*sizeof(*ptrmask));
+//   for(i=0;i<2*stripes;i++)
+//     ptrmask[i]=-1;
+//   
+//   cell=(int*)my_malloc(param->nAtom*sizeof(*cell));
+//   tempcell=(int*)my_malloc(neigh->nCells*atpercell*sizeof(*tempcell));
+//   
+//   ptrcell=(int*)my_malloc((neigh->nCells+1)*sizeof(*ptrcell));
+//   for(i=0;i<neigh->nCells+1;i++)
+//     ptrcell[i]=i*atpercell;
+//   
+//   ptrcell[neigh->nCells]=param->nAtom;
+//   
+//   k=0;
+//   for(dm=1;dm<neigh->nCells-1;dm++)
+//   {
+//     
+//     dmz=(int)( dm / ( nlcx * nlcy ) ) ;
+//     dmy=(int)( ( dm % ( nlcx * nlcy ) ) / nlcx ) ;
+//     dmx= dm % nlcx ;
+//     
+//     dnx=abs(dmx-nlcx*nint((double)dmx/(double)nlcx));
+//     
+//     if( ( dmx==0 ) || ( ( dmy==nlcy-1 ) && ( dmz==nlcz-1 ) ) )
+//       dny=dmy-nlcy*nint((double)dmy/(double)nlcy);
+//     else
+//     {
+//       t1ny=abs( dmy-nlcy*nint((double)dmy/(double)nlcy)) ;
+//       t2ny=abs( (dmy+1)-nlcy*nint((double)(dmy+1)/(double)nlcy) );
+//       dny=MIN(t1ny,t2ny);
+//     }
+//     
+//     if( ( dmz==nlcz-1 ) || ( ( dmx==0 ) && ( dmy==0 ) ) )
+//       dnz=dmz-nlcz*nint((double)dmz/(double)nlcz);
+//     else
+//     {
+//       t1nz=abs( dmz-nlcz*nint((double)dmz/(double)nlcz) );
+//       t2nz=abs( (dmz+1)-nlcz*nint((double)(dmz+1)/(double)nlcz) );
+//       dnz=MIN(t1nz,t2nz);
+//     }
+//     
+//     r2=X2( MAX(dnx,1)-1 )*rlcx2+X2( MAX(dny,1)-1 )*rlcy2+X2( MAX(dnz,1)-1 )*rlcz2;
+//     
+//     if(r2<=cutnb2)
+//     {
+//       
+//       if(ptrmask[k]==-1)
+// 	ptrmask[k]=dm;
+//       
+//       ptrmask[k+1]=dm;
+//       
+//     }
+//     else
+//     {
+//       if(ptrmask[k]!=-1)
+// 	k+=2;
+//     }
+//     
+//   }
+//   
+//   for(i=0;i<param->nAtom;i++)
+//   {
+//     xu[i]=(x[i]*box->u1+y[i]*box->u2+z[i]*box->u3)+0.5;
+//     yu[i]=(x[i]*box->v1+y[i]*box->v2+z[i]*box->v3)+0.5;
+//     zu[i]=(x[i]*box->w1+y[i]*box->w2+z[i]*box->w3)+0.5;
+//   }
+//   
+//   for(i=0;i<param->nAtom;i++)
+//   {
+//     
+//     ix=(int)dnlcx*xu[i];
+//     ix=MIN(ix,nlcx-1);
+//     
+//     iy=(int)dnlcy*yu[i];
+//     iy=MIN(iy,nlcy-1);
+//     
+//     iz=(int)dnlcz*zu[i];
+//     iz=MIN(iz,nlcz-1);
+//     
+//     m=ix+nlcx*(iy+nlcy*iz);
+//     
+//     cell[ptrcell[m]]=i;
+//     if(ptrcell[m]<(m+1)*atpercell)
+//       ptrcell[m]++;
+//     else
+//       my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
+//     
+//   }
+//   
+//   k=ptrcell[0];
+//   ptrcell[0]=0;
+//   for(m=1;m<neigh->nCells;m++)
+//   {
+//     j=ptrcell[m];
+//     ptrcell[m]=k;
+//     for(i=m*atpercell;i<j;i++)
+//     {
+//       cell[k]=cell[i];
+//       k++;
+//     }
+//   }
+//   
+//   cell=(int*)realloc(cell,param->nAtom*sizeof(*cell));
+//   
+//   neigh->sizeList=0;
+//   
+//   for(m=0;m<neigh->nCells;m++)
+//   {
+//     for(i=ptrcell[m];i<ptrcell[m+1];i++)
+//     {
+//       for(j=i+1;i<ptrcell[m+1];i++)
+//       {
+// 	exclude=0;
+// 	
+// 	if( (frozen[i]*frozen[j]) )
+// 	{
+// 	  exclude=1;
+// 	}
+// 	else
+// 	{
+// 	  for (kk=0;kk<exclPair[i];kk++)
+// 	  {
+// 	    if(exclList[i][kk]==j)
+// 	    {
+// 	      exclude=1;
+// 	      break;
+// 	    }
+// 	  }
+// 	}
+// 	
+// 	if(!exclude)
+// 	{	  
+// 	  neigh->sizeList++;
+// 	}
+//       }
+//       
+//       for(s=0;s<stripes;s++)
+//       {
+// 	m1=m+ptrmask[2*s];
+// 	if(m1<neigh->nCells)
+// 	{
+// 	  m2=MIN(m+ptrmask[2*s+1],neigh->nCells-1);
+// 	  for(j=ptrcell[m1];j<ptrcell[m2+1];j++)
+// 	  {
+// 	    
+// 	    delta[0]=x[j]-x[i];
+// 	    delta[1]=y[j]-y[i];
+// 	    delta[2]=z[j]-z[i];
+// 	  
+// 	    r2=dist(box,delta);
+// 	    
+// 	    if(r2<=cutnb2)
+// 	    {
+// 	      exclude=0;
+// 	      
+// 	      if( (frozen[i]*frozen[j]) )
+// 	      {
+// 		exclude=1;
+// 	      }
+// 	      else
+// 	      {
+// 		for (kk=0;kk<exclPair[i];kk++)
+// 		{
+// 		  if(exclList[i][kk]==j)
+// 		  {
+// 		    exclude=1;
+// 		    break;
+// 		  }
+// 		}
+// 	      }
+// 	      
+// 	      if(!exclude)
+// 	      {
+// 		neigh->sizeList++;
+// 	      }
+// 	    }
+// 	  }
+// 	}
+//       }
+//     }
+//   }
+//   
+//   *neighList=(int*)my_malloc(neigh->sizeList*sizeof(**neighList));
+//   
+//   *neighPair=(int*)my_malloc(param->nAtom*sizeof(**neighPair));
+//   
+//   for(i=0;i<param->nAtom;i++)
+//   {
+//     (*neighPair)[i]=0;
+//   }
+//   
+//   *neighOrder=(int*)my_malloc(param->nAtom*sizeof(**neighOrder));
+//   
+//   iorder=0;
+//   offset=0;
+//   
+//   for(m=0;m<neigh->nCells;m++)
+//   {
+//     for(i=ptrcell[m];i<ptrcell[m+1];i++)
+//     {
+//       (*neighOrder)[iorder++]=i;
+//       
+//       for(j=i+1;i<ptrcell[m+1];i++)
+//       {
+// 	exclude=0;
+// 	
+// 	if( (frozen[i]*frozen[j]) )
+// 	{
+// 	  exclude=1;
+// 	}
+// 	else
+// 	{
+// 	  for (kk=0;kk<exclPair[i];kk++)
+// 	  {
+// 	    if(exclList[i][kk]==j)
+// 	    {
+// 	      exclude=1;
+// 	      break;
+// 	    }
+// 	  }
+// 	}
+// 	
+// 	if(!exclude)
+// 	{ 
+// 	  (*neighList)[offset]=j;
+// 	  (*neighPair)[i]++;
+// 	  offset++;
+// 	}
+//       }
+//       
+//       for(s=0;s<stripes;s++)
+//       {
+// 	m1=m+ptrmask[2*s];
+// 	if(m1<neigh->nCells)
+// 	{
+// 	  m2=MIN(m+ptrmask[2*s+1],neigh->nCells-1);
+// 	  for(j=ptrcell[m1];j<ptrcell[m2+1];j++)
+// 	  {
+// 	    delta[0]=x[j]-x[i];
+// 	    delta[1]=y[j]-y[i];
+// 	    delta[2]=z[j]-z[i];
+// 	  
+// 	    r2=dist(box,delta);
+// 	    
+// 	    if(r2<=cutnb2)
+// 	    {
+// 	      exclude=0;
+// 	      
+// 	      if( (frozen[i]*frozen[j]) )
+// 	      {
+// 		exclude=1;
+// 	      }
+// 	      else
+// 	      {
+// 		for (kk=0;kk<exclPair[i];kk++)
+// 		{
+// 		  if(exclList[i][kk]==j)
+// 		  {
+// 		    exclude=1;
+// 		    break;
+// 		  }
+// 		}
+// 	      }
+// 	      
+// 	      if(!exclude)
+// 	      {
+// 		
+// 		if(offset>=neigh->sizeList)
+// 		{
+// 		  fprintf(outFile,"WARNING: List larger than estimated. Size increased from %d",neigh->sizeList);
+// 		  neigh->sizeList=(int)(neigh->sizeList*(1.+TOLLIST))+1;
+// 		  fprintf(outFile," to %d.\n",neigh->sizeList);
+// 		  
+// 		  *neighList=(int*)realloc(*neighList,neigh->sizeList*sizeof(**neighList));
+// 		}
+// 		
+// 		(*neighList)[offset]=j;
+// 		(*neighPair)[i]++;
+// 		offset++;
+// 	      }
+// 	    }
+// 	  }
+// 	}
+//       }
+//     }
+//   }
+//   
+//   
+// }

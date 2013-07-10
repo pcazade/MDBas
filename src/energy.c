@@ -41,14 +41,13 @@
 #include "io.h"
 #include "utils.h"
 #include "errors.h"
+#include "parallel.h"
+#include "memory.h"
 
 #if (defined TIMING && defined __unix__ && !defined __STRICT_ANSI__)
 #define TIMER
 #include "timing.h"
 #endif
-
-static int newjob;
-static double *buff1;
 
 /**
  * \param simulCond Pointer to structure SIMULPARAMS containing parameters of the current simulation.
@@ -57,8 +56,6 @@ static double *buff1;
  */
 void init_energy_ptrs(CTRL *ctrl)
 {
-  
-  newjob=1;
   
   switch(ctrl->elecType)
   {
@@ -125,25 +122,17 @@ void init_energy_ptrs(CTRL *ctrl)
  * 
  * \brief Main energy function, collecting total energy by calling the required subfunctions.
  */
-void energy(CTRL *ctrl,PARAM *param,ENERGY *ener,EWALD *ewald,PBC *box,NEIGH *neigh,
+void energy(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,EWALD *ewald,PBC *box,NEIGH *neigh,
 	    BOND bond[],BOND ub[],ANGLE angle[],DIHE dihe[],DIHE impr[],
 	    const double x[],const double y[], const double z[],
 	    double vx[],double vy[], double vz[],double fx[],double fy[],
 	    double fz[],const double q[],const double eps[],const double sig[],
 	    const double eps14[],const double sig14[],const int frozen[],
-	    const int *neighList[],const int neighPair[],const int neighList14[],
-	    int **exclList,const int exclPair[])
+	    int **neighList,const int neighPair[],const int neighList14[],
+	    int **exclList,const int exclPair[],double dBuffer[])
 {
   
   int i;
-  
-  if(newjob)
-  {
-    int size;
-    size=MAX(paran->nAtom,22);
-    buff1=(double*)my_malloc(paran->nAtom*sizeof(*buff1));
-    newjob=0;
-  }
   
   ener->elec=0.;
   ener->vdw=0.;
@@ -184,78 +173,78 @@ void energy(CTRL *ctrl,PARAM *param,ENERGY *ener,EWALD *ewald,PBC *box,NEIGH *ne
   
   if(ctrl->keyEwald!=0)
   {
-    ewald_energy(ctrl,param,ener,ewald,box,x,y,z,fx,fy,fz,q,eps,sig,
-		 neighList,neighPair,neighOrder,exclList,exclPair);
+    ewald_energy(ctrl,param,parallel,ener,ewald,box,x,y,z,fx,fy,fz,q,eps,sig,
+		 neighList,neighPair,exclList,exclPair,dBuffer);
     if(ctrl->keyNb14)
-      ewald14_energy(param,ener,ewald,box,neigh,x,y,z,fx,fy,fz,q,eps14,sig14,neighList14);
+      ewald14_energy(param,parallel,ener,ewald,box,neigh,x,y,z,fx,fy,fz,q,eps14,sig14,neighList14);
   }
   else
   {
-    nonbond_energy(param,ener,box,x,y,z,fx,fy,fz,q,eps,sig,neighList,neighPair,neighOrder);
+    nonbond_energy(param,parallel,ener,box,x,y,z,fx,fy,fz,q,eps,sig,neighList,neighPair);
     if(ctrl->keyNb14)
-      nonbond14_energy(param,ener,box,neigh,x,y,z,fx,fy,fz,q,eps14,sig14,neighList14);
+      nonbond14_energy(param,parallel,ener,box,neigh,x,y,z,fx,fy,fz,q,eps14,sig14,neighList14);
   }
   
   /* Performing bond terms */
   
   if(param->nBond>0)
-    bond_energy(param,ener,box,bond,x,y,z,fx,fy,fz);
+    bond_energy(param,parallel,ener,box,bond,x,y,z,fx,fy,fz);
   
   /* Performing angle terms */
   
   if(param->nAngle>0)
-    angle_energy(param,ener,box,angle,x,y,z,fx,fy,fz);
+    angle_energy(param,parallel,ener,box,angle,x,y,z,fx,fy,fz);
   
   /* Performing Urey-Bradley terms */
   
    if(param->nUb>0)
-    ub_energy(param,ener,box,ub,x,y,z,fx,fy,fz);
+    ub_energy(param,parallel,ener,box,ub,x,y,z,fx,fy,fz);
    
   /* Performing diherdral terms */
   
   if(param->nDihedral>0)
-    dihedral_energy(param,ener,box,dihe,x,y,z,fx,fy,fz);
+    dihedral_energy(param,parallel,ener,box,dihe,x,y,z,fx,fy,fz);
   
   /* Performing improper terms */
   
   if(param->nImproper>0)
-    improper_energy(param,ener,box,impr,x,y,z,fx,fy,fz);
+    improper_energy(param,parallel,ener,box,impr,x,y,z,fx,fy,fz);
   
   /* Calculate potential energy */
   
   if(parallel->nProc>1)
   {
-    buff1[0]=ener->elec;
-    buff1[1]=ener->vdw;
-    buff1[2]=ener->bond;
-    buff1[3]=ener->ang;
-    buff1[4]=ener->ub;
-    buff1[5]=ener->dihe;
-    buff1[6]=ener->impr;
+    dBuffer[0]=ener->elec;
+    dBuffer[1]=ener->vdw;
+    dBuffer[2]=ener->bond;
+    dBuffer[3]=ener->ang;
+    dBuffer[4]=ener->ub;
+    dBuffer[5]=ener->dihe;
+    dBuffer[6]=ener->impr;
     
-    buff1[7]=ener->virelec;
-    buff1[8]=ener->virvdw;
-    buff1[9]=ener->virbond;
-    buff1[10]=ener->virub;
+    dBuffer[7]=ener->virelec;
+    dBuffer[8]=ener->virvdw;
+    dBuffer[9]=ener->virbond;
+    dBuffer[10]=ener->virub;
     
-    sum_double_para(buff1,&(buff1[11]),11);
+    sum_double_para(dBuffer,&(dBuffer[11]),11);
     
-    ener->elec=buff1[0];
-    ener->vdw=buff1[1];
-    ener->bond=buff1[2];
-    ener->ang=buff1[3];
-    ener->ub=buff1[4];
-    ener->dihe=buff1[5];
-    ener->impr=buff1[6];
+    ener->elec=dBuffer[0];
+    ener->vdw=dBuffer[1];
+    ener->bond=dBuffer[2];
+    ener->ang=dBuffer[3];
+    ener->ub=dBuffer[4];
+    ener->dihe=dBuffer[5];
+    ener->impr=dBuffer[6];
     
-    ener->virelec=buff1[7];
-    ener->virvdw=buff1[8];
-    ener->virbond=buff1[9];
-    ener->virub=buff1[10];
+    ener->virelec=dBuffer[7];
+    ener->virvdw=dBuffer[8];
+    ener->virbond=dBuffer[9];
+    ener->virub=dBuffer[10];
     
-    sum_double_para(fx,buff1,param->nAtom);
-    sum_double_para(fy,buff1,param->nAtom);
-    sum_double_para(fz,buff1,param->nAtom);
+    sum_double_para(fx,dBuffer,param->nAtom);
+    sum_double_para(fy,dBuffer,param->nAtom);
+    sum_double_para(fz,dBuffer,param->nAtom);
   }
     
   ener->pot=ener->elec+ener->vdw+ener->bond+
@@ -281,9 +270,9 @@ void energy(CTRL *ctrl,PARAM *param,ENERGY *ener,EWALD *ewald,PBC *box,NEIGH *ne
  * 
  * \brief Energy function collecting all terms of non-bonded energies.
  */
-void nonbond_energy(PARAM *param,ENERGY *ener,PBC *box,const double x[],const double y[],
+void nonbond_energy(PARAM *param,PARALLEL *parallel,ENERGY *ener,PBC *box,const double x[],const double y[],
 		    const double z[],double fx[],double fy[],double fz[],const double q[],
-		    const double eps[],const double sig[],const int *neighList[],
+		    const double eps[],const double sig[],int **neighList,
 		    const int neighPair[])
 {
   
@@ -292,8 +281,6 @@ void nonbond_energy(PARAM *param,ENERGY *ener,PBC *box,const double x[],const do
   double r,r2,rt,fxj,fyj,fzj,fxi,fyi,fzi;
   double qel,veps,vsig;
   double delta[3]/*,stress[6]={0.}*/;
-  
-  int parallel->idProc=my_proc();
   
 #ifdef TIMER
   update_timer_begin(TIMER_ENERGY_NB,__func__);
@@ -424,7 +411,7 @@ void nonbond_energy(PARAM *param,ENERGY *ener,PBC *box,const double x[],const do
  * 
  * \brief Energy function collecting all terms of 1-4 non-bonded energies.
  */
-void nonbond14_energy(PARAM *param,ENERGY *ener,PBC *box,NEIGH *neigh,
+void nonbond14_energy(PARAM *param,PARALLEL *parallel,ENERGY *ener,PBC *box,NEIGH *neigh,
 		      const double x[],const double y[],const double z[],double fx[],double fy[],
 		      double fz[],const double q[],const double eps[],const double sig[],
 		      const int neighList14[])
@@ -520,11 +507,11 @@ void nonbond14_energy(PARAM *param,ENERGY *ener,PBC *box,NEIGH *neigh,
  * 
  * \brief Energy function collecting all terms of non-bonded energies.
  */
-void ewald_energy(CTRL *ctrl,PARAM *param,ENERGY *ener,EWALD *ewald,PBC *box,const double x[],
+void ewald_energy(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,EWALD *ewald,PBC *box,const double x[],
 		  const double y[],const double z[],double fx[],double fy[],
 		  double fz[],const double q[],const double eps[],const double sig[],
-		  const int *neighList[],const int neighPair[],int *exclList[],
-		  const int exclPair[])
+		  int **neighList,const int neighPair[],int *exclList[],
+		  const int exclPair[],double dBuffer[])
 {
   
   int i,j,k,l;
@@ -540,9 +527,9 @@ void ewald_energy(CTRL *ctrl,PARAM *param,ENERGY *ener,EWALD *ewald,PBC *box,con
 #endif
   
   if(ctrl->keyEwald==1)
-    eEwaldRec=ewald_rec(param,ewald,box,x,y,z,fx,fy,fz,q,stress1,&virEwaldRec);
+    eEwaldRec=ewald_rec(param,parallel,ewald,box,x,y,z,fx,fy,fz,q,stress1,&virEwaldRec,dBuffer);
   else if(ctrl->keyEwald==2)
-    eEwaldRec=spme_energy(param,ewald,box,x,y,z,fx,fy,fz,q,stress1,&virEwaldRec);
+    eEwaldRec=spme_energy(param,parallel,ewald,box,x,y,z,fx,fy,fz,q,stress1,&virEwaldRec,dBuffer);
   
   l=0;
   #ifdef _OPENMP
@@ -629,7 +616,7 @@ void ewald_energy(CTRL *ctrl,PARAM *param,ENERGY *ener,EWALD *ewald,PBC *box,con
       #endif
       fz[i]+=fzi;
       
-      l++
+      l++;
       
     } //end of parallel for
     
@@ -726,7 +713,7 @@ void ewald_energy(CTRL *ctrl,PARAM *param,ENERGY *ener,EWALD *ewald,PBC *box,con
  * 
  * \brief Energy function collecting all terms of 1-4 non-bonded energies.
  */
-void ewald14_energy(PARAM *param,ENERGY *ener,EWALD *ewald,PBC *box,NEIGH *neigh,const double x[],
+void ewald14_energy(PARAM *param,PARALLEL *parallel,ENERGY *ener,EWALD *ewald,PBC *box,NEIGH *neigh,const double x[],
 		    const double y[],const double z[],double fx[],double fy[],
 		    double fz[],const double q[],const double eps[],const double sig[],
 		    const int neighList14[])

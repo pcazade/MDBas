@@ -20,7 +20,7 @@
 #ifeq ($(OMP),ON)
 #CC=gcc -fopenmp
 #else
-#CC=/usr/lib64/openmpi/bin/mpicc
+MPICC=/usr/lib64/openmpi/bin/mpicc
 CC=gcc
 #endif
 
@@ -30,9 +30,11 @@ ifeq ($(DEBUG),OFF)
 #CC_OPT=-I"./dSFMT" -I"./include" -std=gnu99 -Wall -Ofast -mtune=native -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937 -DTIMING # timing
 #CC_OPT=-I"./dSFMT" -I"./include" -std=c99 -Wall -Ofast -mtune=native -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937
 #CC_OPT=-I"./dSFMT" -I"./include" -std=c99 -Wall -O2 -DDSFMT_MEXP=19937
-CC_OPT=-I"./dSFMT" -I"./include" -std=gnu99 -Wall -O2 -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937 -DTIMING
+#CC_OPT=-I"./dSFMT" -I"./include" -std=gnu99 -Wall -O2 -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937 -DTIMING
+CC_OPT=-I"./dSFMT" -I"./include" -I"/usr/include/openmpi-x86_64" -std=gnu99 -Wall -O2 -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937 -DTIMING
 else
-CC_OPT=-I"./dSFMT" -I"./include" -std=gnu99 -Wall -Wextra -O0 -g -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937 -DTIMING -DFFTW
+#CC_OPT=-I"./dSFMT" -I"./include" -std=gnu99 -Wall -Wextra -O0 -g -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937 -DTIMING -DFFTW
+CC_OPT=-I"./dSFMT" -I"./include" -I"/usr/include/openmpi-x86_64" -std=gnu99 -Wall -Wextra -O0 -g -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937 -DTIMING -DFFTW
 endif
 
 #ifeq ($(DEBUG),ADVI)
@@ -42,7 +44,7 @@ endif
 CC_SFMT_OPT=-I"./dSFMT" -std=c99 -O2 -msse2 -fno-strict-aliasing -DHAVE_SSE2 -DDSFMT_MEXP=19937
 
 #LD_OPT=-lm
-LD_OPT=-lfftw3 -lm -lrt -ldl
+LD_OPT=-lfftw3 -lm -lrt -ldl -L/usr/lib64/openmpi/lib -lmpi
 
 MKDIR=mkdir -p ./obj/dSFMT
  
@@ -70,6 +72,16 @@ all:$(CIBLE)
  
 $(CIBLE):$(dOBJ) $(fOBJ) $(OBJ)
 	$(CC) $(dOBJ) $(fOBJ) $(OBJ) -o $@ $(LD_OPT)
+
+mpi:$(CIBLE)
+	@echo "Compilation Success"
+ 
+./obj/%.o:./src/%.c 
+	$(MPICC) $(CC_OPT) -c $< -o $@ 
+
+./obj/dSFMT/%.o:./dSFMT/%.c
+	@$(MKDIR)
+	$(CC) $(CC_SFMT_OPT) -c $< -o $@
 
 clean:
 	rm -f $(CIBLE) ./obj/*.o

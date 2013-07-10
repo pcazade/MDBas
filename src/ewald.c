@@ -23,13 +23,13 @@
 
 #include "global.h"
 #include "utils.h"
+#include "memory.h"
+#include "parallel.h"
 
 static double **cm1,**sm1,**cm2,**sm2,**cm3,**sm3;
 static double *cm,*sm,*cms,*sms;
 
-static double buf1[2],buf2[2];
-
-void init_ewald(CTRL *ctrl,PARAM *param,EWALD *ewald,PBC *box)
+void init_ewald(CTRL *ctrl,PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box)
 {
   
   int i,m1,m2,m3,m2min,m3min;
@@ -93,29 +93,29 @@ void init_ewald(CTRL *ctrl,PARAM *param,EWALD *ewald,PBC *box)
     m2min=-ewald->m2max;
   }
   
-  cm=(double*)malloc(parallel->maxAtProc*sizeof(*cm));
-  sm=(double*)malloc(parallel->maxAtProc*sizeof(*sm));
+  cm=(double*)my_malloc(parallel->maxAtProc*sizeof(*cm));
+  sm=(double*)my_malloc(parallel->maxAtProc*sizeof(*sm));
   
-  cms=(double*)malloc(parallel->maxAtProc*sizeof(*cms));
-  sms=(double*)malloc(parallel->maxAtProc*sizeof(*sms));
+  cms=(double*)my_malloc(parallel->maxAtProc*sizeof(*cms));
+  sms=(double*)my_malloc(parallel->maxAtProc*sizeof(*sms));
   
-  cm1=(double**)malloc(ewald->mmax*sizeof(*cm1));
-  cm2=(double**)malloc(ewald->mmax*sizeof(*cm2));
-  cm3=(double**)malloc(ewald->mmax*sizeof(*cm3));
+  cm1=(double**)my_malloc(ewald->mmax*sizeof(*cm1));
+  cm2=(double**)my_malloc(ewald->mmax*sizeof(*cm2));
+  cm3=(double**)my_malloc(ewald->mmax*sizeof(*cm3));
   
-  sm1=(double**)malloc(ewald->mmax*sizeof(*sm1));
-  sm2=(double**)malloc(ewald->mmax*sizeof(*sm2));
-  sm3=(double**)malloc(ewald->mmax*sizeof(*sm3));
+  sm1=(double**)my_malloc(ewald->mmax*sizeof(*sm1));
+  sm2=(double**)my_malloc(ewald->mmax*sizeof(*sm2));
+  sm3=(double**)my_malloc(ewald->mmax*sizeof(*sm3));
   
   for(i=0;i<ewald->mmax;i++)
   {
-    cm1[i]=(double*)malloc(parallel->maxAtProc*sizeof(**cm1));
-    cm2[i]=(double*)malloc(parallel->maxAtProc*sizeof(**cm2));
-    cm3[i]=(double*)malloc(parallel->maxAtProc*sizeof(**cm3));
+    cm1[i]=(double*)my_malloc(parallel->maxAtProc*sizeof(**cm1));
+    cm2[i]=(double*)my_malloc(parallel->maxAtProc*sizeof(**cm2));
+    cm3[i]=(double*)my_malloc(parallel->maxAtProc*sizeof(**cm3));
     
-    sm1[i]=(double*)malloc(parallel->maxAtProc*sizeof(**sm1));
-    sm2[i]=(double*)malloc(parallel->maxAtProc*sizeof(**sm2));
-    sm3[i]=(double*)malloc(parallel->maxAtProc*sizeof(**sm3));
+    sm1[i]=(double*)my_malloc(parallel->maxAtProc*sizeof(**sm1));
+    sm2[i]=(double*)my_malloc(parallel->maxAtProc*sizeof(**sm2));
+    sm3[i]=(double*)my_malloc(parallel->maxAtProc*sizeof(**sm3));
   }
   
 }
@@ -150,8 +150,9 @@ void ewald_free(EWALD *ewald)
   free(sm3);
 }
 
-double ewald_rec(PARAM *param,EWALD *ewald,PBC *box,const double x[],const double y[],const double z[],
-	       double fx[],double fy[],double fz[],const double q[],double stress[6],double *virEwaldRec)
+double ewald_rec(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const double x[],
+		 const double y[],const double z[],double fx[],double fy[],double fz[],
+		 const double q[],double stress[6],double *virEwaldRec,double dBuffer[])
 {
   
   int i,l,m1,m2,m3,am2,am3,m2min,m3min;
@@ -191,7 +192,7 @@ double ewald_rec(PARAM *param,EWALD *ewald,PBC *box,const double x[],const doubl
   }
   
   if(parallel->nProc>1)
-    sum_double_para(&systq,buf1,1);
+    sum_double_para(&systq,dBuffer,1);
   
   eEwaldself=-param->chargeConst*ewald->alpha*eEwaldself/SQRTPI;
   
@@ -326,11 +327,11 @@ double ewald_rec(PARAM *param,EWALD *ewald,PBC *box,const double x[],const doubl
 	  
 	  if(parallel->nProc>1)
 	  {
-	    buf1[0]=cmss;
-	    buf1[1]=smss;
-	    sum_double_para(buf1,buf2,2);
-	    cmss=buf1[0];
-	    smss=buf1[1];
+	    dBuffer[0]=cmss;
+	    dBuffer[1]=smss;
+	    sum_double_para(dBuffer,&(dBuffer[2]),2);
+	    cmss=dBuffer[0];
+	    smss=dBuffer[1];
 	  }
 	  
 	  rrm=1.0/rm;

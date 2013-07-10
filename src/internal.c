@@ -38,26 +38,20 @@
 #include "timing.h"
 #endif
 
-void bond_energy(const PARAM *param,ENERGY *ener,const PBC *box,const BOND bond[],const double *x,
-		 const double *y,const double *z,double *fx,double *fy,double *fz)
+void bond_energy(const PARAM *param,const PARALLEL *parallel,ENERGY *ener,const PBC *box,
+		 const BOND bond[],const double *x,const double *y,const double *z,
+		 double *fx,double *fy,double *fz)
 {
   int i,j,ll;
   double morsea,morseb;
   double r,tfx,tfy,tfz,dbond,virbond=0.;
   double delta[3]/*,stress[6]={0.}*/;
   
-  int parallel->idProc=my_proc();
-  int parallel->fAtProc,parallel->lAtProc,parallel->nAtProc;
-  
-  parallel->fAtProc=(parallel->idProc*param->nBond)/parallel->nProc;
-  parallel->lAtProc=((parallel->idProc+1)*param->nBond)/parallel->nProc;
-  parallel->nAtProc=parallel->lAtProc-parallel->fAtProc;
-  
 #ifdef TIMER
   update_timer_begin(TIMER_ENERGY_BOND,__func__);
 #endif
   
-  for(ll=parallel->fAtProc;ll<parallel->lAtProc;ll++)
+  for(ll=parallel->fBdProc;ll<parallel->lBdProc;ll++)
   {
     
     i=bond[ll].a;
@@ -131,25 +125,19 @@ void bond_energy(const PARAM *param,ENERGY *ener,const PBC *box,const BOND bond[
   
 }
 
-void ub_energy(const PARAM *param,ENERGY *ener,const PBC *box,const BOND ub[],const double *x,
-	       const double *y,const double *z,double *fx,double *fy,double *fz)
+void ub_energy(const PARAM *param,const PARALLEL *parallel,ENERGY *ener,const PBC *box,
+	       const BOND ub[],const double *x,const double *y,const double *z,
+	       double *fx,double *fy,double *fz)
 {
   int i,j,ll;
   double r,tfx,tfy,tfz,dub,virub=0.;
   double delta[3]/*,stress[6]={0.}*/;
   
-  int parallel->idProc=my_proc();
-  int parallel->fAtProc,parallel->lAtProc,parallel->nAtProc;
-  
-  parallel->fAtProc=(parallel->idProc*param->nUb)/parallel->nProc;
-  parallel->lAtProc=((parallel->idProc+1)*param->nUb)/parallel->nProc;
-  parallel->nAtProc=parallel->lAtProc-parallel->fAtProc;
-  
 #ifdef TIMER
   update_timer_begin(TIMER_ENERGY_UB,__func__);
 #endif
   
-  for(ll=parallel->fAtProc;ll<parallel->lAtProc;ll++)
+  for(ll=parallel->fUbProc;ll<parallel->lUbProc;ll++)
   {
     i=ub[ll].a;
     j=ub[ll].b;
@@ -204,26 +192,20 @@ void ub_energy(const PARAM *param,ENERGY *ener,const PBC *box,const BOND ub[],co
   
 }
 
-void angle_energy(const PARAM *param,ENERGY *ener,const PBC *box,const ANGLE angle[],const double *x,
-		  const double *y,const double *z,double *fx,double *fy,double *fz)
+void angle_energy(const PARAM *param,const PARALLEL *parallel,ENERGY *ener,const PBC *box,
+		  const ANGLE angle[],const double *x,const double *y,const double *z,
+		  double *fx,double *fy,double *fz)
 {
   int i,j,k,ll;
   double dangle,rab,rbc,rabt,rbct,cost,sint,theta;
   double dab[3],dbc[3]/*,stress[6]*/;
   double fxa,fya,fza,fxc,fyc,fzc;
   
-  int parallel->idProc=my_proc();
-  int parallel->fAtProc,parallel->lAtProc,parallel->nAtProc;
-  
-  parallel->fAtProc=(parallel->idProc*param->nAngle)/parallel->nProc;
-  parallel->lAtProc=((parallel->idProc+1)*param->nAngle)/parallel->nProc;
-  parallel->nAtProc=parallel->lAtProc-parallel->fAtProc;
-  
 #ifdef TIMER
   update_timer_begin(TIMER_ENERGY_ANGL,__func__);
 #endif
   
-  for(ll=parallel->fAtProc;ll<parallel->lAtProc;ll++)
+  for(ll=parallel->fAgProc;ll<parallel->lAgProc;ll++)
   {
     
     i=angle[ll].a;
@@ -296,8 +278,9 @@ void angle_energy(const PARAM *param,ENERGY *ener,const PBC *box,const ANGLE ang
   
 }
 
-void dihedral_energy(const PARAM *param,ENERGY *ener,const PBC *box,const DIHE dihe[],const double *x,
-		     const double *y,const double *z,double *fx,double *fy,double *fz)
+void dihedral_energy(const PARAM *param,const PARALLEL *parallel,ENERGY *ener,const PBC *box,
+		     const DIHE dihe[],const double *x,const double *y,const double *z,
+		     double *fx,double *fy,double *fz)
 {
   int i,j,k,l,ll;
   double edihe=0.,ddihe=0.;
@@ -306,18 +289,11 @@ void dihedral_energy(const PARAM *param,ENERGY *ener,const PBC *box,const DIHE d
   double dab[3],dbc[3],dcd[3],/*dac[3],*/pb[3],pc[3]/*,stress[6]={0.}*/;
   double fax,fay,faz,fbx,fby,fbz,fcx,fcy,fcz,fdx,fdy,fdz;
   
-  int parallel->idProc=my_proc();
-  int parallel->fAtProc,parallel->lAtProc,parallel->nAtProc;
-  
-  parallel->fAtProc=(parallel->idProc*param->nDihedral)/parallel->nProc;
-  parallel->lAtProc=((parallel->idProc+1)*param->nDihedral)/parallel->nProc;
-  parallel->nAtProc=parallel->lAtProc-parallel->fAtProc;
-  
 #ifdef TIMER
   update_timer_begin(TIMER_ENERGY_DIHE,__func__);
 #endif
   
-  for(ll=parallel->fAtProc;ll<parallel->lAtProc;ll++)
+  for(ll=parallel->fDhProc;ll<parallel->lDhProc;ll++)
   {
     i=dihe[ll].a;
     j=dihe[ll].b;
@@ -474,8 +450,9 @@ void dihedral_energy(const PARAM *param,ENERGY *ener,const PBC *box,const DIHE d
   
 }
 
-void improper_energy(const PARAM *param,ENERGY *ener,const PBC *box,const DIHE impr[],const double *x,
-		     const double *y,const double *z,double *fx,double *fy,double *fz)
+void improper_energy(const PARAM *param,const PARALLEL *parallel,ENERGY *ener,const PBC *box,
+		     const DIHE impr[],const double *x,const double *y,const double *z,
+		     double *fx,double *fy,double *fz)
 {
   int i,j,k,l,ll;
   double edihe=0.,ddihe=0.;
@@ -484,18 +461,11 @@ void improper_energy(const PARAM *param,ENERGY *ener,const PBC *box,const DIHE i
   double dab[3],dbc[3],dcd[3],/*dac[3],*/pb[3],pc[3]/*,stress[6]={0.}*/;
   double fax,fay,faz,fbx,fby,fbz,fcx,fcy,fcz,fdx,fdy,fdz;
   
-  int parallel->idProc=my_proc();
-  int parallel->fAtProc,parallel->lAtProc,parallel->nAtProc;
-  
-  parallel->fAtProc=(parallel->idProc*param->nImproper)/parallel->nProc;
-  parallel->lAtProc=((parallel->idProc+1)*param->nImproper)/parallel->nProc;
-  parallel->nAtProc=parallel->lAtProc-parallel->fAtProc;
-  
 #ifdef TIMER
   update_timer_begin(TIMER_ENERGY_UB,__func__);
 #endif
   
-  for(ll=parallel->fAtProc;ll<parallel->lAtProc;ll++)
+  for(ll=parallel->fIpProc;ll<parallel->lIpProc;ll++)
   {
     i=impr[ll].a;
     j=impr[ll].b;

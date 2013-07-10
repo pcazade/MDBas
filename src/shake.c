@@ -71,7 +71,7 @@ void shake_free_arrays()
 void lf_shake(PARAM *param,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
 	      double x[],double y[],double z[],
 	      double ddx[],double ddy[],double ddz[],double rmass[],
-	      int *nAtConst,double stress[6],double *virshake)
+	      int *nAtConst,double stress[6],double *virshake,double dBuffer[])
 {
   int i,l,ia,ib,icycle,converged;
   double ts2,maxdist,dist;
@@ -121,7 +121,7 @@ void lf_shake(PARAM *param,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
     
     if(parallel->nProc>1)
     {
-      test_para(converged);
+      test_para(&converged);
     }
     
     if(!converged)
@@ -170,9 +170,9 @@ void lf_shake(PARAM *param,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
       
       if(parallel->nProc>1)
       {
-	sum_double_para(xt,buffer,param->nAtom);
-	sum_double_para(yt,buffer,param->nAtom);
-	sum_double_para(zt,buffer,param->nAtom);
+	sum_double_para(xt,dBuffer,param->nAtom);
+	sum_double_para(yt,dBuffer,param->nAtom);
+	sum_double_para(zt,dBuffer,param->nAtom);
       }
       
 //       for(i=parallel->fCtProc;i<parallel->lCtProc;i++)
@@ -214,11 +214,11 @@ void lf_shake(PARAM *param,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
   
   if(parallel->nProc>1)
   {
-    buffer[0]=virshake;
-    sum_double_para(buffer,&(buffer[1]),1);
-    virshake=buffer[0];
+    dBuffer[0]=*virshake;
+    sum_double_para(dBuffer,&(dBuffer[1]),1);
+    *virshake=dBuffer[0];
     
-    sum_double_para(stress,buffer,6);
+    sum_double_para(stress,dBuffer,6);
   }
   
   box->stress1+=stress[0];
@@ -242,7 +242,7 @@ void vv_shake_r(PARAM *param,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
 		double x[],double y[],double z[],
 		double vx[],double vy[],double vz[],
 		double ddx[],double ddy[],double ddz[],double rmass[],
-		int *nAtConst,double stress[6],double *virshake)
+		int *nAtConst,double stress[6],double *virshake,double dBuffer[])
 {
   int i,l,ia,ib,icycle,converged;
   double maxdist,dist;
@@ -287,7 +287,7 @@ void vv_shake_r(PARAM *param,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
     
     if(parallel->nProc>1)
     {
-      test_para(converged);
+      test_para(&converged);
     }
     
     if(maxdist<param->tolShake)
@@ -338,9 +338,9 @@ void vv_shake_r(PARAM *param,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
       
       if(parallel->nProc>1)
       {
-	sum_double_para(xt,buffer,param->nAtom);
-	sum_double_para(yt,buffer,param->nAtom);
-	sum_double_para(zt,buffer,param->nAtom);
+	sum_double_para(xt,dBuffer,param->nAtom);
+	sum_double_para(yt,dBuffer,param->nAtom);
+	sum_double_para(zt,dBuffer,param->nAtom);
       }
       
 //       for(i=parallel->fCtProc;i<parallel->lCtProc;i++)
@@ -398,11 +398,11 @@ void vv_shake_r(PARAM *param,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
   
   if(parallel->nProc>1)
   {
-    buffer[0]=virshake;
-    sum_double_para(buffer,&(buffer[1]),1);
-    virshake=buffer[0];
+    dBuffer[0]=*virshake;
+    sum_double_para(dBuffer,&(dBuffer[1]),1);
+    *virshake=dBuffer[0];
     
-    sum_double_para(stress,buffer,6);
+    sum_double_para(stress,dBuffer,6);
   }
   
   box->stress1+=stress[0];
@@ -423,7 +423,8 @@ void vv_shake_r(PARAM *param,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
 
 void vv_shake_v(PARAM *param,CONSTRAINT constList[],PARALLEL *parallel,
 		double vx[],double vy[],double vz[],double ddx[],
-		double ddy[],double ddz[],double rmass[],int *nAtConst)
+		double ddy[],double ddz[],double rmass[],int *nAtConst,
+		double dBuffer[])
 {
   int i,l,ia,ib,icycle,converged;
   double maxdist,tolvel;
@@ -481,16 +482,16 @@ void vv_shake_v(PARAM *param,CONSTRAINT constList[],PARALLEL *parallel,
       converged=1;
     
     if(parallel->nProc>1)
-      test_para(converged);
+      test_para(&converged);
     
     if(!converged)
     {
       
       if(parallel->nProc>1)
       {
-	sum_double_para(xt,buffer,param->nAtom);
-	sum_double_para(yt,buffer,param->nAtom);
-	sum_double_para(zt,buffer,param->nAtom);
+	sum_double_para(xt,dBuffer,param->nAtom);
+	sum_double_para(yt,dBuffer,param->nAtom);
+	sum_double_para(zt,dBuffer,param->nAtom);
       }
       
 //       for(i=parallel->fCtProc;i<parallel->lCtProc;i++)

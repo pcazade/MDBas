@@ -8,7 +8,7 @@ extern "C" {
 double coulomb_none(const PARAM *param,double *delec,const double qel,
 		      const double r2,const double rt);
 
-void coulomb_full(ENERGY *ener,PARAM *param,PBC *box,double *x,double *y,
+void coulomb_full(ENERGY *ener,PARAM *param,PARALLEL *parallel,PBC *box,double *x,double *y,
 		  double *z,double *fx, double *fy, double *fz,double *q,
 		  int **exclList,int *exclPair);
 

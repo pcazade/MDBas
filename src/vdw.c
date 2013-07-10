@@ -63,7 +63,7 @@ double vdw_none(const PARAM *param,double *dvdw,const double veps,
  *
  * \brief Function called for a full evaluation of the Van der Waals energy and force.
  */
-void vdw_full(const PARAM *param, ENERGY *ener, const PBC *box,double *x,
+void vdw_full(const PARAM *param,PARALLEL *parallel, ENERGY *ener, const PBC *box,double *x,
 	      double *y,double *z,double *fx, double *fy, double *fz,double *eps,double *sig,
 	      int **exclList,int *exclPair)
 {

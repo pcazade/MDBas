@@ -12,7 +12,7 @@ double dist2(const PBC *box, double *dx, double *dy,double *dz);
 void freeze_atoms(const PARAM *param, double *vx, double *vy,double *vz,
 		  double *fx,double *fy,double *fz,const int *frozen);
 
-void image_update(const PARAM *param, const PBC *box,double x[],double y[],double z[]);
+void image_update(const PARALLEL *parallel, const PBC *box,double x[],double y[],double z[]);
 
 void image_array(const PBC *box, double dx[],double dy[],double dz[],const int size_array);
 
@@ -24,11 +24,12 @@ void box_to_lattice(const PBC *box,double lattice[6]);
 
 void box_to_crystal(const PBC *box,double crystal[6]);
 
-double kinetic(const PARAM *param, const double vx[],const double vy[],
-	       const double vz[],const double mass[]);
+double kinetic(const PARALLEL *parallel, const double vx[],const double vy[],
+	       const double vz[],const double mass[],double dBuffer[]);
 
-void stress_kinetic(const PARAM *param,const double vx[],const double vy[],
-		    const double vz[],const double mass[],double stress[6]);
+void stress_kinetic(const PARALLEL *parallel,const double vx[],const double vy[],
+		    const double vz[],const double mass[],double stress[6],
+		    double dBuffer[]);
 
 void get_kinfromtemp(PARAM *param, const PBC *box);
 

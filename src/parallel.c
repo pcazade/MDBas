@@ -21,16 +21,17 @@
 //#ifdef MPI_VERSION
 
 #include <stdio.h>
-#include <mpi.h>
+
+#include "mpi.h"
 
 #include "global.h"
 #include "errors.h"
 #include "parallel.h"
 #include "memory.h"
 
-#define BUFSIZ 8192
+#define STRBUFSIZ 8192
 
-void init_para(int *argc, char ***argv,PARAM *param)
+void init_para(int *argc, char ***argv)
 {
   int err;
     
@@ -138,6 +139,68 @@ void test_para(int *buf1)
     mpi_error(err,__FILE__,__LINE__);
   
     *buf1=test;
+  
+}
+
+void parallel_allocate_buffers(PARAM *param,PARALLEL *parallel,double **dBuffer,
+			       int **iBuffer)
+{
+  parallel->iBufferSize=128;
+  parallel->dBufferSize=128;
+  
+  parallel->iBufferSize=MAX(param->nAtom,parallel->iBufferSize);
+  parallel->dBufferSize=MAX(param->nAtom,parallel->dBufferSize);
+  
+  if(param->nConst>0)
+  {
+    parallel->iBufferSize=MAX(2*param->nConst,parallel->iBufferSize);
+    parallel->dBufferSize=MAX(param->nConst,parallel->dBufferSize);
+  }
+  
+  if(param->nBond>0)
+  {
+    parallel->iBufferSize=MAX(3*param->nBond,parallel->iBufferSize);
+    parallel->dBufferSize=MAX(3*param->nBond,parallel->dBufferSize);
+  }
+  
+  if(param->nAngle>0)
+  {
+    parallel->iBufferSize=MAX(3*param->nAngle,parallel->iBufferSize);
+    parallel->dBufferSize=MAX(2*param->nAngle,parallel->dBufferSize);
+  }
+  
+  if(param->nUb>0)
+  {
+    parallel->iBufferSize=MAX(3*param->nUb,parallel->iBufferSize);
+    parallel->dBufferSize=MAX(3*param->nUb,parallel->dBufferSize);
+  }
+  
+  if(param->nDihedral>0)
+  {
+    parallel->iBufferSize=MAX(6*param->nDihedral,parallel->iBufferSize);
+    parallel->dBufferSize=MAX(3*param->nDihedral,parallel->dBufferSize);
+  }
+  
+  if(param->nImproper>0)
+  {
+    parallel->iBufferSize=MAX(6*param->nImproper,parallel->iBufferSize);
+    parallel->dBufferSize=MAX(3*param->nImproper,parallel->dBufferSize);
+  }
+  
+  (*iBuffer)=(int*)my_malloc(parallel->iBufferSize*sizeof(**iBuffer));
+  (*dBuffer)=(double*)my_malloc(parallel->dBufferSize*sizeof(**dBuffer));
+  
+}
+
+void parallel_reallocate_buffers(PARALLEL *parallel,EWALD *ewald,double **dBuffer)
+{
+  
+  if(ewald->mmax>parallel->dBufferSize)
+  {
+    parallel->dBufferSize=ewald->mmax;
+    
+    (*dBuffer)=(double*)my_realloc(*dBuffer,parallel->dBufferSize*sizeof(**dBuffer));
+  }
   
 }
 
@@ -400,13 +463,11 @@ void bcast_ewald_para(EWALD *ewald,PARALLEL *parallel,int *iBuffer,double *dBuff
     iBuffer[4]=ewald->m3max;
     
     dBuffer[0]=ewald->prec;
-    dBuffer[1]=ewald->tol;
-    dBuffer[2]=ewald->tol1;
-    dBuffer[3]=ewald->alpha;
+    dBuffer[1]=ewald->alpha;
   }
   
   bcast_int_para(iBuffer,5,0);
-  bcast_double_para(dBuffer,5,0);
+  bcast_double_para(dBuffer,2,0);
   
   if(parallel->idProc>0)
   {
@@ -417,9 +478,42 @@ void bcast_ewald_para(EWALD *ewald,PARALLEL *parallel,int *iBuffer,double *dBuff
     ewald->m3max=iBuffer[4];
     
     ewald->prec=dBuffer[0];
-    ewald->tol=dBuffer[1];
-    ewald->tol1=dBuffer[2];
-    ewald->alpha=dBuffer[3];
+    ewald->alpha=dBuffer[1];
+  }
+  
+}
+
+void bcast_const_para(CONSTRAINT *constList,PARALLEL *parallel,int *iBuffer,double *dBuffer,int size)
+{
+  int idx1,idx2;
+  
+  if(parallel->idProc==0)
+  {
+    idx1=0;
+    idx2=0;
+    for(int i=0;i<size;i++)
+    {
+      iBuffer[idx1++]=constList[i].a;
+      iBuffer[idx1++]=constList[i].b;
+      
+      dBuffer[idx2++]=constList[i].rc2;
+    }
+  }
+  
+  bcast_int_para(iBuffer,2*size,0);
+  bcast_double_para(dBuffer,size,0);
+  
+  if(parallel->idProc>0)
+  {
+    idx1=0;
+    idx2=0;
+    for(int i=0;i<size;i++)
+    {
+      constList[i].a=iBuffer[idx1++];
+      constList[i].b=iBuffer[idx1++];
+      
+      constList[i].rc2=dBuffer[idx2++];
+    }
   }
   
 }
@@ -557,8 +651,7 @@ void setup_para(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,
 		double **y, double **z,double **vx,double **vy,double **vz,double **fx,
 		double **fy, double **fz,double **mass,double **rmass,double **q,
 		double **eps,double **sig,double **eps14,double **sig14,int **frozen,
-		int **nAtConst,int **neighList,int **neighPair,int **neighList14,
-		int ***exclList,int **exclPair,double *dBuffer,int *iBuffer)
+		int **nAtConst,double *dBuffer,int *iBuffer)
 {
     
   bcast_param_para(param,parallel,dBuffer,iBuffer);
@@ -661,9 +754,9 @@ void setup_para(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,
   bcast_double_para(*y,param->nAtom,0);
   bcast_double_para(*z,param->nAtom,0);
   
-  bcast_double_para(*vx,param->nAtom,0);
-  bcast_double_para(*vy,param->nAtom,0);
-  bcast_double_para(*vz,param->nAtom,0);
+//   bcast_double_para(*vx,param->nAtom,0);
+//   bcast_double_para(*vy,param->nAtom,0);
+//   bcast_double_para(*vz,param->nAtom,0);
   
   bcast_double_para(*q,param->nAtom,0);
   
@@ -677,6 +770,8 @@ void setup_para(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,
   
   bcast_int_para(*frozen,param->nAtom,0);
   bcast_int_para(*nAtConst,param->nAtom,0);
+  
+  bcast_const_para(*constList,parallel,iBuffer,dBuffer,param->nConst);
   
   bcast_bond_para(*bond,parallel,iBuffer,dBuffer,param->nBond);
   
@@ -700,18 +795,18 @@ void close_para()
 
 void mpi_error(int err, char file[],int line)
 {
-  char errString[BUFSIZ];
+  char errString[STRBUFSIZ];
   int idProc,lenErrString, errClass;
   
-  idProc=myproc();
+  idProc=my_proc();
   
   MPI_Error_class(err, &errClass);
   
   MPI_Error_string(errClass, errString, &lenErrString);
-  fprintf(outFile, "%3d: %s\n", parallel->idProc, errString);
+  fprintf(outFile, "%3d: %s\n", idProc, errString);
   
   MPI_Error_string(err, errString, &lenErrString);
-  fprintf(outFile, "%3d: %s\n", parallel->idProc, errString);
+  fprintf(outFile, "%3d: %s\n", idProc, errString);
   
   MPI_Abort(MPI_COMM_WORLD, err);
   

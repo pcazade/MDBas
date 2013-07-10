@@ -317,7 +317,7 @@ typedef struct
   int fDhProc,lDhProc;
   int fIpProc,lIpProc;
   
-  int buffSize;
+  int iBufferSize,dBufferSize;
 }PARALLEL;
 
 #ifdef	__cplusplus

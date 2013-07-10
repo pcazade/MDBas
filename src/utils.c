@@ -180,7 +180,7 @@ void freeze_atoms(const PARAM *param, double *vx, double *vy,double *vz,
  *
  * \brief Applies Periodic Boundaries Conditions to atom[], according to the PBC type.
  */
-void image_update(const PARAM *param, const PBC *box,double x[],double y[], double z[])
+void image_update(const PARALLEL *parallel,const PBC *box,double x[],double y[], double z[])
 {
 
   int i;
@@ -192,7 +192,7 @@ void image_update(const PARAM *param, const PBC *box,double x[],double y[], doub
       #ifdef _OPENMP
       #pragma omp parallel for default(none) shared(param,atom,box) private(i)
       #endif
-      for(i=0;i<param->nAtom;i++)
+      for(i=parallel->fAtProc;i<parallel->lAtProc;i++)
       {
 	x[i]=x[i]-box->a1*nint(x[i]*box->u1);
 	y[i]=y[i]-box->a1*nint(y[i]*box->u1);
@@ -204,7 +204,7 @@ void image_update(const PARAM *param, const PBC *box,double x[],double y[], doub
       #ifdef _OPENMP
       #pragma omp parallel for default(none) shared(param,atom,box) private(i)
       #endif
-      for(i=0;i<param->nAtom;i++)
+      for(i=parallel->fAtProc;i<parallel->lAtProc;i++)
       {
 	x[i]=x[i]-box->a1*nint(x[i]*box->u1);
 	y[i]=y[i]-box->b2*nint(y[i]*box->v2);
@@ -216,7 +216,7 @@ void image_update(const PARAM *param, const PBC *box,double x[],double y[], doub
       #ifdef _OPENMP
       #pragma omp parallel for default(none) shared(param,atom,box) private(i,xt,yt,zt)
       #endif
-      for(i=0;i<param->nAtom;i++)
+      for(i=parallel->fAtProc;i<parallel->lAtProc;i++)
       {
 	xt=x[i]*box->u1+y[i]*box->u2+z[i]*box->u3;
 	yt=x[i]*box->v1+y[i]*box->v2+z[i]*box->v3;
@@ -520,8 +520,8 @@ void box_to_crystal(const PBC *box,double crystal[6])
  *
  * \return On return, the kinetic energy : \f$ 1/2*m*v^2 \f$
  */
-double kinetic(const PARAM *param, const PARALLEL *parallel,const double vx[],
-	       const double vy[],const double vz[],const double mass[],double *dBuffer)
+double kinetic(const PARALLEL *parallel,const double vx[],const double vy[],
+	       const double vz[],const double mass[],double *dBuffer)
 {
   int i;
   double ekin;
@@ -533,9 +533,7 @@ double kinetic(const PARAM *param, const PARALLEL *parallel,const double vx[],
   }
   
   if(parallel->nProc>1)
-  {
-    sum_double_para(ekin,dBuffer,1);
-  }
+    sum_double_para(&ekin,dBuffer,1);
   
   return ( ekin*0.5 );
 }
@@ -547,15 +545,15 @@ double kinetic(const PARAM *param, const PARALLEL *parallel,const double vx[],
  *
  * \brief Adds to the stress tensor the kinetic energy.
  */
-void stress_kinetic(const PARAM *param,const double vx[],const double vy[],
-		    const double vz[],const double mass[],double stress[6])
+void stress_kinetic(const PARALLEL *parallel,const double vx[],const double vy[],
+		    const double vz[],const double mass[],double stress[6],
+		    double dBuffer[])
 {
-  int i;
   
-  for(i=0;i<6;i++)
+  for(int i=0;i<6;i++)
     stress[i]=0.;
   
-  for(i=0;i<param->nAtom;i++)
+  for(int i=parallel->fAtProc;i<parallel->lAtProc;i++)
   {
     stress[0] += mass[i]*X2(vx[i]);
     stress[1] += mass[i]*vx[i]*vy[i];
@@ -565,6 +563,8 @@ void stress_kinetic(const PARAM *param,const double vx[],const double vy[],
     stress[5] += mass[i]*X2(vz[i]);
   }
   
+  if(parallel->nProc>1)
+    sum_double_para(stress,dBuffer,6);
 }
 
 /**

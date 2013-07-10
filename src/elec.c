@@ -54,7 +54,7 @@ double coulomb_none(const PARAM *param,double *delec,const double qel,
  *
  * \brief Function called for a full evaluation of the electrostatic energy and force.
  */
-void coulomb_full(ENERGY *ener,PARAM *param,PBC *box,double *x,double *y,
+void coulomb_full(ENERGY *ener,PARAM *param,PARALLEL *parallel,PBC *box,double *x,double *y,
 		  double *z,double *fx, double *fy, double *fz,double *q,
 		  int **exclList,int *exclPair)
 {

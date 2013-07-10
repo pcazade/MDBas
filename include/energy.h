@@ -7,32 +7,32 @@ extern "C" {
 
 void init_energy_ptrs(CTRL *ctrl);
 
-void energy(CTRL *ctrl,PARAM *param,ENERGY *ener,EWALD *ewald,PBC *box,NEIGH *neigh,
+void energy(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,EWALD *ewald,PBC *box,NEIGH *neigh,
 	    BOND bond[],BOND ub[],ANGLE angle[],DIHE dihe[],DIHE impr[],
 	    const double x[],const double y[], const double z[],
 	    double vx[],double vy[], double vz[],double fx[],double fy[],
 	    double fz[],const double q[],const double eps[],const double sig[],
 	    const double eps14[],const double sig14[],const int frozen[],
-	    const int neighList[],const int neighPair[],const int neighOrder[],
-	    const int neighList14[],int **exclList,const int exclPair[]);
+	    int **neighList,const int neighPair[],const int neighList14[],
+	    int **exclList,const int exclPair[],double dBuffer[]);
 
-void nonbond_energy(PARAM *param,ENERGY *ener,PBC *box,
+void nonbond_energy(PARAM *param,PARALLEL *parallel,ENERGY *ener,PBC *box,
 		    const double x[],const double y[],const double z[],double fx[],double fy[],
 		    double fz[],const double q[],const double eps[],const double sig[],
-		    const int neighList[],const int neighPair[],const int neighOrder[]);
+		    int **neighList,const int neighPair[]);
 
-void nonbond14_energy(PARAM *param,ENERGY *ener,PBC *box,NEIGH *neigh,
+void nonbond14_energy(PARAM *param,PARALLEL *parallel,ENERGY *ener,PBC *box,NEIGH *neigh,
 		      const double x[],const double y[],const double z[],double fx[],double fy[],
 		      double fz[],const double q[],const double eps[],const double sig[],
 		      const int neighList14[]);
 
-void ewald_energy(CTRL *ctrl,PARAM *param,ENERGY *ener,EWALD *ewald,PBC *box,const double x[],
+void ewald_energy(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,EWALD *ewald,PBC *box,const double x[],
 		  const double y[],const double z[],double fx[],double fy[],
 		  double fz[],const double q[],const double eps[],const double sig[],
-		  const int neighList[],const int neighPair[],const int neighOrder[],
-		  int **exclList,const int exclPair[]);
+		  int **neighList,const int neighPair[],int **exclList,
+		  const int exclPair[],double dBuffer[]);
 
-void ewald14_energy(PARAM *param,ENERGY *ener,EWALD *ewald,PBC *box,NEIGH *neigh,const double x[],
+void ewald14_energy(PARAM *param,PARALLEL *parallel,ENERGY *ener,EWALD *ewald,PBC *box,NEIGH *neigh,const double x[],
 		    const double y[],const double z[],double fx[],double fy[],
 		    double fz[],const double q[],const double eps[],const double sig[],
 		    const int neighList14[]);

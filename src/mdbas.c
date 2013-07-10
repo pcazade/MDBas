@@ -103,7 +103,7 @@ int main(int argc, char* argv[])
   
   DELTA *nForce=NULL;
   
-  PARALLEL *parallel=NULL;
+  PARALLEL parallel;
   
   double *x,*y,*z;
   double *vx,*vy,*vz;
@@ -114,7 +114,7 @@ int main(int argc, char* argv[])
   double *dBuffer;
   
   int *frozen,*nAtConst;
-  int *neighOrder,*neighList,*neighPair,*neighList14;
+  int **neighList,*neighPair,*neighList14;
   int **exclList,*exclPair;
   
   int *iBuffer;
@@ -150,11 +150,11 @@ int main(int argc, char* argv[])
   
   /** Initialization of the simulation starts here. */
   
-  init_system(argc,argv,&inout,&ctrl,&param,&ener,&bath,&neigh,&ewald,&box,
+  init_system(&argc,&argv,&inout,&ctrl,&param,&parallel,&ener,&bath,&neigh,&ewald,&box,
 	      &atom,&constList,&bond,&angle,&dihe,&impr,&ub,&x,&y,&z,
 	      &vx,&vy,&vz,&fx,&fy,&fz,&mass,&rmass,&q,&eps,&sig,&eps14,
-	      &sig14,&frozen,&nAtConst,&neighList,&neighPair,&neighOrder,
-	      &neighList14,&exclList,&exclPair);
+	      &sig14,&frozen,&nAtConst,&neighList,&neighPair,
+	      &neighList14,&exclList,&exclPair,&dBuffer,&iBuffer);
   
   #ifdef _OPENMP
   fprintf(outFile,"Multi-threading enabled : number of threads = %d\n\n",num_threads);
@@ -174,10 +174,10 @@ int main(int argc, char* argv[])
   {
     steepestDescent(&ctrl,&param,&ener,&box,&neigh,atom,bond,ub,angle,dihe,impr,x,y,z,fx,fy,fz);
     
-    makelist(&ctrl,&param,&box,&neigh,constList,bond,angle,dihe,impr,x,y,z,frozen,
+    makelist(&ctrl,&param,&parallel,&box,&neigh,constList,bond,angle,dihe,impr,x,y,z,frozen,
 	     &neighList,&neighPair,&neighList14,&exclList,&exclPair);
     
-    init_vel(&param,&box,constList,x,y,z,vx,vy,vz,mass,rmass,frozen,nAtConst);
+    init_vel(&param,&parallel,&box,constList,x,y,z,vx,vy,vz,mass,rmass,frozen,nAtConst,dBuffer);
   }
   
   /** Minimization procedure ends here. */
@@ -193,24 +193,24 @@ int main(int argc, char* argv[])
 
    /** Computes kinetic energy at time=0. */
 
-    ener.kin=kinetic(&param,vx,vy,vz,mass);
+    ener.kin=kinetic(&parallel,vx,vy,vz,mass,dBuffer);
   
   /** Computes potential energies and forces at time=0. */
     
-    energy(&ctrl,&param,&ener,&ewald,&box,&neigh,bond,ub,angle,dihe,impr,
+    energy(&ctrl,&param,&parallel,&ener,&ewald,&box,&neigh,bond,ub,angle,dihe,impr,
 	   x,y,z,vx,vy,vz,fx,fy,fz,q,eps,sig,eps14,sig14,frozen,
-	   neighList,neighPair,neighOrder,neighList14,exclList,exclPair);
+	   neighList,neighPair,neighList14,exclList,exclPair,dBuffer);
     
     ener.tot=ener.kin+ener.pot;
     
     ener.virtot=ener.virbond+ener.virub+ener.virelec+ener.virvdw+ener.virshake;
     
-    if( (ctrl.keyProp) && (param.step%ctrl.printProp==0) )
+    if( (ctrl.keyProp) && (param.step%ctrl.printProp==0) && (parallel.idProc==0) )
     {
       write_prop(&inout,&param,&ener,&box);
     }
     
-    if( (param.step%ctrl.printOut==0) )
+    if( (param.step%ctrl.printOut==0) && (parallel.idProc==0) )
     {
       temp=2.*ener.kin/((double)param.nDegFree*rboltzui);
       if(box.type>0)
@@ -278,21 +278,21 @@ int main(int argc, char* argv[])
 
       if(ctrl.integrator==VELOCITY)
       {
-	vv_integrate(&ctrl,&param,&ener,&box,&bath,constList,
-		     x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,1);
+	vv_integrate(&ctrl,&param,&ener,&box,&bath,constList,&parallel,
+		     x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,dBuffer,1);
       }
       
     /** List update if needed. */
     
-      makelist(&ctrl,&param,&box,&neigh,constList,bond,angle,dihe,impr,x,y,z,frozen,
-	       &neighList,&neighPair,&neighOrder,&neighList14,&exclList,&exclPair);
+      makelist(&ctrl,&param,&parallel,&box,&neigh,constList,bond,angle,dihe,impr,x,y,z,frozen,
+	       &neighList,&neighPair,&neighList14,&exclList,&exclPair);
       
       
     /** Energies calculation. */
     
-      energy(&ctrl,&param,&ener,&ewald,&box,&neigh,bond,ub,angle,dihe,impr,
+      energy(&ctrl,&param,&parallel,&ener,&ewald,&box,&neigh,bond,ub,angle,dihe,impr,
 	     x,y,z,vx,vy,vz,fx,fy,fz,q,eps,sig,eps14,sig14,frozen,
-	     neighList,neighPair,neighOrder,neighList14,exclList,exclPair);
+	     neighList,neighPair,neighList14,exclList,exclPair,dBuffer);
       
     /** Numerical derivatives to estimate forces. */
 
@@ -317,13 +317,13 @@ int main(int argc, char* argv[])
       
       if(ctrl.integrator==LEAPFROG)
       {
-	lf_integrate(&ctrl,&param,&ener,&box,&bath,constList,
-		     x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst);
+	lf_integrate(&ctrl,&param,&ener,&box,&bath,constList,&parallel,
+		     x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,dBuffer);
       }
       else if(ctrl.integrator==VELOCITY)
       {
-	vv_integrate(&ctrl,&param,&ener,&box,&bath,constList,
-		     x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,2);
+	vv_integrate(&ctrl,&param,&ener,&box,&bath,constList,&parallel,
+		     x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,dBuffer,2);
       }
       
       ener.tot=ener.kin+ener.pot;
@@ -337,7 +337,7 @@ int main(int argc, char* argv[])
 	write_prop(&inout,&param,&ener,&box);
       }
       
-      if( (param.step%ctrl.printOut==0) )
+      if( (param.step%ctrl.printOut==0) && (parallel.idProc==0) )
       {
 	temp=2.*ener.kin/((double)param.nDegFree*rboltzui);
 	if(box.type>0)
@@ -376,14 +376,16 @@ int main(int argc, char* argv[])
       }
       
     /** Writes restart files. */
-      
-      if(param.step%ctrl.printRest==0)
+      if(parallel.idProc==0)
       {
-	write_CONF(&inout,&param,atom,x,y,z);
-// 	fprintf(outFile,"\n%s file written\n",inout.rconName);
-	
-	write_rest(&inout,&param,&ener,&bath,atom,x,y,z,vx,vy,vz,fx,fy,fz);
-// 	fprintf(outFile,"\n%s file written\n",inout.restName);
+	if(param.step%ctrl.printRest==0)
+	{
+	  write_CONF(&inout,&param,atom,x,y,z);
+// 	  fprintf(outFile,"\n%s file written\n",inout.rconName);
+	  
+	  write_rest(&inout,&param,&ener,&bath,atom,x,y,z,vx,vy,vz,fx,fy,fz);
+// 	  fprintf(outFile,"\n%s file written\n",inout.restName);
+	}
       }
       
     }
@@ -395,36 +397,42 @@ int main(int argc, char* argv[])
   /** MD ends here. */
   
   /** Writes restart files. */
+  
+  if(parallel.idProc==0)
+  {
+    write_CONF(&inout,&param,atom,x,y,z);
+    fprintf(outFile,"\n%s file written\n",inout.rconName);
     
-  write_CONF(&inout,&param,atom,x,y,z);
-  fprintf(outFile,"\n%s file written\n",inout.rconName);
-  
-  write_rest(&inout,&param,&ener,&bath,atom,x,y,z,vx,vy,vz,fx,fy,fz);
-  fprintf(outFile,"\n%s file written\n",inout.restName);
-  
-  fprintf(outFile,"\nNormal Termination of MDBas.\n");
+    write_rest(&inout,&param,&ener,&bath,atom,x,y,z,vx,vy,vz,fx,fy,fz);
+    fprintf(outFile,"\n%s file written\n",inout.restName);
+    
+    fprintf(outFile,"\nNormal Termination of MDBas.\n");
+  }
   
 #ifdef TIMER
   update_timer_end(TIMER_ALL,__func__);
   /** Write timings **/
-  print_timers();
+  if(parallel.idProc==0)
+    print_timers();
 #endif
   
   /** Freeing arrays **/
-  free_all(&ctrl,&param,&ewald,&atom,&constList,&bond,&angle,&dihe,&impr,&ub,
+  free_all(&ctrl,&param,&parallel,&ewald,&atom,&constList,&bond,&angle,&dihe,&impr,&ub,
 	   &x,&y,&z,&vx,&vy,&vz,&fx,&fy,&fz,&mass,&rmass,&q,&eps,&sig,&eps14,
-	   &sig14,&frozen,&nAtConst,&neighList,&neighPair,&neighOrder,
-	   &neighList14,&exclList,&exclPair);
+	   &sig14,&frozen,&nAtConst,&neighList,&neighPair,
+	   &neighList14,&exclList,&exclPair,&dBuffer,&iBuffer);
   
 #ifdef __unix__
   struct rusage infos_usage;
   getrusage(RUSAGE_SELF,&infos_usage);
   /** when using omp this time is not correct **/
 //  fprintf(outFile,"Execution time in Seconds : %lf\n",(double)(infos_usage.ru_utime.tv_sec+infos_usage.ru_utime.tv_usec/1000000.0));
-  fprintf(outFile,"Max amount of physical memory used (kBytes) : %ld\n",infos_usage.ru_maxrss);
+  if(parallel.idProc==0)
+    fprintf(outFile,"Max amount of physical memory used (kBytes) : %ld\n",infos_usage.ru_maxrss);
 #endif
   
-  fclose(outFile);
+  if(parallel.idProc==0)
+    fclose(outFile);
   
   return EXIT_SUCCESS;
 }

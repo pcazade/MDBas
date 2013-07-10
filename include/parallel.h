@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-  void init_para(int *argc, char ***argv,PARAM *param);
+  void init_para(int *argc, char ***argv);
 
   int my_proc();
 
@@ -18,6 +18,11 @@ extern "C" {
   void update_double_para(PARAM *param,PARALLEL *parallel,double *buf1,double *buf2);
   
   void test_para(int *buf1);
+  
+  void parallel_allocate_buffers(PARAM *param,PARALLEL *parallel,double **dBuffer,
+				 int **iBuffer);
+  
+  void parallel_reallocate_buffers(PARALLEL *parallel,EWALD *ewald,double **dBuffer);
   
   void bcast_int_para(int *buf1,int size,int iNode);
   
@@ -35,6 +40,8 @@ extern "C" {
   
   void bcast_ewald_para(EWALD *ewald,PARALLEL *parallel,int *iBuffer,double *dBuffer);
   
+  void bcast_const_para(CONSTRAINT *constList,PARALLEL *parallel,int *iBuffer,double *dBuffer,int size);
+  
   void bcast_bond_para(BOND *bond,PARALLEL *parallel,int *iBuffer,double *dBuffer,int size);
   
   void bcast_angle_para(ANGLE *angle,PARALLEL *parallel,int *iBuffer,double *dBuffer,int size);
@@ -47,8 +54,7 @@ extern "C" {
 		  double **y, double **z,double **vx,double **vy,double **vz,double **fx,
 		  double **fy, double **fz,double **mass,double **rmass,double **q,
 		  double **eps,double **sig,double **eps14,double **sig14,int **frozen,
-		  int **nAtConst,int **neighList,int **neighPair,int **neighList14,
-		  int ***exclList,int **exclPair);
+		  int **nAtConst,double *dBuffer,int *iBuffer);
   
   void close_para();
 
