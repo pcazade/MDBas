@@ -43,6 +43,12 @@
 #include "memory.h"
 #include "user.h"
 
+#ifdef MPI_VERSION
+#include "parallel.h"
+#else
+#include "serial.h"
+#endif
+
 #if (defined TIMING && defined __unix__ && !defined __STRICT_ANSI__)
 #define TIMER
 #include "timing.h"
@@ -70,6 +76,9 @@ FILE *outFile=NULL;
  */
 int main(int argc, char* argv[])
 {
+  
+  init_para(&argc,&argv);
+  
   /** Beginning of structures declaration. */
   
 #ifdef TIMER
@@ -111,13 +120,13 @@ int main(int argc, char* argv[])
   double *q,*mass,*rmass;
   double *eps,*sig,*eps14,*sig14;
   
-  double *dBuffer;
+  double *dBuffer=NULL;
   
   int *frozen,*nAtConst;
   int **neighList,*neighPair,*neighList14;
   int **exclList,*exclPair;
   
-  int *iBuffer;
+  int *iBuffer=NULL;
   
   /** End of structures declarations. */
   
@@ -156,11 +165,16 @@ int main(int argc, char* argv[])
 	      &sig14,&frozen,&nAtConst,&neighList,&neighPair,
 	      &neighList14,&exclList,&exclPair,&dBuffer,&iBuffer);
   
-  #ifdef _OPENMP
-  fprintf(outFile,"Multi-threading enabled : number of threads = %d\n\n",num_threads);
-  #else
-  fprintf(outFile,"Multi-threading disabled.\n\n");
-  #endif
+  if(parallel.idProc==0)
+  {
+    #ifdef _OPENMP
+    fprintf(outFile,"Multi-threading enabled : number of threads = %d\n\n",num_threads);
+    #else
+    fprintf(outFile,"Multi-threading disabled.\n\n");
+    #endif
+  }
+  
+  printf("file: %s line: %d proc: %d nproc: %d\n",__FILE__,__LINE__,parallel.idProc,parallel.nProc);
 
 //  UserEnergyPtr userPtr = NULL;
 //  userPtr = loadUserPlugin("user_functions.so","MyEnergyFunction");
@@ -200,6 +214,8 @@ int main(int argc, char* argv[])
     energy(&ctrl,&param,&parallel,&ener,&ewald,&box,&neigh,bond,ub,angle,dihe,impr,
 	   x,y,z,vx,vy,vz,fx,fy,fz,q,eps,sig,eps14,sig14,frozen,
 	   neighList,neighPair,neighList14,exclList,exclPair,dBuffer);
+    
+    printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel.idProc);
     
     ener.tot=ener.kin+ener.pot;
     
@@ -260,6 +276,7 @@ int main(int argc, char* argv[])
   }
   /** First calculation of the enregy ends here. */
   
+  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel.idProc);
   
   /** MD starts here if required. */
   
@@ -280,6 +297,8 @@ int main(int argc, char* argv[])
       {
 	vv_integrate(&ctrl,&param,&ener,&box,&bath,constList,&parallel,
 		     x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,dBuffer,1);
+	
+	printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel.idProc);
       }
       
     /** List update if needed. */
@@ -287,12 +306,15 @@ int main(int argc, char* argv[])
       makelist(&ctrl,&param,&parallel,&box,&neigh,constList,bond,angle,dihe,impr,x,y,z,frozen,
 	       &neighList,&neighPair,&neighList14,&exclList,&exclPair);
       
+      printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel.idProc);
       
     /** Energies calculation. */
     
       energy(&ctrl,&param,&parallel,&ener,&ewald,&box,&neigh,bond,ub,angle,dihe,impr,
 	     x,y,z,vx,vy,vz,fx,fy,fz,q,eps,sig,eps14,sig14,frozen,
 	     neighList,neighPair,neighList14,exclList,exclPair,dBuffer);
+      
+      printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel.idProc);
       
     /** Numerical derivatives to estimate forces. */
 
@@ -319,11 +341,15 @@ int main(int argc, char* argv[])
       {
 	lf_integrate(&ctrl,&param,&ener,&box,&bath,constList,&parallel,
 		     x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,dBuffer);
+	
+	printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel.idProc);
       }
       else if(ctrl.integrator==VELOCITY)
       {
 	vv_integrate(&ctrl,&param,&ener,&box,&bath,constList,&parallel,
 		     x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,dBuffer,2);
+	
+	printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel.idProc);
       }
       
       ener.tot=ener.kin+ener.pot;
@@ -332,7 +358,7 @@ int main(int argc, char* argv[])
       
     /** Writes system properties with full precision into PROP file. */
       
-      if( (ctrl.keyProp) && (param.step%ctrl.printProp==0) )
+      if( (ctrl.keyProp) && (param.step%ctrl.printProp==0) && (parallel.idProc==0) )
       {
 	write_prop(&inout,&param,&ener,&box);
       }
@@ -370,7 +396,7 @@ int main(int argc, char* argv[])
 	
     /** Writes coordinates into DCD file. */
       
-      if( (ctrl.keyTraj) && (param.step%ctrl.printTraj==0) )
+      if( (ctrl.keyTraj) && (param.step%ctrl.printTraj==0) && (parallel.idProc==0) )
       {
 	write_DCD_traj(&inout,&param,&box,x,y,z,frozen);
       }
@@ -396,6 +422,8 @@ int main(int argc, char* argv[])
   
   /** MD ends here. */
   
+  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel.idProc);
+  
   /** Writes restart files. */
   
   if(parallel.idProc==0)
@@ -408,19 +436,24 @@ int main(int argc, char* argv[])
     
     fprintf(outFile,"\nNormal Termination of MDBas.\n");
   }
+    
   
 #ifdef TIMER
-  update_timer_end(TIMER_ALL,__func__);
+//  update_timer_end(TIMER_ALL,__func__);
   /** Write timings **/
-  if(parallel.idProc==0)
-    print_timers();
+//  if(parallel.idProc==0)
+//    print_timers();
 #endif
+  
+  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel.idProc);
   
   /** Freeing arrays **/
   free_all(&ctrl,&param,&parallel,&ewald,&atom,&constList,&bond,&angle,&dihe,&impr,&ub,
-	   &x,&y,&z,&vx,&vy,&vz,&fx,&fy,&fz,&mass,&rmass,&q,&eps,&sig,&eps14,
-	   &sig14,&frozen,&nAtConst,&neighList,&neighPair,
-	   &neighList14,&exclList,&exclPair,&dBuffer,&iBuffer);
+	   &x,&y,&z,&vx,&vy,&vz,&fx,&fy,&fz,&mass,&rmass,&q,&eps,&sig,&eps14,&sig14,
+	   &frozen,&nAtConst,&neighList,&neighPair,&neighList14,&exclList,&exclPair,
+	   &dBuffer,&iBuffer);
+  
+  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel.idProc);
   
 #ifdef __unix__
   struct rusage infos_usage;
@@ -431,8 +464,14 @@ int main(int argc, char* argv[])
     fprintf(outFile,"Max amount of physical memory used (kBytes) : %ld\n",infos_usage.ru_maxrss);
 #endif
   
+  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel.idProc);
+  
   if(parallel.idProc==0)
     fclose(outFile);
+  
+  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel.idProc);
+  
+  close_para();
   
   return EXIT_SUCCESS;
 }

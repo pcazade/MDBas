@@ -11,6 +11,8 @@ extern "C" {
 
   int num_proc();
   
+  void barrier_para();
+  
   void sum_double_para(double *buf1,double *buf2,int size);
   
   void sum_int_para(int *buf1,int *buf2,int size);
@@ -54,7 +56,7 @@ extern "C" {
 		  double **y, double **z,double **vx,double **vy,double **vz,double **fx,
 		  double **fy, double **fz,double **mass,double **rmass,double **q,
 		  double **eps,double **sig,double **eps14,double **sig14,int **frozen,
-		  int **nAtConst,double *dBuffer,int *iBuffer);
+		  int **nAtConst,double **dBuffer,int **iBuffer);
   
   void close_para();
 

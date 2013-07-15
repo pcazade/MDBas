@@ -24,7 +24,12 @@
 #include "global.h"
 #include "utils.h"
 #include "memory.h"
+
+#ifdef MPI_VERSION
 #include "parallel.h"
+#else
+#include "serial.h"
+#endif
 
 static double **cm1,**sm1,**cm2,**sm2,**cm3,**sm3;
 static double *cm,*sm,*cms,*sms;

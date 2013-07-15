@@ -38,7 +38,12 @@
 #include "errors.h"
 #include "integrate.h"
 #include "shake.h"
+
+#ifdef MPI_VERSION
 #include "parallel.h"
+#else
+#include "serial.h"
+#endif
 
 #if (defined TIMING && defined __unix__ && !defined __STRICT_ANSI__)
 #define TIMER
@@ -58,58 +63,36 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
 		 int ***exclList,int **exclPair,double **dBuffer,int **iBuffer)
 {
   
-  char outName[FINAMELEN];
   int i;
   
   /** Initialization of the simulation starts here. */
   
-  init_para(argc,argv);
-  
   init_variables(ctrl,param,parallel,bath,neigh,ewald,box);
+    
+  int err=read_command_line(argc,argv,inout,parallel);
   
-  outFile=NULL;
-  
-  strcpy(outName,"OUTPUT");
-  
-  strcpy(inout->simuName,"SIMU");
+  switch(err)
+  {
+    case 1:
+      close_para();
+      exit(0);
+    case 2:
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
+    default:
+      if(parallel->idProc==0)
+	fprintf(outFile,"Command line read\n");
+  }
   
   if(parallel->idProc==0)
   {
-    i=1;
-    while(i<*argc)
-    {
-      
-      if(!strcmp((*argv)[i],"-i"))
-      {
-	strcpy(inout->simuName,(*argv)[++i]);
-      }
-      else if (!strcmp((*argv)[i],"-o"))
-      {
-	strcpy(outName,(*argv)[++i]);
-      }
-      else if (!strcmp((*argv)[i],"--help"))
-      {
-	printf("%s [-i input_file] [-o output_file] [--help]\n",(*argv)[0]);
-	exit(0);
-      }
-      else
-	  my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
-      
-      i++;
-    }
-    
-    outFile=fopen(outName,"w");
-    if(outFile==NULL)
-    {
-      outFile=stdout;
-      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
-    }
-    
     read_SIMU(inout,ctrl,param,bath,neigh,ewald,box);
+    
     fprintf(outFile,"%s file read\n",inout->simuName);
   }
   
-  #ifdef TIMER
+  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel->idProc);
+   
+#ifdef TIMER
   /** create timers **/
   create_new_timer(TIMER_ENERGY_TOT);
   create_new_timer(TIMER_ENERGY_NB);
@@ -122,92 +105,103 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
   create_new_timer(TIMER_INTEGRATE);
 #endif
   
-  if(ctrl->mdType==1)
-    param->chargeConst=chgcharmm*kcaltoiu;
-  else if(ctrl->mdType==2)
-    param->chargeConst=chgnamd*kcaltoiu;
-  else if(ctrl->mdType==3)
-    param->chargeConst=chgdlpolyiu;
-  else
-    param->chargeConst=mu0*X2(clight)*X2(elemchg)*NA*0.1/(angstr);
+  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel->idProc);
   
-  if(ctrl->keyRest)
-  {
-    read_rest(inout,param,ener,bath,atom,x,y,z,vx,vy,vz,fx,fy,fz);
-    fprintf(outFile,"%s file read\n",inout->restName);
-    
-    *q=(double*)my_malloc(param->nAtom*sizeof(double));
-    
-    *mass=(double*)my_malloc(param->nAtom*sizeof(double));
-    *rmass=(double*)my_malloc(param->nAtom*sizeof(double));
-    
-    *frozen=(int*)my_malloc(param->nAtom*sizeof(int));
-    
-    *nAtConst=(int*)my_malloc(param->nAtom*sizeof(int));
-    
-    *eps=(double*)my_malloc(param->nAtom*sizeof(double));
-    *sig=(double*)my_malloc(param->nAtom*sizeof(double));
-    *eps14=(double*)my_malloc(param->nAtom*sizeof(double));
-    *sig14=(double*)my_malloc(param->nAtom*sizeof(double));
-    
-  }
-  else
-  {
-    read_CONF(inout,param,atom,x,y,z);
-    fprintf(outFile,"%s file read\n",inout->confName);
-    
-    *vx=(double*)my_malloc(param->nAtom*sizeof(double));
-    *vy=(double*)my_malloc(param->nAtom*sizeof(double));
-    *vz=(double*)my_malloc(param->nAtom*sizeof(double));
-    
-    *fx=(double*)my_malloc(param->nAtom*sizeof(double));
-    *fy=(double*)my_malloc(param->nAtom*sizeof(double));
-    *fz=(double*)my_malloc(param->nAtom*sizeof(double));
-    
-    *q=(double*)my_malloc(param->nAtom*sizeof(double));
-    
-    *mass=(double*)my_malloc(param->nAtom*sizeof(double));
-    *rmass=(double*)my_malloc(param->nAtom*sizeof(double));
-    
-    *frozen=(int*)my_malloc(param->nAtom*sizeof(int));
-    
-    *nAtConst=(int*)my_malloc(param->nAtom*sizeof(int));
-    
-    *eps=(double*)my_malloc(param->nAtom*sizeof(double));
-    *sig=(double*)my_malloc(param->nAtom*sizeof(double));
-    *eps14=(double*)my_malloc(param->nAtom*sizeof(double));
-    *sig14=(double*)my_malloc(param->nAtom*sizeof(double));
-    
-  }
-  
-  read_FORF(inout,param,*atom,constList,bond,angle,dihe,impr,ub,*eps,*sig,
-	    *eps14,*sig14,*mass,*q,*frozen,*nAtConst);
-  
-  fprintf(outFile,"%s file read\n",inout->forfName);
-  
-  setup(ctrl,param,*atom,constList,bond,angle,dihe,impr,ub,*mass,*rmass,*frozen,*nAtConst);
-  
-  fprintf(outFile,"Setup done\n");
-  
-  if(parallel->nProc>1)
+  if(parallel->idProc==0)
   {
     
-    parallel_allocate_buffers(param,parallel,dBuffer,iBuffer);
+    if(ctrl->mdType==1)
+      param->chargeConst=chgcharmm*kcaltoiu;
+    else if(ctrl->mdType==2)
+      param->chargeConst=chgnamd*kcaltoiu;
+    else if(ctrl->mdType==3)
+      param->chargeConst=chgdlpolyiu;
+    else
+      param->chargeConst=mu0*X2(clight)*X2(elemchg)*NA*0.1/(angstr);
     
-    setup_para(ctrl,param,parallel,ener,bath,neigh,ewald,box,atom,constList,
-	       bond,angle,dihe,impr,ub,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,q,
-	       eps,sig,eps14,sig14,frozen,nAtConst,*dBuffer,*iBuffer);
+    if(ctrl->keyRest)
+    {
+      read_rest(inout,param,ener,bath,atom,x,y,z,vx,vy,vz,fx,fy,fz);
+      fprintf(outFile,"%s file read\n",inout->restName);
+      
+      *q=(double*)my_malloc(param->nAtom*sizeof(double));
+      
+      *mass=(double*)my_malloc(param->nAtom*sizeof(double));
+      *rmass=(double*)my_malloc(param->nAtom*sizeof(double));
+      
+      *frozen=(int*)my_malloc(param->nAtom*sizeof(int));
+      
+      *nAtConst=(int*)my_malloc(param->nAtom*sizeof(int));
+      
+      *eps=(double*)my_malloc(param->nAtom*sizeof(double));
+      *sig=(double*)my_malloc(param->nAtom*sizeof(double));
+      *eps14=(double*)my_malloc(param->nAtom*sizeof(double));
+      *sig14=(double*)my_malloc(param->nAtom*sizeof(double));
+      
+    }
+    else
+    {
+      printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel->idProc);
+      
+      read_CONF(inout,param,atom,x,y,z);
+      fprintf(outFile,"%s file read\n",inout->confName);
+      
+      *vx=(double*)my_malloc(param->nAtom*sizeof(double));
+      *vy=(double*)my_malloc(param->nAtom*sizeof(double));
+      *vz=(double*)my_malloc(param->nAtom*sizeof(double));
+      
+      *fx=(double*)my_malloc(param->nAtom*sizeof(double));
+      *fy=(double*)my_malloc(param->nAtom*sizeof(double));
+      *fz=(double*)my_malloc(param->nAtom*sizeof(double));
+      
+      *q=(double*)my_malloc(param->nAtom*sizeof(double));
+      
+      *mass=(double*)my_malloc(param->nAtom*sizeof(double));
+      *rmass=(double*)my_malloc(param->nAtom*sizeof(double));
+      
+      *frozen=(int*)my_malloc(param->nAtom*sizeof(int));
+      
+      *nAtConst=(int*)my_malloc(param->nAtom*sizeof(int));
+      
+      *eps=(double*)my_malloc(param->nAtom*sizeof(double));
+      *sig=(double*)my_malloc(param->nAtom*sizeof(double));
+      *eps14=(double*)my_malloc(param->nAtom*sizeof(double));
+      *sig14=(double*)my_malloc(param->nAtom*sizeof(double));
+      
+      printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel->idProc);
+      
+    }
+    
+    read_FORF(inout,param,*atom,constList,bond,angle,dihe,impr,ub,*eps,*sig,
+	      *eps14,*sig14,*mass,*q,*frozen,*nAtConst);
+    
+    fprintf(outFile,"%s file read\n",inout->forfName);
+    
+    setup(ctrl,param,*atom,constList,bond,angle,dihe,impr,ub,*mass,*rmass,*frozen,*nAtConst);
+    
+    fprintf(outFile,"Setup done\n");
+  
   }
   
+  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel->idProc);
+  
+  setup_para(ctrl,param,parallel,ener,bath,neigh,ewald,box,atom,constList,
+	     bond,angle,dihe,impr,ub,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,q,
+	     eps,sig,eps14,sig14,frozen,nAtConst,dBuffer,iBuffer);
+  
+  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel->idProc);
+    
   get_kinfromtemp(param,box);
-  
+    
   init_box(box);
-  
+    
   image_update(parallel,box,*x,*y,*z);
-
+  
   makelist(ctrl,param,parallel,box,neigh,*constList,*bond,*angle,*dihe,*impr,*x,*y,*z,*frozen,
 	   neighList,neighPair,neighList14,exclList,exclPair);
   
+  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel->idProc);
+    
   init_energy_ptrs(ctrl);
   
   if(ctrl->keyEwald==1)
@@ -250,13 +244,14 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
   
   /** Initialization of the simulation ends here. */
   
+  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel->idProc);
+  
   /** Initialization of velocities starts here. */
   
   init_rand(ctrl->seed);
   
   if(!ctrl->keyRest)
   {
-    
     remove(inout->propName);
     
     init_vel(param,parallel,box,*constList,*x,*y,*z,*vx,*vy,*vz,*mass,*rmass,
@@ -290,10 +285,14 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
       write_DCD_header(inout,ctrl,param,box,*frozen);
   }
   
+  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel->idProc);
+  
   /** allocate arrays for integrators and for shake **/
   integrators_allocate_arrays(ctrl,parallel);
   if(param->nConst>0)
     shake_allocate_arrays(param,parallel);
+  
+  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel->idProc);
     
 }
 
@@ -302,6 +301,9 @@ void init_variables(CTRL *ctrl,PARAM *param,PARALLEL *parallel,BATH *bath,NEIGH 
 {
   parallel->idProc=my_proc();
   parallel->nProc=num_proc();
+  
+  parallel->iBufferSize=128;
+  parallel->dBufferSize=128;
   
   ctrl->newjob=1;
   ctrl->mdType=1;
@@ -1090,27 +1092,34 @@ void free_all(CTRL *ctrl,PARAM *param, PARALLEL *parallel,EWALD *ewald,ATOM **at
   
   if(param->nUb>0) free(*ub);
   
-  free(*atom); free(*x); free(*y); free(*z); free(*vx); free(*vy); free(*vz);
+  free(*x); free(*y); free(*z); free(*vx); free(*vy); free(*vz);
   
   free(*fx); free(*fy); free(*fz); free(*mass); free(*rmass); free(*q); free(*eps);
   
   free(*sig); free(*eps14); free(*sig14); free(*frozen); free(*nAtConst);
   
-  free(*neighList); free(*neighPair); free(*neighList14);
+  //free(*neighPair);
   
-  free(*exclPair);
+  free(*neighList14); free(*exclPair);
+  
+  if(parallel->idProc==0)
+    free(*atom);
   
   if(parallel->nProc>1)
   {
-    free(*dBuffer); free(*iBuffer);
+    free(*dBuffer);
+    free(*iBuffer);
   }
   
   for(int i=0;i<parallel->maxAtProc;i++)
   {
     free((*exclList)[i]);
     free((*neighList)[i]);
+    
+    printf("file: %s line: %d proc: %d idx: %d\n",__FILE__,__LINE__,parallel->idProc,i);
   }
-  free(*exclList);
+  
+  free(*exclList); free(*neighList);
   
   if(ctrl->keyEwald==1)
   {
@@ -1124,5 +1133,5 @@ void free_all(CTRL *ctrl,PARAM *param, PARALLEL *parallel,EWALD *ewald,ATOM **at
 #ifdef TIMER
   free_timers();
 #endif
-  
+  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel->idProc);
 }

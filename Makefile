@@ -31,10 +31,10 @@ ifeq ($(DEBUG),OFF)
 #CC_OPT=-I"./dSFMT" -I"./include" -std=c99 -Wall -Ofast -mtune=native -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937
 #CC_OPT=-I"./dSFMT" -I"./include" -std=c99 -Wall -O2 -DDSFMT_MEXP=19937
 #CC_OPT=-I"./dSFMT" -I"./include" -std=gnu99 -Wall -O2 -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937 -DTIMING
-CC_OPT=-I"./dSFMT" -I"./include" -I"/usr/include/openmpi-x86_64" -std=gnu99 -Wall -O2 -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937 -DTIMING
+CC_OPT=-I"./dSFMT" -I"./include" -I"/usr/include/openmpi-x86_64" -std=gnu99 -Wall -O2 -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937 -DTIMING -DMPI_VERSION -DFFTW
 else
 #CC_OPT=-I"./dSFMT" -I"./include" -std=gnu99 -Wall -Wextra -O0 -g -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937 -DTIMING -DFFTW
-CC_OPT=-I"./dSFMT" -I"./include" -I"/usr/include/openmpi-x86_64" -std=gnu99 -Wall -Wextra -O0 -g -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937 -DTIMING -DFFTW
+CC_OPT=-I"./dSFMT" -I"./include" -I"/usr/include/openmpi-x86_64" -std=gnu99 -Wall -Wextra -O0 -g -msse2 -DHAVE_SSE2 -DDSFMT_MEXP=19937 -DTIMING -DFFTW -DMPI_VERSION
 endif
 
 #ifeq ($(DEBUG),ADVI)

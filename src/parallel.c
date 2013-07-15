@@ -18,7 +18,7 @@
  * along with MDBas.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-//#ifdef MPI_VERSION
+#ifdef MPI_VERSION
 
 #include <stdio.h>
 
@@ -34,10 +34,10 @@
 void init_para(int *argc, char ***argv)
 {
   int err;
-    
-  MPI_Errhandler_set(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
   
   err=MPI_Init(argc,argv);
+  
+  MPI_Errhandler_set(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
   
   if(err!=MPI_SUCCESS)
     mpi_error(err,__FILE__,__LINE__);
@@ -68,6 +68,17 @@ int num_proc()
     mpi_error(err,__FILE__,__LINE__);
   
   return(numProc);
+  
+}
+
+void barrier_para()
+{
+  int err;
+  
+  err=MPI_Barrier(MPI_COMM_WORLD);
+  
+  if(err!=MPI_SUCCESS)
+    mpi_error(err,__FILE__,__LINE__);
   
 }
 
@@ -148,6 +159,9 @@ void parallel_allocate_buffers(PARAM *param,PARALLEL *parallel,double **dBuffer,
   parallel->iBufferSize=128;
   parallel->dBufferSize=128;
   
+  free(*iBuffer);
+  free(*dBuffer);
+  
   parallel->iBufferSize=MAX(param->nAtom,parallel->iBufferSize);
   parallel->dBufferSize=MAX(param->nAtom,parallel->dBufferSize);
   
@@ -208,7 +222,7 @@ void bcast_int_para(int *buf1,int size,int iNode)
 {
   int err;
   
-  err=MPI_Bcast(&buf1,size,MPI_INT,iNode,MPI_COMM_WORLD);
+  err=MPI_Bcast(buf1,size,MPI_INT,iNode,MPI_COMM_WORLD);
   
   if(err!=MPI_SUCCESS)
     mpi_error(err,__FILE__,__LINE__);
@@ -219,7 +233,7 @@ void bcast_double_para(double *buf1,int size,int iNode)
 {
   int err;
   
-  err=MPI_Bcast(&buf1,size,MPI_DOUBLE,iNode,MPI_COMM_WORLD);
+  err=MPI_Bcast(buf1,size,MPI_DOUBLE,iNode,MPI_COMM_WORLD);
   
   if(err!=MPI_SUCCESS)
     mpi_error(err,__FILE__,__LINE__);
@@ -228,7 +242,7 @@ void bcast_double_para(double *buf1,int size,int iNode)
 
 void bcast_param_para(PARAM *param,PARALLEL *parallel,double *dBuffer,int *iBuffer)
 {
-  
+    
   if(parallel->idProc==0)
   {
     iBuffer[0]=param->step;
@@ -261,10 +275,11 @@ void bcast_param_para(PARAM *param,PARALLEL *parallel,double *dBuffer,int *iBuff
     dBuffer[14]=param->press0;
     dBuffer[15]=param->kinTemp0;
   }
-  
+    
   bcast_int_para(iBuffer,12,0);
+    
   bcast_double_para(dBuffer,16,0);
-  
+    
   if(parallel->idProc>0)
   {
     param->step=iBuffer[0];
@@ -297,7 +312,7 @@ void bcast_param_para(PARAM *param,PARALLEL *parallel,double *dBuffer,int *iBuff
     param->press0=dBuffer[14];
     param->kinTemp0=dBuffer[15];
   }
-   
+  
 }
 
 void bcast_ctrl_para(CTRL *ctrl,PARALLEL *parallel,int *iBuffer)
@@ -651,21 +666,31 @@ void setup_para(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,
 		double **y, double **z,double **vx,double **vy,double **vz,double **fx,
 		double **fy, double **fz,double **mass,double **rmass,double **q,
 		double **eps,double **sig,double **eps14,double **sig14,int **frozen,
-		int **nAtConst,double *dBuffer,int *iBuffer)
+		int **nAtConst,double **dBuffer,int **iBuffer)
 {
+  
+  if(parallel->nProc>1)
+  {
+  
+    (*iBuffer)=(int*)my_malloc(parallel->iBufferSize*sizeof(**iBuffer));
+    (*dBuffer)=(double*)my_malloc(parallel->dBufferSize*sizeof(**dBuffer));
+      
+    bcast_param_para(param,parallel,*dBuffer,*iBuffer);
+      
+    parallel_allocate_buffers(param,parallel,dBuffer,iBuffer);
+      
+    bcast_ctrl_para(ctrl,parallel,*iBuffer);
+      
+    bcast_bath_para(bath,parallel,*dBuffer);
+      
+    bcast_pbc_para(box,parallel,*dBuffer);
+      
+    bcast_neigh_para(neigh,parallel,*iBuffer);
+      
+    bcast_ewald_para(ewald,parallel,*iBuffer,*dBuffer);
+  
+  }
     
-  bcast_param_para(param,parallel,dBuffer,iBuffer);
-  
-  bcast_ctrl_para(ctrl,parallel,iBuffer);
-  
-  bcast_bath_para(bath,parallel,dBuffer);
-  
-  bcast_pbc_para(box,parallel,dBuffer);
-  
-  bcast_neigh_para(neigh,parallel,iBuffer);
-  
-  bcast_ewald_para(ewald,parallel,iBuffer,dBuffer);
-  
   parallel->maxAtProc=(param->nAtom     + parallel->nProc-1)/parallel->nProc;
   parallel->maxCtProc=(param->nConst    + parallel->nProc-1)/parallel->nProc;
   parallel->maxBdProc=(param->nBond     + parallel->nProc-1)/parallel->nProc;
@@ -676,31 +701,31 @@ void setup_para(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,
   
   parallel->fAtProc=(parallel->idProc*param->nAtom)/parallel->nProc;
   parallel->lAtProc=((parallel->idProc+1)*param->nAtom)/parallel->nProc;
-  parallel->nAtProc=parallel->lAtProc-parallel->fAtProc+1;
+  parallel->nAtProc=parallel->lAtProc-parallel->fAtProc;
   
   parallel->fCtProc=(parallel->idProc*param->nConst)/parallel->nProc;
   parallel->lCtProc=((parallel->idProc+1)*param->nConst)/parallel->nProc;
-  parallel->nCtProc=parallel->lCtProc-parallel->fCtProc+1;
+  parallel->nCtProc=parallel->lCtProc-parallel->fCtProc;
   
   parallel->fBdProc=(parallel->idProc*param->nBond)/parallel->nProc;
   parallel->lBdProc=((parallel->idProc+1)*param->nBond)/parallel->nProc;
-  parallel->nBdProc=parallel->lBdProc-parallel->fBdProc+1;
+  parallel->nBdProc=parallel->lBdProc-parallel->fBdProc;
   
   parallel->fAgProc=(parallel->idProc*param->nAngle)/parallel->nProc;
   parallel->lAgProc=((parallel->idProc+1)*param->nAngle)/parallel->nProc;
-  parallel->nAgProc=parallel->lAgProc-parallel->fAgProc+1;
+  parallel->nAgProc=parallel->lAgProc-parallel->fAgProc;
   
   parallel->fUbProc=(parallel->idProc*param->nUb)/parallel->nProc;
   parallel->lUbProc=((parallel->idProc+1)*param->nUb)/parallel->nProc;
-  parallel->nUbProc=parallel->lUbProc-parallel->fUbProc+1;
+  parallel->nUbProc=parallel->lUbProc-parallel->fUbProc;
   
   parallel->fDhProc=(parallel->idProc*param->nDihedral)/parallel->nProc;
   parallel->lDhProc=((parallel->idProc+1)*param->nDihedral)/parallel->nProc;
-  parallel->nDhProc=parallel->lDhProc-parallel->fDhProc+1;
+  parallel->nDhProc=parallel->lDhProc-parallel->fDhProc;
   
   parallel->fIpProc=(parallel->idProc*param->nImproper)/parallel->nProc;
   parallel->lIpProc=((parallel->idProc+1)*param->nImproper)/parallel->nProc;
-  parallel->nIpProc=parallel->lIpProc-parallel->fIpProc+1;
+  parallel->nIpProc=parallel->lIpProc-parallel->fIpProc;
   
   if(parallel->idProc>0)
   {
@@ -750,38 +775,43 @@ void setup_para(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,
       *impr=(DIHE*)my_malloc(param->nImproper*sizeof(DIHE));
   }
   
-  bcast_double_para(*x,param->nAtom,0);
-  bcast_double_para(*y,param->nAtom,0);
-  bcast_double_para(*z,param->nAtom,0);
+  if(parallel->nProc>1)
+  {
   
-//   bcast_double_para(*vx,param->nAtom,0);
-//   bcast_double_para(*vy,param->nAtom,0);
-//   bcast_double_para(*vz,param->nAtom,0);
+    bcast_double_para(*x,param->nAtom,0);
+    bcast_double_para(*y,param->nAtom,0);
+    bcast_double_para(*z,param->nAtom,0);
+    
+    bcast_double_para(*vx,param->nAtom,0);
+    bcast_double_para(*vy,param->nAtom,0);
+    bcast_double_para(*vz,param->nAtom,0);
+    
+    bcast_double_para(*q,param->nAtom,0);
+    
+    bcast_double_para(*mass,param->nAtom,0);
+    bcast_double_para(*rmass,param->nAtom,0);
+    
+    bcast_double_para(*eps,param->nAtom,0);
+    bcast_double_para(*sig,param->nAtom,0);
+    bcast_double_para(*eps14,param->nAtom,0);
+    bcast_double_para(*sig14,param->nAtom,0);
+    
+    bcast_int_para(*frozen,param->nAtom,0);
+    bcast_int_para(*nAtConst,param->nAtom,0);
+    
+    bcast_const_para(*constList,parallel,*iBuffer,*dBuffer,param->nConst);
+    
+    bcast_bond_para(*bond,parallel,*iBuffer,*dBuffer,param->nBond);
+    
+    bcast_angle_para(*angle,parallel,*iBuffer,*dBuffer,param->nAngle);
+    
+    bcast_bond_para(*ub,parallel,*iBuffer,*dBuffer,param->nUb);
+    
+    bcast_dihe_para(*dihe,parallel,*iBuffer,*dBuffer,param->nDihedral);
+    
+    bcast_dihe_para(*impr,parallel,*iBuffer,*dBuffer,param->nImproper);
   
-  bcast_double_para(*q,param->nAtom,0);
-  
-  bcast_double_para(*mass,param->nAtom,0);
-  bcast_double_para(*rmass,param->nAtom,0);
-  
-  bcast_double_para(*eps,param->nAtom,0);
-  bcast_double_para(*sig,param->nAtom,0);
-  bcast_double_para(*eps14,param->nAtom,0);
-  bcast_double_para(*sig14,param->nAtom,0);
-  
-  bcast_int_para(*frozen,param->nAtom,0);
-  bcast_int_para(*nAtConst,param->nAtom,0);
-  
-  bcast_const_para(*constList,parallel,iBuffer,dBuffer,param->nConst);
-  
-  bcast_bond_para(*bond,parallel,iBuffer,dBuffer,param->nBond);
-  
-  bcast_angle_para(*angle,parallel,iBuffer,dBuffer,param->nAngle);
-  
-  bcast_bond_para(*ub,parallel,iBuffer,dBuffer,param->nUb);
-  
-  bcast_dihe_para(*dihe,parallel,iBuffer,dBuffer,param->nDihedral);
-  
-  bcast_dihe_para(*impr,parallel,iBuffer,dBuffer,param->nImproper);
+  }
   
 }
 
@@ -814,4 +844,4 @@ void mpi_error(int err, char file[],int line)
     
 }
 
-//#endif
+#endif

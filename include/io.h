@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+int read_command_line(int *argc, char ***argv,IO *inout,PARALLEL *parallel);
+
 void read_SIMU(IO *inout,CTRL *ctrl,PARAM *param,BATH *bath,NEIGH *neigh,EWALD *ewald,PBC *box);
 
 void read_CONF(IO *inout,PARAM *param,ATOM **atom,double **x,double **y, double **z);
