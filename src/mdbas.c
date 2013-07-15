@@ -173,8 +173,6 @@ int main(int argc, char* argv[])
     fprintf(outFile,"Multi-threading disabled.\n\n");
     #endif
   }
-  
-  printf("file: %s line: %d proc: %d nproc: %d\n",__FILE__,__LINE__,parallel.idProc,parallel.nProc);
 
 //  UserEnergyPtr userPtr = NULL;
 //  userPtr = loadUserPlugin("user_functions.so","MyEnergyFunction");
@@ -214,8 +212,6 @@ int main(int argc, char* argv[])
     energy(&ctrl,&param,&parallel,&ener,&ewald,&box,&neigh,bond,ub,angle,dihe,impr,
 	   x,y,z,vx,vy,vz,fx,fy,fz,q,eps,sig,eps14,sig14,frozen,
 	   neighList,neighPair,neighList14,exclList,exclPair,dBuffer);
-    
-    printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel.idProc);
     
     ener.tot=ener.kin+ener.pot;
     
@@ -276,8 +272,6 @@ int main(int argc, char* argv[])
   }
   /** First calculation of the enregy ends here. */
   
-  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel.idProc);
-  
   /** MD starts here if required. */
   
   if(ctrl.keyMd)
@@ -297,8 +291,6 @@ int main(int argc, char* argv[])
       {
 	vv_integrate(&ctrl,&param,&ener,&box,&bath,constList,&parallel,
 		     x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,dBuffer,1);
-	
-	printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel.idProc);
       }
       
     /** List update if needed. */
@@ -306,15 +298,11 @@ int main(int argc, char* argv[])
       makelist(&ctrl,&param,&parallel,&box,&neigh,constList,bond,angle,dihe,impr,x,y,z,frozen,
 	       &neighList,&neighPair,&neighList14,&exclList,&exclPair);
       
-      printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel.idProc);
-      
     /** Energies calculation. */
     
       energy(&ctrl,&param,&parallel,&ener,&ewald,&box,&neigh,bond,ub,angle,dihe,impr,
 	     x,y,z,vx,vy,vz,fx,fy,fz,q,eps,sig,eps14,sig14,frozen,
 	     neighList,neighPair,neighList14,exclList,exclPair,dBuffer);
-      
-      printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel.idProc);
       
     /** Numerical derivatives to estimate forces. */
 
@@ -341,15 +329,11 @@ int main(int argc, char* argv[])
       {
 	lf_integrate(&ctrl,&param,&ener,&box,&bath,constList,&parallel,
 		     x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,dBuffer);
-	
-	printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel.idProc);
       }
       else if(ctrl.integrator==VELOCITY)
       {
 	vv_integrate(&ctrl,&param,&ener,&box,&bath,constList,&parallel,
 		     x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,nAtConst,dBuffer,2);
-	
-	printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel.idProc);
       }
       
       ener.tot=ener.kin+ener.pot;
@@ -422,8 +406,6 @@ int main(int argc, char* argv[])
   
   /** MD ends here. */
   
-  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel.idProc);
-  
   /** Writes restart files. */
   
   if(parallel.idProc==0)
@@ -445,31 +427,21 @@ int main(int argc, char* argv[])
 //    print_timers();
 #endif
   
-  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel.idProc);
-  
   /** Freeing arrays **/
   free_all(&ctrl,&param,&parallel,&ewald,&atom,&constList,&bond,&angle,&dihe,&impr,&ub,
 	   &x,&y,&z,&vx,&vy,&vz,&fx,&fy,&fz,&mass,&rmass,&q,&eps,&sig,&eps14,&sig14,
 	   &frozen,&nAtConst,&neighList,&neighPair,&neighList14,&exclList,&exclPair,
 	   &dBuffer,&iBuffer);
   
-  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel.idProc);
-  
 #ifdef __unix__
   struct rusage infos_usage;
   getrusage(RUSAGE_SELF,&infos_usage);
   /** when using omp this time is not correct **/
 //  fprintf(outFile,"Execution time in Seconds : %lf\n",(double)(infos_usage.ru_utime.tv_sec+infos_usage.ru_utime.tv_usec/1000000.0));
-  if(parallel.idProc==0)
-    fprintf(outFile,"Max amount of physical memory used (kBytes) : %ld\n",infos_usage.ru_maxrss);
 #endif
-  
-  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel.idProc);
   
   if(parallel.idProc==0)
     fclose(outFile);
-  
-  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel.idProc);
   
   close_para();
   

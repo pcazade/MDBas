@@ -89,8 +89,6 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
     
     fprintf(outFile,"%s file read\n",inout->simuName);
   }
-  
-  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel->idProc);
    
 #ifdef TIMER
   /** create timers **/
@@ -104,8 +102,6 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
   create_new_timer(TIMER_SHAKE);
   create_new_timer(TIMER_INTEGRATE);
 #endif
-  
-  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel->idProc);
   
   if(parallel->idProc==0)
   {
@@ -141,7 +137,6 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
     }
     else
     {
-      printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel->idProc);
       
       read_CONF(inout,param,atom,x,y,z);
       fprintf(outFile,"%s file read\n",inout->confName);
@@ -168,8 +163,6 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
       *eps14=(double*)my_malloc(param->nAtom*sizeof(double));
       *sig14=(double*)my_malloc(param->nAtom*sizeof(double));
       
-      printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel->idProc);
-      
     }
     
     read_FORF(inout,param,*atom,constList,bond,angle,dihe,impr,ub,*eps,*sig,
@@ -183,13 +176,9 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
   
   }
   
-  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel->idProc);
-  
   setup_para(ctrl,param,parallel,ener,bath,neigh,ewald,box,atom,constList,
 	     bond,angle,dihe,impr,ub,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,q,
 	     eps,sig,eps14,sig14,frozen,nAtConst,dBuffer,iBuffer);
-  
-  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel->idProc);
     
   get_kinfromtemp(param,box);
     
@@ -199,8 +188,6 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
   
   makelist(ctrl,param,parallel,box,neigh,*constList,*bond,*angle,*dihe,*impr,*x,*y,*z,*frozen,
 	   neighList,neighPair,neighList14,exclList,exclPair);
-  
-  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel->idProc);
     
   init_energy_ptrs(ctrl);
   
@@ -244,8 +231,6 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
   
   /** Initialization of the simulation ends here. */
   
-  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel->idProc);
-  
   /** Initialization of velocities starts here. */
   
   init_rand(ctrl->seed);
@@ -285,14 +270,10 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
       write_DCD_header(inout,ctrl,param,box,*frozen);
   }
   
-  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel->idProc);
-  
   /** allocate arrays for integrators and for shake **/
   integrators_allocate_arrays(ctrl,parallel);
   if(param->nConst>0)
     shake_allocate_arrays(param,parallel);
-  
-  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel->idProc);
     
 }
 
@@ -1113,10 +1094,14 @@ void free_all(CTRL *ctrl,PARAM *param, PARALLEL *parallel,EWALD *ewald,ATOM **at
   
   for(int i=0;i<parallel->maxAtProc;i++)
   {
-    free((*exclList)[i]);
     free((*neighList)[i]);
-    
-    printf("file: %s line: %d proc: %d idx: %d\n",__FILE__,__LINE__,parallel->idProc,i);
+  }
+  
+  int ii=0;
+  for(int i=parallel->idProc;i<param->nAtom;i+=parallel->nProc)
+  {
+    free((*exclList)[ii]);
+    ii++;
   }
   
   free(*exclList); free(*neighList);
@@ -1133,5 +1118,4 @@ void free_all(CTRL *ctrl,PARAM *param, PARALLEL *parallel,EWALD *ewald,ATOM **at
 #ifdef TIMER
   free_timers();
 #endif
-  printf("file: %s line: %d proc: %d\n",__FILE__,__LINE__,parallel->idProc);
 }
