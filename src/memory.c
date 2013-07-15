@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2013 Pierre-Andre Cazade
  * Copyright (c) 2013 Florent hedin
- * 
+ *
  * This file is part of MDBas.
  *
  * MDBas is free software: you can redistribute it and/or modify
@@ -40,41 +40,41 @@
 // redefinitions of malloc and calloc with failure check ; totSize used for keeping trace of totally allocated memory
 void* my_malloc(size_t size)
 {
-  void *ptr = NULL;  
-  ptr=(void*)malloc(size);
-  
-  if(ptr==NULL)
-    my_error(MEM_ALLOC_ERROR,__FILE__,__LINE__,0);
-  
-  //totSize += size;
-  
-  return ptr;
+    void *ptr = NULL;
+    ptr=(void*)malloc(size);
+
+    if(ptr==NULL)
+        my_error(MEM_ALLOC_ERROR,__FILE__,__LINE__,0);
+
+    //totSize += size;
+
+    return ptr;
 }
 
 void* my_realloc(void *ptr1,size_t size)
 {
-  void *ptr2 = NULL;  
-  ptr2=(void*)realloc(ptr1,size);
-  
-  if(ptr2==NULL)
-    my_error(MEM_ALLOC_ERROR,__FILE__,__LINE__,0);
-  
-  //totSize += size;
-  
-  return ptr2;
+    void *ptr2 = NULL;
+    ptr2=(void*)realloc(ptr1,size);
+
+    if(ptr2==NULL)
+        my_error(MEM_ALLOC_ERROR,__FILE__,__LINE__,0);
+
+    //totSize += size;
+
+    return ptr2;
 }
 
 void* my_calloc(int dim, size_t size)
 {
-  void *ptr = NULL;  
-  ptr=(void*)calloc(dim,size);
-  
-  if(ptr==NULL)
-    my_error(MEM_ALLOC_ERROR,__FILE__,__LINE__,0);
-  
-  //totSize += dim*size;
-  
-  return ptr;
+    void *ptr = NULL;
+    ptr=(void*)calloc(dim,size);
+
+    if(ptr==NULL)
+        my_error(MEM_ALLOC_ERROR,__FILE__,__LINE__,0);
+
+    //totSize += dim*size;
+
+    return ptr;
 }
 
 //for allocating an array of dimensions dim1*dim2 and of bytes size si

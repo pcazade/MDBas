@@ -1,6 +1,6 @@
-./obj
-./MDBas
-./test*
-./*.kdev4
+*obj*
+*MDBas*
+*test*
+*kdev*
 
 
