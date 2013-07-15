@@ -41,8 +41,13 @@
 #include "io.h"
 #include "utils.h"
 #include "errors.h"
-#include "parallel.h"
 #include "memory.h"
+
+#ifdef MPI_VERSION
+#include "parallel.h"
+#else
+#include "serial.h"
+#endif
 
 #if (defined TIMING && defined __unix__ && !defined __STRICT_ANSI__)
 #define TIMER

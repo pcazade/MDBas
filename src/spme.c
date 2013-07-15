@@ -28,7 +28,12 @@
 #include "utils.h"
 #include "memory.h"
 #include "spme.h"
+
+#ifdef MPI_VERSION
 #include "parallel.h"
+#else
+#include "serial.h"
+#endif
 
 typedef double complex cplx;
 

@@ -40,11 +40,72 @@
 #include "utils.h"
 #include "errors.h"
 
+#ifdef MPI_VERSION
+#include "parallel.h"
+#else
+#include "serial.h"
+#endif
+
 /** Pointer to the output file. **/
 extern FILE *outFile;
 
 /** First write of traj in dcd, or not*/
 static int first=1;
+
+int read_command_line(int *argc, char ***argv,IO *inout,PARALLEL *parallel)
+{
+  char outName[FINAMELEN];
+  
+  int i=1;
+  
+  int err=0;
+  
+  outFile=NULL;
+  
+  if(parallel->idProc==0)
+  {
+    
+    strcpy(outName,"OUTPUT");
+    
+    strcpy(inout->simuName,"SIMU");
+    
+    while(i<*argc)
+    {
+      if(!strcmp((*argv)[i],"-i"))
+      {
+	strcpy(inout->simuName,(*argv)[++i]);
+      }
+      else if (!strcmp((*argv)[i],"-o"))
+      {
+	strcpy(outName,(*argv)[++i]);
+      }
+      else if (!strcmp((*argv)[i],"--help"))
+      {
+	printf("%s [-i input_file] [-o output_file] [--help]\n",(*argv)[0]);
+	err=1;
+	break;
+      }
+      else
+      {
+	err=2;
+	break;
+      }
+      i++;
+    }
+    
+    outFile=fopen(outName,"w");
+    if(outFile==NULL)
+    {
+      outFile=stdout;
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
+    }
+  
+  }
+  
+  bcast_int_para(&err,1,0);
+  
+  return(err);
+}
 
 void read_SIMU(IO *inout,CTRL *ctrl,PARAM *param,BATH *bath,NEIGH *neigh,EWALD *ewald,PBC *box)
 {

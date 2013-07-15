@@ -39,7 +39,12 @@
 #include "io.h"
 #include "errors.h"
 #include "memory.h"
+
+#ifdef MPI_VERSION
 #include "parallel.h"
+#else
+#include "serial.h"
+#endif
 
 #ifdef _OPENMP
 #undef _OPENMP
