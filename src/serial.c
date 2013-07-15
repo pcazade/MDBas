@@ -18,8 +18,6 @@
  * along with MDBas.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MPI_VERSION
-
 #include <stdio.h>
 #include "global.h"
 
@@ -140,4 +138,3 @@ void close_para()
   
 }
 
-#endif

@@ -129,12 +129,12 @@ void init_energy_ptrs(CTRL *ctrl)
  */
 void energy(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,EWALD *ewald,PBC *box,NEIGH *neigh,
             BOND bond[],BOND ub[],ANGLE angle[],DIHE dihe[],DIHE impr[],
-            const double restrict x[],const double restrict y[], const double restrict z[],
-            double restrict vx[],double restrict vy[], double restrict vz[],double restrict fx[],double restrict fy[],
-            double restrict fz[],const double restrict q[],const double restrict eps[],const double restrict sig[],
-            const double restrict eps14[],const double restrict sig14[],const int restrict frozen[],
-            const int restrict **neighList,const int restrict neighPair[],const int neighList14[],
-            const int **exclList,const int restrict exclPair[],const double restrict dBuffer[])
+            const double x[],const double y[], const double z[],
+            double vx[],double vy[], double vz[],double fx[],double fy[],
+            double fz[],const double q[],const double eps[],const double sig[],
+            const double eps14[],const double sig14[],const int frozen[],
+            int **neighList,const int neighPair[],const int neighList14[],
+            int **exclList,const int exclPair[],double dBuffer[])
 {
 
     int i;

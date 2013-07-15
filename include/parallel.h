@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-    void init_para(int *argc, char ***argv);
+  void init_para(int *argc, char ***argv);
 
   int my_proc();
 
