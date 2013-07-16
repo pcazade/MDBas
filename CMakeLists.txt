@@ -58,18 +58,23 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CUSTOM_C_FLAGS}")
 
 #common defines
 add_definitions(-DHAVE_SSE2 -DDSFMT_MEXP=19937 -DTIMING -DFFTW)
+
 # common libraries
 link_libraries(m rt dl fftw3)
 
 # check if we need to add MPI related files
 if(NOT ENABLE_MPI)
+
     set(SRCS ${COMMON_SRCS} ${SERIAL_SRCS})
     add_executable(${TGT} ${SRCS})
+    
 else(NOT ENABLE_MPI)
+
     set(SRCS ${COMMON_SRCS} ${PARALLEL_SRCS})
     include_directories(${MPI_INCLUDE_PATH})
     add_executable(${TGT}_MPI ${SRCS})
     target_link_libraries(${TGT}_MPI ${MPI_LIBRARY})
+    
 endif(NOT ENABLE_MPI)
 
 
