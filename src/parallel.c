@@ -18,8 +18,6 @@
  * along with MDBas.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef MPI_VERSION
-
 #include <stdio.h>
 #include <mpi.h>
 
@@ -843,4 +841,3 @@ void mpi_error(int err, char file[],int line)
     
 }
 
-#endif
