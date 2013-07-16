@@ -1,5 +1,3 @@
--------------------------------- DOCUMENTATION --------------------------------------
-
 For building the documentation, please install :
 * doxygen
 * graphviz

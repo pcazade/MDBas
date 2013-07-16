@@ -173,7 +173,7 @@ int main(int argc, char* argv[])
     fprintf(outFile,"Multi-threading disabled.\n\n");
     #endif
   }
-
+  
 //  UserEnergyPtr userPtr = NULL;
 //  userPtr = loadUserPlugin("user_functions.so","MyEnergyFunction");
 //  userPtr();
@@ -212,7 +212,7 @@ int main(int argc, char* argv[])
     energy(&ctrl,&param,&parallel,&ener,&ewald,&box,&neigh,bond,ub,angle,dihe,impr,
 	   x,y,z,vx,vy,vz,fx,fy,fz,q,eps,sig,eps14,sig14,frozen,
 	   neighList,neighPair,neighList14,exclList,exclPair,dBuffer);
-    
+        
     ener.tot=ener.kin+ener.pot;
     
     ener.virtot=ener.virbond+ener.virub+ener.virelec+ener.virvdw+ener.virshake;
@@ -271,7 +271,7 @@ int main(int argc, char* argv[])
     }
   }
   /** First calculation of the enregy ends here. */
-  
+    
   /** MD starts here if required. */
   
   if(ctrl.keyMd)
@@ -438,11 +438,13 @@ int main(int argc, char* argv[])
   getrusage(RUSAGE_SELF,&infos_usage);
   /** when using omp this time is not correct **/
 //  fprintf(outFile,"Execution time in Seconds : %lf\n",(double)(infos_usage.ru_utime.tv_sec+infos_usage.ru_utime.tv_usec/1000000.0));
+  if(parallel.idProc==0)
+    fprintf(outFile,"Max amount of physical memory used (kBytes) : %ld\n",infos_usage.ru_maxrss);
 #endif
-  
+    
   if(parallel.idProc==0)
     fclose(outFile);
-  
+    
   close_para();
   
   return EXIT_SUCCESS;

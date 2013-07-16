@@ -89,7 +89,7 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
     
     fprintf(outFile,"%s file read\n",inout->simuName);
   }
-   
+     
 #ifdef TIMER
   /** create timers **/
   create_new_timer(TIMER_ENERGY_TOT);
@@ -102,7 +102,7 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
   create_new_timer(TIMER_SHAKE);
   create_new_timer(TIMER_INTEGRATE);
 #endif
-  
+    
   if(parallel->idProc==0)
   {
     
@@ -162,7 +162,7 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
       *sig=(double*)my_malloc(param->nAtom*sizeof(double));
       *eps14=(double*)my_malloc(param->nAtom*sizeof(double));
       *sig14=(double*)my_malloc(param->nAtom*sizeof(double));
-      
+            
     }
     
     read_FORF(inout,param,*atom,constList,bond,angle,dihe,impr,ub,*eps,*sig,
@@ -175,11 +175,11 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
     fprintf(outFile,"Setup done\n");
   
   }
-  
+    
   setup_para(ctrl,param,parallel,ener,bath,neigh,ewald,box,atom,constList,
 	     bond,angle,dihe,impr,ub,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,q,
 	     eps,sig,eps14,sig14,frozen,nAtConst,dBuffer,iBuffer);
-    
+      
   get_kinfromtemp(param,box);
     
   init_box(box);
@@ -188,7 +188,7 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
   
   makelist(ctrl,param,parallel,box,neigh,*constList,*bond,*angle,*dihe,*impr,*x,*y,*z,*frozen,
 	   neighList,neighPair,neighList14,exclList,exclPair);
-    
+      
   init_energy_ptrs(ctrl);
   
   if(ctrl->keyEwald==1)
@@ -230,7 +230,7 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
   }
   
   /** Initialization of the simulation ends here. */
-  
+    
   /** Initialization of velocities starts here. */
   
   init_rand(ctrl->seed);
@@ -269,12 +269,12 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
     if(parallel->idProc==0)
       write_DCD_header(inout,ctrl,param,box,*frozen);
   }
-  
+    
   /** allocate arrays for integrators and for shake **/
   integrators_allocate_arrays(ctrl,parallel);
   if(param->nConst>0)
     shake_allocate_arrays(param,parallel);
-    
+      
 }
 
 void init_variables(CTRL *ctrl,PARAM *param,PARALLEL *parallel,BATH *bath,NEIGH *neigh,
@@ -1092,16 +1092,17 @@ void free_all(CTRL *ctrl,PARAM *param, PARALLEL *parallel,EWALD *ewald,ATOM **at
     free(*iBuffer);
   }
   
-  for(int i=0;i<parallel->maxAtProc;i++)
-  {
-    free((*neighList)[i]);
-  }
-  
   int ii=0;
   for(int i=parallel->idProc;i<param->nAtom;i+=parallel->nProc)
   {
     free((*exclList)[ii]);
     ii++;
+  }
+  
+  for(int i=0;i<parallel->maxAtProc;i++)
+  {
+    free((*neighList)[i]);
+    
   }
   
   free(*exclList); free(*neighList);
