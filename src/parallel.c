@@ -51,7 +51,7 @@ int my_proc()
   if(err!=MPI_SUCCESS)
     mpi_error(err,__FILE__,__LINE__);
   
-  return idProc;
+  return (idProc);
   
 }
 
@@ -64,7 +64,7 @@ int num_proc()
   if(err!=MPI_SUCCESS)
     mpi_error(err,__FILE__,__LINE__);
   
-  return numProc;
+  return(numProc);
   
 }
 
