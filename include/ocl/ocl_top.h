@@ -2,7 +2,7 @@
 #ifdef	__cplusplus
 extern "C" {
 #endif
-    
+
 #ifdef OPENCL
 
 #ifndef OCL_INCLUDED
@@ -14,23 +14,23 @@ extern "C" {
 #define TO_KB	1024.0
 
 //file for info log
-extern FILE *ocl_info;
+    extern FILE *ocl_info;
 
 //common CL_STRUCTURES
-extern cl_platform_id 	platform;
-extern cl_device_id 	device;
-extern cl_context	context;
-extern cl_command_queue	command_queue;
+    extern cl_platform_id 	platform;
+    extern cl_device_id 	device;
+    extern cl_context	context;
+    extern cl_command_queue	command_queue;
 
 //in initOCL.c
-void ocl_init_all();
-void ocl_end_all();
+    void ocl_init_all();
+    void ocl_end_all();
 
 //in prepareOCL.c
-void ocl_get_platform();
-void ocl_get_device();
-void ocl_get_context();
-void ocl_get_cmdQueue();
+    void ocl_get_platform();
+    void ocl_get_device();
+    void ocl_get_context();
+    void ocl_get_cmdQueue();
 
 #endif
 

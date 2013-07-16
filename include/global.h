@@ -52,273 +52,273 @@ extern "C" {
 //#define COSDIH  1                       /*!< Cosine potential type for dihedral and improper angles. */
 //#define HARMDIH 2                       /*!< Harmonic potential type for dihedral and improper angles. */
 
-/*!
- * \enum ELEC_TYPE
- * \brief Enumeration of the possible ways of evaluating electrostatic potential and force.
- */
-enum ELEC_TYPE{
-  NOELEC = 0,       /*!< No electrostatic evaluation. */
-  FULL   = 1,       /*!< Full electrostatic evaluation. */
-  SHIFT1 = 2,       /*!< Electrostatic evaluation with SHIFT_1 cutoff. */
-  SHIFT2 = 3,       /*!< Electrostatic evaluation with SHIFT_2 cutoff. */
-  SWITCH = 4        /*!< Electrostatic evaluation with SWITCH cutoff. */
-};
+    /*!
+     * \enum ELEC_TYPE
+     * \brief Enumeration of the possible ways of evaluating electrostatic potential and force.
+     */
+    enum ELEC_TYPE {
+        NOELEC = 0,       /*!< No electrostatic evaluation. */
+        FULL   = 1,       /*!< Full electrostatic evaluation. */
+        SHIFT1 = 2,       /*!< Electrostatic evaluation with SHIFT_1 cutoff. */
+        SHIFT2 = 3,       /*!< Electrostatic evaluation with SHIFT_2 cutoff. */
+        SWITCH = 4        /*!< Electrostatic evaluation with SWITCH cutoff. */
+    };
 
-/*!
- * \enum VDW_TYPE
- * \brief Enumeration of the possible ways of evaluating Van der Waals potential and force.
- */
-enum VDW_TYPE{
-  NOVDW   = 0,      /*!< No Van der Waals evaluation. */
-  VFULL   = 1,      /*!< Full Van der Waals evaluation. */
-  VSWITCH = 2       /*!< Van der Waals evaluation with SWITCH cutoff. */
-};
+    /*!
+     * \enum VDW_TYPE
+     * \brief Enumeration of the possible ways of evaluating Van der Waals potential and force.
+     */
+    enum VDW_TYPE {
+        NOVDW   = 0,      /*!< No Van der Waals evaluation. */
+        VFULL   = 1,      /*!< Full Van der Waals evaluation. */
+        VSWITCH = 2       /*!< Van der Waals evaluation with SWITCH cutoff. */
+    };
 
-/*!
- * \enum BOX_TYPE
- * \brief Enumeration of the available simulation boxes.
- */
-enum BOX_TYPE{
-  NOBOX = 0,        /*!< No box for this simulation, so no Periodic Boundaries Conditions applied. */
-  CUBIC = 1,        /*!< A cubic box is used. */
-  ORBIC = 2,        /*!< An orthorhombic box is used. */
-  TCLIN = 3         /*!< A triclinic box is used. */
-};
+    /*!
+     * \enum BOX_TYPE
+     * \brief Enumeration of the available simulation boxes.
+     */
+    enum BOX_TYPE {
+        NOBOX = 0,        /*!< No box for this simulation, so no Periodic Boundaries Conditions applied. */
+        CUBIC = 1,        /*!< A cubic box is used. */
+        ORBIC = 2,        /*!< An orthorhombic box is used. */
+        TCLIN = 3         /*!< A triclinic box is used. */
+    };
 
-/*!
- * \enum INTEGRATOR_TYPE
- * \brief Enumeration of the different integrators available.
- */
-enum INTEGRATOR_TYPE{
-  LEAPFROG = 0,
-  VELOCITY = 1
-};
+    /*!
+     * \enum INTEGRATOR_TYPE
+     * \brief Enumeration of the different integrators available.
+     */
+    enum INTEGRATOR_TYPE {
+        LEAPFROG = 0,
+        VELOCITY = 1
+    };
 
-/*!
- * \enum ENSEMBLE_TYPE
- * \brief Enumeration of the available emsembles.
- */
-enum ENSEMBLE_TYPE{
-  NVE = 0,
-  NVT_B = 1,
-  NPT_B = 2,
-  NVT_H = 3,
-  NPT_H = 4
-};
+    /*!
+     * \enum ENSEMBLE_TYPE
+     * \brief Enumeration of the available emsembles.
+     */
+    enum ENSEMBLE_TYPE {
+        NVE = 0,
+        NVT_B = 1,
+        NPT_B = 2,
+        NVT_H = 3,
+        NPT_H = 4
+    };
 
-/*!
- * \enum BOND_TYPE
- * \brief Enumeration of the possible bond potentials.
- */
-enum BOND_TYPE{
-  BHARM  = 0,       /*!< The bond is described by a harmonic potential: \f$ E=k\left(r-r_0\right)^2 \f$ */
-  BMORSE = 1,       /*!< The bond is described by a Morse potential: \f$ E=k\left[1-\exp\left(-\beta\left(r-r_0\right)\right)\right]^2 \f$ */
-};
+    /*!
+     * \enum BOND_TYPE
+     * \brief Enumeration of the possible bond potentials.
+     */
+    enum BOND_TYPE {
+        BHARM  = 0,       /*!< The bond is described by a harmonic potential: \f$ E=k\left(r-r_0\right)^2 \f$ */
+        BMORSE = 1,       /*!< The bond is described by a Morse potential: \f$ E=k\left[1-\exp\left(-\beta\left(r-r_0\right)\right)\right]^2 \f$ */
+    };
 
-/*!
- * \enum ANGLE_TYPE
- * \brief Enumeration of the possible angle potentials.
- */
-enum ANGLE_TYPE{
-  AHARM = 0,       /*!< The angle is described by a harmonic potential: \f$ E=k\left(\theta-\theta_0\right)^2 \f$ */
-};
+    /*!
+     * \enum ANGLE_TYPE
+     * \brief Enumeration of the possible angle potentials.
+     */
+    enum ANGLE_TYPE {
+        AHARM = 0,       /*!< The angle is described by a harmonic potential: \f$ E=k\left(\theta-\theta_0\right)^2 \f$ */
+    };
 
-/*!
- * \enum DIHE_TYPE
- * \brief Enumeration of the possible dihedral angle potentials.
- */
-enum DIHE_TYPE{
-  DCOS  = 1,       /*!< The dihedral is described by a cosine potential: \f$ E=k\left[1+\cos\left(m*\phi-phi_0\right)\right] \f$ */
-  DHARM = 2,       /*!< The dihedral is described by a harmonic potential: \f$ E=k\left(\phi-\phi_0\right)^2 \f$ */
-};
+    /*!
+     * \enum DIHE_TYPE
+     * \brief Enumeration of the possible dihedral angle potentials.
+     */
+    enum DIHE_TYPE {
+        DCOS  = 1,       /*!< The dihedral is described by a cosine potential: \f$ E=k\left[1+\cos\left(m*\phi-phi_0\right)\right] \f$ */
+        DHARM = 2,       /*!< The dihedral is described by a harmonic potential: \f$ E=k\left(\phi-\phi_0\right)^2 \f$ */
+    };
 
-/*!
- * \struct ATOM
- * \brief This structure represents an atom of the simulation and all its properties.
- *
- * First, labelling informations as 3 char[] (atom label, segment label, residue label) and 3 int (atom type, residue number, number of constraints this atom is involved in).
- *
- * Then, spatial informations : coordinates, speeds, forces associated to this atom.
- *
- * Finally, the mass and charge.
- */
-typedef struct
-{
-  char label[5],segn[5],resn[5];
-  int type,resi,ires;
-}ATOM;
+    /*!
+     * \struct ATOM
+     * \brief This structure represents an atom of the simulation and all its properties.
+     *
+     * First, labelling informations as 3 char[] (atom label, segment label, residue label) and 3 int (atom type, residue number, number of constraints this atom is involved in).
+     *
+     * Then, spatial informations : coordinates, speeds, forces associated to this atom.
+     *
+     * Finally, the mass and charge.
+     */
+    typedef struct
+    {
+        char label[5],segn[5],resn[5];
+        int type,resi,ires;
+    } ATOM;
 
-/*!
- * \struct PBC
- * \brief This structure contains parameters describing the simulation box.
- */
-typedef struct
-{
-  enum BOX_TYPE type; /*<  */
-  double a,a1,a2,a3,b,b1,b2,b3,c,c1,c2,c3;
-  double u,u1,u2,u3,v,v1,v2,v3,w,w1,w2,w3;
-  double pa,pb,pc,det,vol,vol0;
-  double stress1,stress2,stress3;
-  double stress4,stress5,stress6;
-  double stress7,stress8,stress9;
-}PBC;
+    /*!
+     * \struct PBC
+     * \brief This structure contains parameters describing the simulation box.
+     */
+    typedef struct
+    {
+        enum BOX_TYPE type; /*<  */
+        double a,a1,a2,a3,b,b1,b2,b3,c,c1,c2,c3;
+        double u,u1,u2,u3,v,v1,v2,v3,w,w1,w2,w3;
+        double pa,pb,pc,det,vol,vol0;
+        double stress1,stress2,stress3;
+        double stress4,stress5,stress6;
+        double stress7,stress8,stress9;
+    } PBC;
 
-typedef struct
-{
-  FILE *confFile,*forfFile,*propFile,*restFile,*rconFile,*trajFile;
-  FILE *simuFile;
-  char confName[FINAMELEN],forfName[FINAMELEN],propName[FINAMELEN];
-  char restName[FINAMELEN],rconName[FINAMELEN],trajName[FINAMELEN];
-  char simuName[FINAMELEN];
-}IO;
+    typedef struct
+    {
+        FILE *confFile,*forfFile,*propFile,*restFile,*rconFile,*trajFile;
+        FILE *simuFile;
+        char confName[FINAMELEN],forfName[FINAMELEN],propName[FINAMELEN];
+        char restName[FINAMELEN],rconName[FINAMELEN],trajName[FINAMELEN];
+        char simuName[FINAMELEN];
+    } IO;
 
-typedef struct
-{
-  int newjob;
-  
-  int keyRand,keyTraj,keyProp,keyForF,keyRest;
-  int printOut,printProp,printTraj,printRest;
-  
-  int keyMd,mdType;
-  int seed;
-  
-  int keyMinim;
-  int keyLink,noLink;
-  
-  int keyConstH;
-  int keyNb14,keyNumForce;
-  
-  int keyEwald,keyAlpha,keyMmax;
-  
-  enum ELEC_TYPE elecType;
-  enum VDW_TYPE  vdwType;
-  enum INTEGRATOR_TYPE integrator;
-  enum ENSEMBLE_TYPE ens;
-}CTRL;
+    typedef struct
+    {
+        int newjob;
 
-typedef struct
-{
-  int step,nSteps;
-  int nAtom,nDegFree,nFrozen;
-  int nConst,maxCycle;
-  
-  int nBond,nAngle,nUb,nDihedral,nImproper;
-  
-  double timeStep,rTimeStep;
-  
-  double chargeConst,tolShake,scal14;
-  
-  double cutOff,rcutOff,delr;
-  double cutOff2,rcutOff2;
-  double cutOn,cutOn2,switch2;
-  
-  double temp0,press0,kinTemp0;
-  
-  double tolMinim,maxminsiz,maxminst;
-  
-}PARAM;
+        int keyRand,keyTraj,keyProp,keyForF,keyRest;
+        int printOut,printProp,printTraj,printRest;
 
-typedef struct
-{
-  double tauT,chiT;
-  double tauP,chiP,compress;
-}BATH;
+        int keyMd,mdType;
+        int seed;
 
-typedef struct
-{
-  enum BOND_TYPE type;
-  int a,b;
-  double k,r0,beta;
-}BOND;
+        int keyMinim;
+        int keyLink,noLink;
 
-typedef struct
-{
-  enum ANGLE_TYPE type;
-  int a,b,c;
-  double k,theta0;
-}ANGLE;
+        int keyConstH;
+        int keyNb14,keyNumForce;
 
-typedef struct
-{
-  enum DIHE_TYPE type;
-  int order;
-  int a,b,c,d;
-  double k,phi0,mult;
-}DIHE;
+        int keyEwald,keyAlpha,keyMmax;
 
-typedef struct
-{
-  int update;
-  int linkRatio;
-  int nCells;
-  int sizeList;
-  int nPair14;
-}NEIGH;
+        enum ELEC_TYPE elecType;
+        enum VDW_TYPE  vdwType;
+        enum INTEGRATOR_TYPE integrator;
+        enum ENSEMBLE_TYPE ens;
+    } CTRL;
 
-/*!
- * \struct ENERGY
- * \brief This structure contains the total energy but also all its components.
- */
-typedef struct
-{
-  double tot,pot,kin;
-  double elec,vdw;
-  double bond,ang,ub,dihe,impr;
-  double conint,consv;
-  double virelec,virvdw,virbond,virub;
-  double virshake,virpot,virtot;
-}ENERGY;
+    typedef struct
+    {
+        int step,nSteps;
+        int nAtom,nDegFree,nFrozen;
+        int nConst,maxCycle;
 
-/*!
- * \struct CONSTRAINT
- * \brief This structure is used for storing parameters of the constraints.
- */
-typedef struct
-{
-  int a,b;
-  double rc2;
-}CONSTRAINT;
+        int nBond,nAngle,nUb,nDihedral,nImproper;
 
-/*!
- * \struct DELTA
- * \brief This structure represents a distance vector between two atoms.
- */
-typedef struct
-{
-  double x,y,z;
-}DELTA;
+        double timeStep,rTimeStep;
 
-typedef struct
-{
-  int nbsp;
-  int mmax,m1max,m2max,m3max;
-  double prec,tol,tol1,alpha;
-}EWALD;
+        double chargeConst,tolShake,scal14;
 
-typedef struct
-{
-  int nProc,idProc;
-  
-  int maxAtProc,maxCtProc;
-  int maxBdProc,maxAgProc;
-  int maxUbProc,maxDiProc;
-  int maxImProc;
-  
-  int nAtProc,nCtProc;
-  int nBdProc,nAgProc;
-  int nUbProc,nDhProc;
-  int nIpProc;
-  
-  int fAtProc,lAtProc;
-  int fCtProc,lCtProc;
-  int fBdProc,lBdProc;
-  int fAgProc,lAgProc;
-  int fUbProc,lUbProc;
-  int fDhProc,lDhProc;
-  int fIpProc,lIpProc;
-  
-  int iBufferSize,dBufferSize;
-}PARALLEL;
+        double cutOff,rcutOff,delr;
+        double cutOff2,rcutOff2;
+        double cutOn,cutOn2,switch2;
+
+        double temp0,press0,kinTemp0;
+
+        double tolMinim,maxminsiz,maxminst;
+
+    } PARAM;
+
+    typedef struct
+    {
+        double tauT,chiT;
+        double tauP,chiP,compress;
+    } BATH;
+
+    typedef struct
+    {
+        enum BOND_TYPE type;
+        int a,b;
+        double k,r0,beta;
+    } BOND;
+
+    typedef struct
+    {
+        enum ANGLE_TYPE type;
+        int a,b,c;
+        double k,theta0;
+    } ANGLE;
+
+    typedef struct
+    {
+        enum DIHE_TYPE type;
+        int order;
+        int a,b,c,d;
+        double k,phi0,mult;
+    } DIHE;
+
+    typedef struct
+    {
+        int update;
+        int linkRatio;
+        int nCells;
+        int sizeList;
+        int nPair14;
+    } NEIGH;
+
+    /*!
+     * \struct ENERGY
+     * \brief This structure contains the total energy but also all its components.
+     */
+    typedef struct
+    {
+        double tot,pot,kin;
+        double elec,vdw;
+        double bond,ang,ub,dihe,impr;
+        double conint,consv;
+        double virelec,virvdw,virbond,virub;
+        double virshake,virpot,virtot;
+    } ENERGY;
+
+    /*!
+     * \struct CONSTRAINT
+     * \brief This structure is used for storing parameters of the constraints.
+     */
+    typedef struct
+    {
+        int a,b;
+        double rc2;
+    } CONSTRAINT;
+
+    /*!
+     * \struct DELTA
+     * \brief This structure represents a distance vector between two atoms.
+     */
+    typedef struct
+    {
+        double x,y,z;
+    } DELTA;
+
+    typedef struct
+    {
+        int nbsp;
+        int mmax,m1max,m2max,m3max;
+        double prec,tol,tol1,alpha;
+    } EWALD;
+
+    typedef struct
+    {
+        int nProc,idProc;
+
+        int maxAtProc,maxCtProc;
+        int maxBdProc,maxAgProc;
+        int maxUbProc,maxDiProc;
+        int maxImProc;
+
+        int nAtProc,nCtProc;
+        int nBdProc,nAgProc;
+        int nUbProc,nDhProc;
+        int nIpProc;
+
+        int fAtProc,lAtProc;
+        int fCtProc,lCtProc;
+        int fBdProc,lBdProc;
+        int fAgProc,lAgProc;
+        int fUbProc,lUbProc;
+        int fDhProc,lDhProc;
+        int fIpProc,lIpProc;
+
+        int iBufferSize,dBufferSize;
+    } PARALLEL;
 
 #ifdef	__cplusplus
 }

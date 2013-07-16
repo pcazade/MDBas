@@ -1073,7 +1073,7 @@ void verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,double x[
       ii++;
     }
   }
-  
+
 }
 
 void init_link_cell_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,double x[],double y[],double z[],

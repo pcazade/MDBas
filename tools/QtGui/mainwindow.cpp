@@ -21,11 +21,19 @@ MainWindow::MainWindow()
     // organisation with layout
     QGridLayout *latticeParamsLayout = new QGridLayout;
 
-    latticeParamsLayout->addWidget(name_a,0,0); latticeParamsLayout->addWidget(name_b,0,1); latticeParamsLayout->addWidget(name_c,0,2);
-    latticeParamsLayout->addWidget(a,1,0);      latticeParamsLayout->addWidget(b,1,1);      latticeParamsLayout->addWidget(c,1,2);
+    latticeParamsLayout->addWidget(name_a,0,0);
+    latticeParamsLayout->addWidget(name_b,0,1);
+    latticeParamsLayout->addWidget(name_c,0,2);
+    latticeParamsLayout->addWidget(a,1,0);
+    latticeParamsLayout->addWidget(b,1,1);
+    latticeParamsLayout->addWidget(c,1,2);
 
-    latticeParamsLayout->addWidget(name_alph,2,0);   latticeParamsLayout->addWidget(name_beta,2,1);  latticeParamsLayout->addWidget(name_gamm,2,2);
-    latticeParamsLayout->addWidget(alpha,3,0);       latticeParamsLayout->addWidget(beta,3,1);      latticeParamsLayout->addWidget(gamma,3,2);
+    latticeParamsLayout->addWidget(name_alph,2,0);
+    latticeParamsLayout->addWidget(name_beta,2,1);
+    latticeParamsLayout->addWidget(name_gamm,2,2);
+    latticeParamsLayout->addWidget(alpha,3,0);
+    latticeParamsLayout->addWidget(beta,3,1);
+    latticeParamsLayout->addWidget(gamma,3,2);
 
     // a distinct box for storing previous things
     QGroupBox *latticeParamsGroup = new QGroupBox("Lattice parameters: ");
@@ -33,15 +41,27 @@ MainWindow::MainWindow()
 
     //----------------------------------------------------------------------
     //output zone : matrix
-    m1 = new QLineEdit("0.0");   m2 = new QLineEdit("0.0");   m3 = new QLineEdit("0.0");
-    m4 = new QLineEdit("0.0");   m5 = new QLineEdit("0.0");   m6 = new QLineEdit("0.0");
-    m7 = new QLineEdit("0.0");   m8 = new QLineEdit("0.0");   m9 = new QLineEdit("0.0");
+    m1 = new QLineEdit("0.0");
+    m2 = new QLineEdit("0.0");
+    m3 = new QLineEdit("0.0");
+    m4 = new QLineEdit("0.0");
+    m5 = new QLineEdit("0.0");
+    m6 = new QLineEdit("0.0");
+    m7 = new QLineEdit("0.0");
+    m8 = new QLineEdit("0.0");
+    m9 = new QLineEdit("0.0");
 
     // organisation with a grid layout
     QGridLayout *matrixLayout = new QGridLayout;
-    matrixLayout->addWidget(m1,0,0);    matrixLayout->addWidget(m2,0,1);    matrixLayout->addWidget(m3,0,2);
-    matrixLayout->addWidget(m4,1,0);    matrixLayout->addWidget(m5,1,1);    matrixLayout->addWidget(m6,1,2);
-    matrixLayout->addWidget(m7,2,0);    matrixLayout->addWidget(m8,2,1);    matrixLayout->addWidget(m9,2,2);
+    matrixLayout->addWidget(m1,0,0);
+    matrixLayout->addWidget(m2,0,1);
+    matrixLayout->addWidget(m3,0,2);
+    matrixLayout->addWidget(m4,1,0);
+    matrixLayout->addWidget(m5,1,1);
+    matrixLayout->addWidget(m6,1,2);
+    matrixLayout->addWidget(m7,2,0);
+    matrixLayout->addWidget(m8,2,1);
+    matrixLayout->addWidget(m9,2,2);
 
     // a distinct box for this Matrix
     QGroupBox *matrixGroup = new QGroupBox("Output Matrix ");
@@ -80,7 +100,7 @@ MainWindow::MainWindow()
 
 void MainWindow::computeMatrix()
 {
-    double lattice[6]={0.0} , matrix[9]={0.0};
+    double lattice[6]= {0.0} , matrix[9]= {0.0};
     int errorCode=0;
 
     lattice[0] = this->a->text().toDouble();

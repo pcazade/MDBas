@@ -21,8 +21,7 @@
 #ifdef MPI_VERSION
 
 #include <stdio.h>
-
-#include "mpi.h"
+#include <mpi.h>
 
 #include "global.h"
 #include "errors.h"
@@ -54,7 +53,7 @@ int my_proc()
   if(err!=MPI_SUCCESS)
     mpi_error(err,__FILE__,__LINE__);
   
-  return idProc;
+  return (idProc);
   
 }
 
@@ -67,7 +66,7 @@ int num_proc()
   if(err!=MPI_SUCCESS)
     mpi_error(err,__FILE__,__LINE__);
   
-  return numProc;
+  return(numProc);
   
 }
 

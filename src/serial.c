@@ -31,14 +31,14 @@ void init_para(int *argc, char ***argv)
 int my_proc()
 {
   
-  return 0;
+  return (0);
   
 }
 
 int num_proc()
 {
   
-  return 1;
+  return (1);
   
 }
 

@@ -1,3 +1,5 @@
+-------------------------------- DOCUMENTATION --------------------------------------
+
 For building the documentation, please install :
 * doxygen
 * graphviz
@@ -5,5 +7,26 @@ For building the documentation, please install :
 and then :
 
 doxygen ./Doxyfile.config
+
+-------------------------------- COMPILE & INSTALL ----------------------------------
+* Be sure to have a MPI implementation installed : openMPI or MPICH2 are available on most repositories.
+* Be sure to have FFTW3 installed (http://www.fftw.org/), available on most repositories.
+* Be sure to have CMAKE installed (http://www.cmake.org/), available on most repositories.
+
+* Create a build directory and move to that directory: 
+	mkdir build && cd build
+
+* For buildind a debug or release SERIAL version : 
+	cmake -DCMAKE_BUILD_TYPE=Debug ..
+or
+	cmake -DCMAKE_BUILD_TYPE=Release ..
+
+* For building a debug or release PARALLEL version using MPI :
+	cmake -DCMAKE_BUILD_TYPE=Debug -DENABLE_MPI=ON ..
+or
+	cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_MPI=ON .. 
+
+* Debug builds are slower but useful when debugging with gdb or valgrind.
+
 
 

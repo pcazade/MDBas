@@ -61,6 +61,7 @@ extern "C" {
   void close_para();
 
   void mpi_error(int err, char file[],int line);
+
 #ifdef	__cplusplus
 }
 #endif
