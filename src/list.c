@@ -946,6 +946,9 @@ void init_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,doub
       if( (exclPair[ii]>0) && (exclList[ii][counter[ii]]==j) )
       {
 	counter[ii]++;
+	
+	if(counter[ii]>=exclPair[ii])
+	  counter[ii]=exclPair[ii]-1;
       }
       else
       {
@@ -1034,6 +1037,9 @@ void verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,double x[
       if( (exclPair[ii]>0) && (exclList[ii][counter[ii]]==j) )
       {
 	counter[ii]++;
+	
+	if(counter[ii]>=exclPair[ii])
+	  counter[ii]=exclPair[ii]-1;
       }
       else
       {

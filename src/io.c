@@ -93,11 +93,19 @@ int read_command_line(int *argc, char ***argv,IO *inout,PARALLEL *parallel)
       i++;
     }
     
-    outFile=fopen(outName,"w");
-    if(outFile==NULL)
+    if(err==0)
+    {
+      outFile=fopen(outName,"w");
+      if(outFile==NULL)
+      {
+	outFile=stdout;
+	my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
+	
+      } 
+    }
+    else
     {
       outFile=stdout;
-      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
     }
   
   }
@@ -1290,7 +1298,6 @@ void write_rest(IO *inout,PARAM *param,ENERGY *ener,BATH *bath,ATOM atom[],
 {
 
     size_t ret;
-//   int i;
 
     inout->restFile=fopen(inout->restName,"wb");
 
