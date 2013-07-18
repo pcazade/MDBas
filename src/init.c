@@ -271,7 +271,7 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
   }
     
   /** allocate arrays for integrators and for shake **/
-  integrators_allocate_arrays(ctrl,parallel);
+  integrators_allocate_arrays(ctrl,param,parallel);
   if(param->nConst>0)
     shake_allocate_arrays(param,parallel);
       
@@ -1057,7 +1057,7 @@ void free_all(CTRL *ctrl,PARAM *param, PARALLEL *parallel,EWALD *ewald,ATOM **at
 	      int ***exclList,int **exclPair,double **dBuffer,int **iBuffer)
 {
   
-  integrators_free_arrays(ctrl,parallel);
+  integrators_free_arrays(ctrl,param,parallel);
   
   if(param->nConst>0) shake_free_arrays();
   

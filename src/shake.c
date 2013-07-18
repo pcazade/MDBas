@@ -484,6 +484,8 @@ void vv_shake_v(PARAM *param,CONSTRAINT constList[],PARALLEL *parallel,
             xt[ib]+=ddx[l]*lambdaj;
             yt[ib]+=ddy[l]*lambdaj;
             zt[ib]+=ddz[l]*lambdaj;
+	    
+	    l++;
 
         }
 

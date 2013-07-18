@@ -60,7 +60,7 @@ static double *xt,*yt,*zt;
 static double *vxo,*vyo,*vzo;
 static double *vxu,*vyu,*vzu;
 
-void integrators_allocate_arrays(CTRL *ctrl,PARALLEL *parallel)
+void integrators_allocate_arrays(CTRL *ctrl,PARAM *param,PARALLEL *parallel)
 {
     ddx=ddy=ddz=NULL;
     xo=yo=zo=xt=yt=zt=vxo=vyo=vzo=vxu=vyu=vzu=NULL;
@@ -75,7 +75,7 @@ void integrators_allocate_arrays(CTRL *ctrl,PARALLEL *parallel)
             vxu=(double*)my_malloc(parallel->maxAtProc*sizeof(*vxu));
             vyu=(double*)my_malloc(parallel->maxAtProc*sizeof(*vyu));
             vzu=(double*)my_malloc(parallel->maxAtProc*sizeof(*vzu));
-            if(parallel->maxCtProc>0)
+            if(param->nConst>0)
             {
                 ddx=(double*)my_malloc(parallel->maxCtProc*sizeof(*ddx));
                 ddy=(double*)my_malloc(parallel->maxCtProc*sizeof(*ddy));
@@ -93,15 +93,15 @@ void integrators_allocate_arrays(CTRL *ctrl,PARALLEL *parallel)
             vxu=(double*)my_malloc(parallel->maxAtProc*sizeof(*vxu));
             vyu=(double*)my_malloc(parallel->maxAtProc*sizeof(*vyu));
             vzu=(double*)my_malloc(parallel->maxAtProc*sizeof(*vzu));
-            if(parallel->maxCtProc>0)
+            if(param->nConst>0)
             {
                 ddx=(double*)my_malloc(parallel->maxCtProc*sizeof(*ddx));
                 ddy=(double*)my_malloc(parallel->maxCtProc*sizeof(*ddy));
                 ddz=(double*)my_malloc(parallel->maxCtProc*sizeof(*ddz));
 
-                xt=(double*)my_malloc(parallel->maxCtProc*sizeof(*xt));
-                yt=(double*)my_malloc(parallel->maxCtProc*sizeof(*yt));
-                zt=(double*)my_malloc(parallel->maxCtProc*sizeof(*zt));
+                xt=(double*)my_malloc(parallel->maxAtProc*sizeof(*xt));
+                yt=(double*)my_malloc(parallel->maxAtProc*sizeof(*yt));
+                zt=(double*)my_malloc(parallel->maxAtProc*sizeof(*zt));
             }
         }
     }
@@ -109,7 +109,7 @@ void integrators_allocate_arrays(CTRL *ctrl,PARALLEL *parallel)
     {
         if (ctrl->ens == NVE || ctrl->ens == NVT_B || ctrl->ens == NVT_H)
         {
-            if(parallel->maxCtProc>0)
+            if(param->nConst>0)
             {
                 ddx=(double*)my_malloc(parallel->maxCtProc*sizeof(*ddx));
                 ddy=(double*)my_malloc(parallel->maxCtProc*sizeof(*ddy));
@@ -124,7 +124,7 @@ void integrators_allocate_arrays(CTRL *ctrl,PARALLEL *parallel)
             vxo=(double*)my_malloc(parallel->maxAtProc*sizeof(*vxo));
             vyo=(double*)my_malloc(parallel->maxAtProc*sizeof(*vyo));
             vzo=(double*)my_malloc(parallel->maxAtProc*sizeof(*vzo));
-            if(parallel->maxCtProc>0)
+            if(param->nConst>0)
             {
                 ddx=(double*)my_malloc(parallel->maxCtProc*sizeof(*ddx));
                 ddy=(double*)my_malloc(parallel->maxCtProc*sizeof(*ddy));
@@ -134,7 +134,7 @@ void integrators_allocate_arrays(CTRL *ctrl,PARALLEL *parallel)
     }
 }
 
-void integrators_free_arrays(CTRL *ctrl,PARALLEL *parallel)
+void integrators_free_arrays(CTRL *ctrl,PARAM *param,PARALLEL *parallel)
 {
     if(ctrl->integrator == LEAPFROG)
     {
@@ -146,7 +146,7 @@ void integrators_free_arrays(CTRL *ctrl,PARALLEL *parallel)
             free(vxu);
             free(vyu);
             free(vzu);
-            if(parallel->maxCtProc>0)
+            if(param->nConst>0)
             {
                 free(ddx);
                 free(ddy);
@@ -164,7 +164,7 @@ void integrators_free_arrays(CTRL *ctrl,PARALLEL *parallel)
             free(vxu);
             free(vyu);
             free(vzu);
-            if(parallel->maxCtProc>0)
+            if(param->nConst>0)
             {
                 free(ddx);
                 free(ddy);
@@ -180,7 +180,7 @@ void integrators_free_arrays(CTRL *ctrl,PARALLEL *parallel)
     {
         if (ctrl->ens == NVE || ctrl->ens == NVT_B || ctrl->ens == NVT_H)
         {
-            if(parallel->maxCtProc>0)
+            if(param->nConst>0)
             {
                 free(ddx);
                 free(ddy);
@@ -195,7 +195,7 @@ void integrators_free_arrays(CTRL *ctrl,PARALLEL *parallel)
             free(vxo);
             free(vyo);
             free(vzo);
-            if(parallel->maxCtProc>0)
+            if(param->nConst>0)
             {
                 free(ddx);
                 free(ddy);
@@ -256,7 +256,7 @@ void lf_nve(PARAM *param,ENERGY *ener,PBC *box,
     int i,ia,ib,l;
     double virshake=0.,stress[6]= {0.},stresk[6]= {0.};
 
-    if(parallel->maxCtProc>0)
+    if(param->nConst>0)
     {
         l=0;
 #ifdef _OPENMP
@@ -422,7 +422,7 @@ void lf_nve(PARAM *param,ENERGY *ener,PBC *box,
         update_double_para(param,parallel,vy,dBuffer);
         update_double_para(param,parallel,vz,dBuffer);
 
-        if(parallel->maxCtProc>0)
+        if(param->nConst>0)
         {
             update_double_para(param,parallel,fx,dBuffer);
             update_double_para(param,parallel,fy,dBuffer);
@@ -463,7 +463,7 @@ void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 
     }
 
-    if(parallel->maxCtProc>0)
+    if(param->nConst>0)
     {
         l=0;
 #ifdef _OPENMP
@@ -477,6 +477,8 @@ void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
             ddx[l]=x[ib]-x[ia];
             ddy[l]=y[ib]-y[ia];
             ddz[l]=z[ib]-z[ia];
+	    
+	    l++;
         }
 
         image_array(box,ddx,ddy,ddz,parallel->nCtProc);
@@ -648,7 +650,7 @@ void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
         update_double_para(param,parallel,vy,dBuffer);
         update_double_para(param,parallel,vz,dBuffer);
 
-        if(parallel->maxCtProc>0)
+        if(param->nConst>0)
         {
             update_double_para(param,parallel,fx,dBuffer);
             update_double_para(param,parallel,fy,dBuffer);
@@ -779,9 +781,9 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 
             if(param->nConst>0)
             {
-                xt[i]=x[i];
-                yt[i]=y[i];
-                zt[i]=z[i];
+                xt[l]=x[i];
+                yt[l]=y[i];
+                zt[l]=z[i];
             }
 
             l++;
@@ -908,7 +910,7 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
         update_double_para(param,parallel,vy,dBuffer);
         update_double_para(param,parallel,vz,dBuffer);
 
-        if(parallel->maxCtProc>0)
+        if(param->nConst>0)
         {
             update_double_para(param,parallel,fx,dBuffer);
             update_double_para(param,parallel,fy,dBuffer);
@@ -967,7 +969,7 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
             l++;
         }
 
-        image_array(box,ddx,ddy,ddz,param->nConst);
+        image_array(box,ddx,ddy,ddz,parallel->nCtProc);
 
     }
 
@@ -1150,7 +1152,7 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
         update_double_para(param,parallel,vy,dBuffer);
         update_double_para(param,parallel,vz,dBuffer);
 
-        if(parallel->maxCtProc>0)
+        if(param->nConst>0)
         {
             update_double_para(param,parallel,fx,dBuffer);
             update_double_para(param,parallel,fy,dBuffer);
@@ -1227,7 +1229,7 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
             l++;
         }
 
-        image_array(box,ddx,ddy,ddz,param->nConst);
+        image_array(box,ddx,ddy,ddz,parallel->nCtProc);
 
     }
 
@@ -1494,7 +1496,7 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
         update_double_para(param,parallel,vy,dBuffer);
         update_double_para(param,parallel,vz,dBuffer);
 
-        if(parallel->maxCtProc>0)
+        if(param->nConst>0)
         {
             update_double_para(param,parallel,fx,dBuffer);
             update_double_para(param,parallel,fy,dBuffer);
@@ -1571,7 +1573,7 @@ void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *
             l++;
         }
 
-        image_array(box,ddx,ddy,ddz,param->nConst);
+        image_array(box,ddx,ddy,ddz,parallel->nCtProc);
 
     }
 
@@ -1711,7 +1713,7 @@ void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
             l++;
         }
 
-        image_array(box,ddx,ddy,ddz,param->nConst);
+        image_array(box,ddx,ddy,ddz,parallel->nCtProc);
 
     }
 
@@ -1873,7 +1875,7 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
             l++;
         }
 
-        image_array(box,ddx,ddy,ddz,param->nConst);
+        image_array(box,ddx,ddy,ddz,parallel->nCtProc);
 
     }
 
@@ -2106,7 +2108,7 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
             l++;
         }
 
-        image_array(box,ddx,ddy,ddz,param->nConst);
+        image_array(box,ddx,ddy,ddz,parallel->nCtProc);
 
     }
 
