@@ -63,8 +63,6 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
 		 int ***exclList,int **exclPair,double **dBuffer,int **iBuffer)
 {
   
-  int i;
-  
   /** Initialization of the simulation starts here. */
   
   init_variables(ctrl,param,parallel,bath,neigh,ewald,box);
@@ -176,7 +174,7 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
   
   }
     
-  setup_para(ctrl,param,parallel,ener,bath,neigh,ewald,box,atom,constList,
+  setup_para(ctrl,param,parallel,bath,neigh,ewald,box,constList,
 	     bond,angle,dihe,impr,ub,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,q,
 	     eps,sig,eps14,sig14,frozen,nAtConst,dBuffer,iBuffer);
       
@@ -1057,7 +1055,7 @@ void free_all(CTRL *ctrl,PARAM *param, PARALLEL *parallel,EWALD *ewald,ATOM **at
 	      int ***exclList,int **exclPair,double **dBuffer,int **iBuffer)
 {
   
-  integrators_free_arrays(ctrl,param,parallel);
+  integrators_free_arrays(ctrl,param);
   
   if(param->nConst>0) shake_free_arrays();
   
@@ -1079,9 +1077,7 @@ void free_all(CTRL *ctrl,PARAM *param, PARALLEL *parallel,EWALD *ewald,ATOM **at
   
   free(*sig); free(*eps14); free(*sig14); free(*frozen); free(*nAtConst);
   
-  //free(*neighPair);
-  
-  free(*neighList14); free(*exclPair);
+  free(*neighPair); free(*neighList14); free(*exclPair);
   
   if(parallel->idProc==0)
     free(*atom);

@@ -61,8 +61,8 @@ void bcast_int_para(int *buf1,int size,int iNode);
 void bcast_double_para(double *buf1,int size,int iNode);
 
 
-void setup_para(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,
-		BATH *bath,NEIGH *neigh,EWALD *ewald,PBC *box,ATOM **atom,CONSTRAINT **constList,
+void setup_para(CTRL *ctrl,PARAM *param,PARALLEL *parallel,
+		BATH *bath,NEIGH *neigh,EWALD *ewald,PBC *box,CONSTRAINT **constList,
 		BOND **bond,ANGLE **angle,DIHE **dihe,DIHE **impr,BOND **ub,double **x,
 		double **y, double **z,double **vx,double **vy,double **vz,double **fx,
 		double **fy, double **fz,double **mass,double **rmass,double **q,

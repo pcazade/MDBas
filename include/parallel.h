@@ -50,13 +50,15 @@ extern "C" {
   
   void bcast_dihe_para(DIHE *dihe,PARALLEL *parallel,int *iBuffer,double *dBuffer,int size);
   
-  void setup_para(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,
-		  BATH *bath,NEIGH *neigh,EWALD *ewald,PBC *box,ATOM **atom,CONSTRAINT **constList,
-		  BOND **bond,ANGLE **angle,DIHE **dihe,DIHE **impr,BOND **ub,double **x,
-		  double **y, double **z,double **vx,double **vy,double **vz,double **fx,
-		  double **fy, double **fz,double **mass,double **rmass,double **q,
-		  double **eps,double **sig,double **eps14,double **sig14,int **frozen,
-		  int **nAtConst,double **dBuffer,int **iBuffer);
+  void setup_para(CTRL *ctrl,PARAM *param,PARALLEL *parallel,BATH *bath,NEIGH *neigh,
+		  EWALD *ewald,PBC *box,CONSTRAINT **constList,
+		  BOND **bond,ANGLE **angle,DIHE **dihe,DIHE **impr,BOND **ub,
+		  double **x,double **y, double **z,
+		  double **vx,double **vy,double **vz,
+		  double **fx,double **fy, double **fz,
+		  double **mass,double **rmass,double **q,
+		  double **eps,double **sig,double **eps14,double **sig14,
+		  int **frozen,int **nAtConst,double **dBuffer,int **iBuffer);
   
   void close_para();
 

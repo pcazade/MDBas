@@ -6,10 +6,10 @@ extern "C" {
 #endif
 
 // called once at the beginning of simulation for allocating working arrays used by integration
-    void integrators_allocate_arrays(CTRL *ctrl, PARAM *param, PARALLEL *paralle);
+    void integrators_allocate_arrays(CTRL *ctrl, PARAM *param, PARALLEL *parallel);
 
 // called once at the end of simulation for freeing working arrays used by integration
-    void integrators_free_arrays(CTRL *ctrl, PARAM *param ,PARALLEL *parallel);
+    void integrators_free_arrays(CTRL *ctrl, PARAM *param);
 
     void lf_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,
                       BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,

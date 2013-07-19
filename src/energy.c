@@ -193,27 +193,27 @@ void energy(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,EWALD *ewald
     /* Performing bond terms */
 
     if(param->nBond>0)
-        bond_energy(param,parallel,ener,box,bond,x,y,z,fx,fy,fz);
+        bond_energy(parallel,ener,box,bond,x,y,z,fx,fy,fz);
 
     /* Performing angle terms */
 
     if(param->nAngle>0)
-        angle_energy(param,parallel,ener,box,angle,x,y,z,fx,fy,fz);
+        angle_energy(parallel,ener,box,angle,x,y,z,fx,fy,fz);
 
     /* Performing Urey-Bradley terms */
 
     if(param->nUb>0)
-        ub_energy(param,parallel,ener,box,ub,x,y,z,fx,fy,fz);
+        ub_energy(parallel,ener,box,ub,x,y,z,fx,fy,fz);
 
     /* Performing diherdral terms */
 
     if(param->nDihedral>0)
-        dihedral_energy(param,parallel,ener,box,dihe,x,y,z,fx,fy,fz);
+        dihedral_energy(parallel,ener,box,dihe,x,y,z,fx,fy,fz);
 
     /* Performing improper terms */
 
     if(param->nImproper>0)
-        improper_energy(param,parallel,ener,box,impr,x,y,z,fx,fy,fz);
+        improper_energy(parallel,ener,box,impr,x,y,z,fx,fy,fz);
 
     /* Calculate potential energy */
 
@@ -281,7 +281,7 @@ void nonbond_energy(PARAM *param,PARALLEL *parallel,ENERGY *ener,PBC *box,const 
                     const int neighPair[])
 {
 
-    int i,j,k,l,offset;
+    int i,j,k,l;
     double elec=0.,evdw=0.,delec=0.,dvdw=0.,virelec=0.,virvdw=0.;
     double r,r2,rt,fxj,fyj,fzj,fxi,fyi,fzi;
     double qel,veps,vsig;

@@ -903,7 +903,7 @@ void init_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,doub
 		      int frozen[],int ***neighList,int **neighPair,int **exclList,
 		      int exclPair[])
 {
-  int i,ii,j,k,l,m,latm;
+  int i,ii,j,m,latm;
   int exclude;
   double r2,cutnb2,delta[3];
   
@@ -1001,7 +1001,7 @@ void verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,double x[
 		 int frozen[],int ***neighList,int neighPair[],int **exclList,
 		 int exclPair[])
 {
-  int i,ii,j,k,l,m,latm;
+  int i,ii,j,l,m,latm;
   int exclude;
   double r2,cutnb2,delta[3];
   
@@ -1147,7 +1147,7 @@ void init_link_cell_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *
     2,2,2,2,3,3,3,3,3,3,3,3,5,5,5,5,5,5,5,5,3,3,3,3,3,3,3,3,5,5,5,5};
     
   int cellCheck,enoughLinkCells,nlcx,nlcy,nlcz;
-  int i,ii,ih,j,k,l,kk,ll,icell,exclude,offset,iorder;
+  int i,ii,ih,j,k,l,kk,ll,icell,exclude;
   int ix,iy,iz,jx,jy,jz;
   double r2,cutnb,cutnb2,dnlcx,dnlcy,dnlcz;
   double cx,cy,cz,xt,yt,zt,xd,yd,zd,*xu,*yu,*zu;

@@ -38,7 +38,7 @@
 #include "timing.h"
 #endif
 
-void bond_energy(const PARAM *param,const PARALLEL *parallel,ENERGY *ener,const PBC *box,
+void bond_energy(const PARALLEL *parallel,ENERGY *ener,const PBC *box,
                  const BOND bond[],const double *x,const double *y,const double *z,
                  double *fx,double *fy,double *fz)
 {
@@ -125,7 +125,7 @@ void bond_energy(const PARAM *param,const PARALLEL *parallel,ENERGY *ener,const 
 
 }
 
-void ub_energy(const PARAM *param,const PARALLEL *parallel,ENERGY *ener,const PBC *box,
+void ub_energy(const PARALLEL *parallel,ENERGY *ener,const PBC *box,
                const BOND ub[],const double *x,const double *y,const double *z,
                double *fx,double *fy,double *fz)
 {
@@ -192,7 +192,7 @@ void ub_energy(const PARAM *param,const PARALLEL *parallel,ENERGY *ener,const PB
 
 }
 
-void angle_energy(const PARAM *param,const PARALLEL *parallel,ENERGY *ener,const PBC *box,
+void angle_energy(const PARALLEL *parallel,ENERGY *ener,const PBC *box,
                   const ANGLE angle[],const double *x,const double *y,const double *z,
                   double *fx,double *fy,double *fz)
 {
@@ -278,15 +278,15 @@ void angle_energy(const PARAM *param,const PARALLEL *parallel,ENERGY *ener,const
 
 }
 
-void dihedral_energy(const PARAM *param,const PARALLEL *parallel,ENERGY *ener,const PBC *box,
+void dihedral_energy(const PARALLEL *parallel,ENERGY *ener,const PBC *box,
                      const DIHE dihe[],const double *x,const double *y,const double *z,
                      double *fx,double *fy,double *fz)
 {
     int i,j,k,l,ll;
     double edihe=0.,ddihe=0.;
     double cosp,sinp,phi;
-    double /*rab,*/rbc,/*rcd,*/rpb,rpc,r2pb,r2pc,pbpc;
-    double dab[3],dbc[3],dcd[3],/*dac[3],*/pb[3],pc[3]/*,stress[6]={0.}*/;
+    double rbc,rpb,rpc,r2pb,r2pc,pbpc;
+    double dab[3],dbc[3],dcd[3],pb[3],pc[3]/*,stress[6]={0.}*/;
     double fax,fay,faz,fbx,fby,fbz,fcx,fcy,fcz,fdx,fdy,fdz;
 
 #ifdef TIMER
@@ -450,15 +450,15 @@ void dihedral_energy(const PARAM *param,const PARALLEL *parallel,ENERGY *ener,co
 
 }
 
-void improper_energy(const PARAM *param,const PARALLEL *parallel,ENERGY *ener,const PBC *box,
+void improper_energy(const PARALLEL *parallel,ENERGY *ener,const PBC *box,
                      const DIHE impr[],const double *x,const double *y,const double *z,
                      double *fx,double *fy,double *fz)
 {
     int i,j,k,l,ll;
     double edihe=0.,ddihe=0.;
     double cosp,sinp,phi;
-    double /*rab,*/rbc,/*rcd,*/rpb,rpc,r2pb,r2pc,pbpc;
-    double dab[3],dbc[3],dcd[3],/*dac[3],*/pb[3],pc[3]/*,stress[6]={0.}*/;
+    double rbc,rpb,rpc,r2pb,r2pc,pbpc;
+    double dab[3],dbc[3],dcd[3],pb[3],pc[3]/*,stress[6]={0.}*/;
     double fax,fay,faz,fbx,fby,fbz,fcx,fcy,fcz,fdx,fdy,fdz;
 
 #ifdef TIMER

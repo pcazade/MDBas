@@ -103,15 +103,15 @@ void vdw_full(const PARAM *param,PARALLEL *parallel, ENERGY *ener, const PBC *bo
                 r=sqrt(r2);
                 rt=1./r;
 
-                pvdw=4.*eps[i]*eps[j]*(X12((sig[i]+sig[j])/r)-X6((sig[i]+sig[j])/r));
+                pvdw=4.*eps[i]*eps[j]*(X12((sig[i]+sig[j])*rt)-X6((sig[i]+sig[j])*rt));
 
-                dvdw=24.*eps[i]*eps[j]/r*(X6((sig[i]+sig[j])/r)-2.*X12((sig[i]+sig[j])/r));
+                dvdw=24.*eps[i]*eps[j]*rt*(X6((sig[i]+sig[j])*rt)-2.*X12((sig[i]+sig[j])*rt));
 
                 evdw+=pvdw;
 
-                fxj=dvdw*delta[0]/r;
-                fyj=dvdw*delta[1]/r;
-                fzj=dvdw*delta[2]/r;
+                fxj=dvdw*delta[0]*rt;
+                fyj=dvdw*delta[1]*rt;
+                fzj=dvdw*delta[2]*rt;
 
                 fxi+=fxj;
                 fyi+=fyj;

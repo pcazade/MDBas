@@ -134,7 +134,7 @@ void integrators_allocate_arrays(CTRL *ctrl,PARAM *param,PARALLEL *parallel)
     }
 }
 
-void integrators_free_arrays(CTRL *ctrl,PARAM *param,PARALLEL *parallel)
+void integrators_free_arrays(CTRL *ctrl,PARAM *param)
 {
     if(ctrl->integrator == LEAPFROG)
     {

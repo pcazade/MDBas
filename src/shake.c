@@ -84,7 +84,7 @@ void lf_shake(PARAM *param,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
 {
     int i,l,ia,ib,icycle,converged;
     double ts2,maxdist,dist;
-    double lambda,lambdai,lambdaj,t2rmi,t2rmj,nia,nib;
+    double lambda,lambdai,lambdaj,t2rmi,t2rmj;
 
 #ifdef TIMER
     update_timer_begin(TIMER_SHAKE,__func__);
@@ -184,24 +184,6 @@ void lf_shake(PARAM *param,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
                 sum_double_para(zt,dBuffer,param->nAtom);
             }
 
-//       for(i=parallel->fCtProc;i<parallel->lCtProc;i++)
-//       {
-// 	ia=constList[i].a;
-// 	ib=constList[i].b;
-//
-// 	nia=1.0/(double)nAtConst[ia];
-// 	nib=1.0/(double)nAtConst[ib];
-//
-// 	x[ia]+=xt[ia]*nia;
-// 	y[ia]+=yt[ia]*nia;
-// 	z[ia]+=zt[ia]*nia;
-//
-// 	x[ib]+=xt[ib]*nib;
-// 	y[ib]+=yt[ib]*nib;
-// 	z[ib]+=zt[ib]*nib;
-//
-//       }
-
             for(i=0; i<param->nAtom; i++)
             {
                 if(nAtConst[i]>0)
@@ -255,7 +237,7 @@ void vv_shake_r(PARAM *param,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
 {
     int i,l,ia,ib,icycle,converged;
     double maxdist,dist;
-    double lambda,lambdai,lambdaj,trmi,trmj,nia,nib;
+    double lambda,lambdai,lambdaj,trmi,trmj;
 
 #ifdef TIMER
     update_timer_begin(TIMER_SHAKE,__func__);
@@ -352,32 +334,6 @@ void vv_shake_r(PARAM *param,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
                 sum_double_para(zt,dBuffer,param->nAtom);
             }
 
-//       for(i=parallel->fCtProc;i<parallel->lCtProc;i++)
-//       {
-// 	ia=constList[i].a;
-// 	ib=constList[i].b;
-//
-// 	nia=1.0/(double)nAtConst[ia];
-// 	nib=1.0/(double)nAtConst[ib];
-//
-// 	x[ia]+=param->timeStep*xt[ia]*nia;
-// 	y[ia]+=param->timeStep*yt[ia]*nia;
-// 	z[ia]+=param->timeStep*zt[ia]*nia;
-//
-// 	x[ib]+=param->timeStep*xt[ib]*nib;
-// 	y[ib]+=param->timeStep*yt[ib]*nib;
-// 	z[ib]+=param->timeStep*zt[ib]*nib;
-//
-// 	vx[ia]+=xt[ia]*nia;
-// 	vy[ia]+=yt[ia]*nia;
-// 	vz[ia]+=zt[ia]*nia;
-//
-// 	vx[ib]+=xt[ib]*nib;
-// 	vy[ib]+=yt[ib]*nib;
-// 	vz[ib]+=zt[ib]*nib;
-//
-//       }
-
             for(i=0; i<param->nAtom; i++)
             {
 
@@ -437,7 +393,7 @@ void vv_shake_v(PARAM *param,CONSTRAINT constList[],PARALLEL *parallel,
 {
     int i,l,ia,ib,icycle,converged;
     double maxdist,tolvel;
-    double lambda,lambdai,lambdaj,trmi,trmj,nia,nib;
+    double lambda,lambdai,lambdaj,trmi,trmj;
 
 #ifdef TIMER
     update_timer_begin(TIMER_SHAKE,__func__);
@@ -504,24 +460,6 @@ void vv_shake_v(PARAM *param,CONSTRAINT constList[],PARALLEL *parallel,
                 sum_double_para(yt,dBuffer,param->nAtom);
                 sum_double_para(zt,dBuffer,param->nAtom);
             }
-
-//       for(i=parallel->fCtProc;i<parallel->lCtProc;i++)
-//       {
-// 	ia=constList[i].a;
-// 	ib=constList[i].b;
-//
-// 	nia=1.0/(double)nAtConst[ia];
-// 	nib=1.0/(double)nAtConst[ib];
-//
-// 	vx[ia]+=xt[ia]*nia;
-// 	vy[ia]+=yt[ia]*nia;
-// 	vz[ia]+=zt[ia]*nia;
-//
-// 	vx[ib]+=xt[ib]*nib;
-// 	vy[ib]+=yt[ib]*nib;
-// 	vz[ib]+=zt[ib]*nib;
-//
-//       }
 
             for(i=0; i<param->nAtom; i++)
             {
