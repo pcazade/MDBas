@@ -69,19 +69,21 @@ void coulomb_full(ENERGY *ener,PARAM *param,PARALLEL *parallel,PBC *box,double *
         fxi=0.;
         fyi=0.;
         fzi=0.;
+	
+	k=0;
 
         for(j=i+1; j<param->nAtom; j++)
         {
 
             exclude=0;
-            for (k=0; k<exclPair[i]; k++)
-            {
-                if(exclList[i][k]==j)
-                {
-                    exclude=1;
-                    break;
-                }
-            }
+	    if( (exclPair[i]>0) && (exclList[i][k]==j) )
+	    {
+	      exclude=1;
+	      k++;
+	      
+	      if(k>=exclPair[i])
+		k=exclPair[i]-1;
+	    }
 
             if(!exclude)
             {
