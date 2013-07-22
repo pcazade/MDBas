@@ -19,14 +19,18 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <mpi.h>
 
 #include "global.h"
 #include "errors.h"
-#include "parallel.h"
 #include "memory.h"
 
+#include "parallel.h"
+
 #define STRBUFSIZ 8192
+
+extern FILE *outFile;
 
 void init_para(int *argc, char ***argv)
 {
@@ -837,9 +841,24 @@ void mpi_error(int err, char file[],int line)
   MPI_Error_string(err, errString, &lenErrString);
   fprintf(outFile, "%3d: %s\n", idProc, errString);
   
-  MPI_Abort(MPI_COMM_WORLD, err);
+  //MPI_Abort(MPI_COMM_WORLD, err);
   
   my_error(MPI_ERROR,file,line,0);
     
+}
+
+void abort_para(int err)
+{
+  
+  if(err==0)
+  {
+    MPI_Abort(MPI_COMM_WORLD,MPI_SUCCESS);
+  }
+  else
+  {
+    MPI_Abort(MPI_COMM_WORLD,MPI_ERR_UNKNOWN);
+  }
+  
+  exit(err);
 }
 

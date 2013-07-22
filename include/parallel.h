@@ -64,6 +64,8 @@ extern "C" {
 
   void mpi_error(int err, char file[],int line);
 
+  void abort_para(int err);
+
 #ifdef	__cplusplus
 }
 #endif

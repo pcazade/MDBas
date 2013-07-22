@@ -71,6 +71,8 @@ void setup_para(CTRL *ctrl,PARAM *param,PARALLEL *parallel,
 
 void close_para();
 
+void abort_para(int err);
+
 #ifdef	__cplusplus
 }
 #endif

@@ -18,8 +18,11 @@
  * along with MDBas.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdlib.h>
 #include <stdio.h>
+
 #include "global.h"
+#include "serial.h"
 
 void init_para(int *argc, char ***argv)
 {
@@ -138,3 +141,7 @@ void close_para()
   
 }
 
+void abort_para(int err)
+{
+  exit(err);
+}

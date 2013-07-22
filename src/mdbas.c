@@ -42,8 +42,9 @@
 #include "minim.h"
 #include "memory.h"
 #include "user.h"
+#include "errors.h"
 
-#ifdef MPI_VERSION
+#ifdef USING_MPI
 #include "parallel.h"
 #else
 #include "serial.h"
