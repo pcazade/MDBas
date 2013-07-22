@@ -80,11 +80,11 @@ int lattice_to_cryst(double lattice[6], double matrix[9])
 
 
     /*
-   * Diagonalization of the HTH matrix with lapack routine:
-   *
-   * http://www.netlib.org/lapack/explore-html/d2/d8a/group__double_s_yeigen.html
-   *
-  subroutine DSYEV    (    CHARACTER     JOBZ,
+    * Diagonalization of the HTH matrix with lapack routine:
+    *
+    * http://www.netlib.org/lapack/explore-html/d2/d8a/group__double_s_yeigen.html
+    *
+    subroutine DSYEV    (    CHARACTER     JOBZ,
                 CHARACTER     UPLO,
              INTEGER     N,
              DOUBLE PRECISION, dimension( lda, * )     A,
@@ -93,8 +93,8 @@ int lattice_to_cryst(double lattice[6], double matrix[9])
                 DOUBLE PRECISION, dimension( * )     WORK,
                 INTEGER     LWORK,
              INTEGER     INFO
-  )
-  */
+    )
+    */
 
     dsyev_(&jobz, &uplo, &n, egvec, &lda, W, &siz, &lwork, &info);
 

@@ -1,5 +1,6 @@
-./obj
-./MDBas
-./test*
-
-
+*obj*
+*MDBas*
+*test*
+*kdev*
+*build*
+nbproject

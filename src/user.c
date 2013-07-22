@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2013 Pierre-Andre Cazade
  * Copyright (c) 2013 Florent hedin
- * 
+ *
  * This file is part of MDBas.
  *
  * MDBas is free software: you can redistribute it and/or modify
@@ -39,23 +39,23 @@ UserEnergyPtr loadUserPlugin(const char pluginName[], const char funcName[])
 {
     plugin = NULL;
     fnc = NULL;
-    
+
 #ifdef __unix__
     plugin = dlopen(pluginName, RTLD_LAZY);
 
     if(plugin==NULL)
         my_error(PLUGINS_DLOPEN_ERROR,__FILE__,__LINE__,2,__func__,pluginName);
-    
+
     fnc = dlsym(plugin,funcName);
-    
+
     if(fnc==NULL)
         my_error(PLUGINS_DLSYM_ERROR,__FILE__,__LINE__,3,__func__,pluginName,funcName);
 #endif
 
     UserEnergyPtr eneCustom = (UserEnergyPtr) fnc;
-    
+
     return eneCustom;
-    
+
 }
 
 void closeUserPlugin(void)

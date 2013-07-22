@@ -39,6 +39,12 @@
 #include "integrate.h"
 #include "shake.h"
 
+#ifdef MPI_VERSION
+#include "parallel.h"
+#else
+#include "serial.h"
+#endif
+
 #if (defined TIMING && defined __unix__ && !defined __STRICT_ANSI__)
 #define TIMER
 #include "timing.h"
@@ -47,65 +53,42 @@
 /** Pointer to the output file. **/
 extern FILE *outFile;
 
-void init_system(int argc, char* argv[],IO *inout,CTRL *ctrl,PARAM *param,ENERGY *ener,BATH *bath,
-		 NEIGH *neigh,EWALD *ewald,PBC *box,ATOM **atom,CONSTRAINT **constList,
+void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,
+		 BATH *bath,NEIGH *neigh,EWALD *ewald,PBC *box,ATOM **atom,CONSTRAINT **constList,
 		 BOND **bond,ANGLE **angle,DIHE **dihe,DIHE **impr,BOND **ub,double **x,
 		 double **y, double **z,double **vx,double **vy,double **vz,double **fx,
 		 double **fy, double **fz,double **mass,double **rmass,double **q,
 		 double **eps,double **sig,double **eps14,double **sig14,int **frozen,
-		 int **nAtConst,int **neighList,int **neighPair,int **neighList14,
-		 int ***exclList,int **exclPair)
+		 int **nAtConst,int ***neighList,int **neighPair,int **neighList14,
+		 int ***exclList,int **exclPair,double **dBuffer,int **iBuffer)
 {
-  
-  char outName[FINAMELEN];
-  int i;
   
   /** Initialization of the simulation starts here. */
   
-  init_para(int *argc, char ***argv,param);
-  
-  init_rand(time(NULL));
-  
-  outFile=NULL;
-  
-  strcpy(outName,"OUTPUT");
-  
-  strcpy(inout->simuName,"SIMU");
-  
-  i=1;
-  while(i<argc)
-  {
+  init_variables(ctrl,param,parallel,bath,neigh,ewald,box);
     
-    if(!strcmp(argv[i],"-i"))
-    {
-      strcpy(inout->simuName,argv[++i]);
-    }
-    else if (!strcmp(argv[i],"-o"))
-    {
-      strcpy(outName,argv[++i]);
-    }
-    else if (!strcmp(argv[i],"--help"))
-    {
-      printf("%s [-i input_file] [-o output_file] [--help]\n",argv[0]);
+  int err=read_command_line(argc,argv,inout,parallel);
+  
+  switch(err)
+  {
+    case 1:
+      close_para();
       exit(0);
-    }
-    else
-        my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
-    
-    i++;
+    case 2:
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
+    default:
+      if(parallel->idProc==0)
+	fprintf(outFile,"Command line read\n");
   }
-    
-  outFile=fopen(outName,"w");
-  if(outFile==NULL)
+  
+  if(parallel->idProc==0)
   {
-    outFile=stdout;
-    my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
+    read_SIMU(inout,ctrl,param,bath,neigh,ewald,box);
+    
+    fprintf(outFile,"%s file read\n",inout->simuName);
   }
-  
-  read_SIMU(inout,ctrl,param,bath,neigh,ewald,box);
-  fprintf(outFile,"%s file read\n",inout->simuName);
-  
-  #ifdef TIMER
+     
+#ifdef TIMER
   /** create timers **/
   create_new_timer(TIMER_ENERGY_TOT);
   create_new_timer(TIMER_ENERGY_NB);
@@ -117,122 +100,145 @@ void init_system(int argc, char* argv[],IO *inout,CTRL *ctrl,PARAM *param,ENERGY
   create_new_timer(TIMER_SHAKE);
   create_new_timer(TIMER_INTEGRATE);
 #endif
-  
-  if(ctrl->keyRand)
-    init_rand(ctrl->seed);
-  
-  if(ctrl->mdType==1)
-    param->chargeConst=chgcharmm*kcaltoiu;
-  else if(ctrl->mdType==2)
-    param->chargeConst=chgnamd*kcaltoiu;
-  else if(ctrl->mdType==3)
-    param->chargeConst=chgdlpolyiu;
-  else
-    param->chargeConst=mu0*X2(clight)*X2(elemchg)*NA*0.1/(angstr);
-  
-  if(ctrl->keyRest)
+    
+  if(parallel->idProc==0)
   {
-    read_rest(inout,param,ener,bath,atom,x,y,z,vx,vy,vz,fx,fy,fz);
-    fprintf(outFile,"%s file read\n",inout->restName);
     
-    *q=(double*)my_malloc(param->nAtom*sizeof(double));
+    if(ctrl->mdType==1)
+      param->chargeConst=chgcharmm*kcaltoiu;
+    else if(ctrl->mdType==2)
+      param->chargeConst=chgnamd*kcaltoiu;
+    else if(ctrl->mdType==3)
+      param->chargeConst=chgdlpolyiu;
+    else
+      param->chargeConst=mu0*X2(clight)*X2(elemchg)*NA*0.1/(angstr);
     
-    *mass=(double*)my_malloc(param->nAtom*sizeof(double));
-    *rmass=(double*)my_malloc(param->nAtom*sizeof(double));
+    if(ctrl->keyRest)
+    {
+      read_rest(inout,param,ener,bath,atom,x,y,z,vx,vy,vz,fx,fy,fz);
+      fprintf(outFile,"%s file read\n",inout->restName);
+      
+      *q=(double*)my_malloc(param->nAtom*sizeof(double));
+      
+      *mass=(double*)my_malloc(param->nAtom*sizeof(double));
+      *rmass=(double*)my_malloc(param->nAtom*sizeof(double));
+      
+      *frozen=(int*)my_malloc(param->nAtom*sizeof(int));
+      
+      *nAtConst=(int*)my_malloc(param->nAtom*sizeof(int));
+      
+      *eps=(double*)my_malloc(param->nAtom*sizeof(double));
+      *sig=(double*)my_malloc(param->nAtom*sizeof(double));
+      *eps14=(double*)my_malloc(param->nAtom*sizeof(double));
+      *sig14=(double*)my_malloc(param->nAtom*sizeof(double));
+      
+    }
+    else
+    {
+      
+      read_CONF(inout,param,atom,x,y,z);
+      fprintf(outFile,"%s file read\n",inout->confName);
+      
+      *vx=(double*)my_malloc(param->nAtom*sizeof(double));
+      *vy=(double*)my_malloc(param->nAtom*sizeof(double));
+      *vz=(double*)my_malloc(param->nAtom*sizeof(double));
+      
+      *fx=(double*)my_malloc(param->nAtom*sizeof(double));
+      *fy=(double*)my_malloc(param->nAtom*sizeof(double));
+      *fz=(double*)my_malloc(param->nAtom*sizeof(double));
+      
+      *q=(double*)my_malloc(param->nAtom*sizeof(double));
+      
+      *mass=(double*)my_malloc(param->nAtom*sizeof(double));
+      *rmass=(double*)my_malloc(param->nAtom*sizeof(double));
+      
+      *frozen=(int*)my_malloc(param->nAtom*sizeof(int));
+      
+      *nAtConst=(int*)my_malloc(param->nAtom*sizeof(int));
+      
+      *eps=(double*)my_malloc(param->nAtom*sizeof(double));
+      *sig=(double*)my_malloc(param->nAtom*sizeof(double));
+      *eps14=(double*)my_malloc(param->nAtom*sizeof(double));
+      *sig14=(double*)my_malloc(param->nAtom*sizeof(double));
+            
+    }
     
-    *frozen=(int*)my_malloc(param->nAtom*sizeof(int));
+    read_FORF(inout,param,*atom,constList,bond,angle,dihe,impr,ub,*eps,*sig,
+	      *eps14,*sig14,*mass,*q,*frozen,*nAtConst);
     
-    *nAtConst=(int*)my_malloc(param->nAtom*sizeof(int));
+    fprintf(outFile,"%s file read\n",inout->forfName);
     
-    *eps=(double*)my_malloc(param->nAtom*sizeof(double));
-    *sig=(double*)my_malloc(param->nAtom*sizeof(double));
-    *eps14=(double*)my_malloc(param->nAtom*sizeof(double));
-    *sig14=(double*)my_malloc(param->nAtom*sizeof(double));
+    setup(ctrl,param,*atom,constList,bond,angle,dihe,impr,ub,*mass,*rmass,*frozen,*nAtConst);
     
+    fprintf(outFile,"Setup done\n");
+  
   }
-  else
-  {
-    read_CONF(inout,param,atom,x,y,z);
-    fprintf(outFile,"%s file read\n",inout->confName);
     
-    *vx=(double*)my_malloc(param->nAtom*sizeof(double));
-    *vy=(double*)my_malloc(param->nAtom*sizeof(double));
-    *vz=(double*)my_malloc(param->nAtom*sizeof(double));
-    
-    *fx=(double*)my_malloc(param->nAtom*sizeof(double));
-    *fy=(double*)my_malloc(param->nAtom*sizeof(double));
-    *fz=(double*)my_malloc(param->nAtom*sizeof(double));
-    
-    *q=(double*)my_malloc(param->nAtom*sizeof(double));
-    
-    *mass=(double*)my_malloc(param->nAtom*sizeof(double));
-    *rmass=(double*)my_malloc(param->nAtom*sizeof(double));
-    
-    *frozen=(int*)my_malloc(param->nAtom*sizeof(int));
-    
-    *nAtConst=(int*)my_malloc(param->nAtom*sizeof(int));
-    
-    *eps=(double*)my_malloc(param->nAtom*sizeof(double));
-    *sig=(double*)my_malloc(param->nAtom*sizeof(double));
-    *eps14=(double*)my_malloc(param->nAtom*sizeof(double));
-    *sig14=(double*)my_malloc(param->nAtom*sizeof(double));
-    
-  }
-  
-  read_FORF(inout,param,*atom,constList,bond,angle,dihe,impr,ub,*eps,*sig,
-	    *eps14,*sig14,*mass,*q,*frozen,*nAtConst);
-  
-  fprintf(outFile,"%s file read\n",inout->forfName);
-  
-  setup(ctrl,param,*atom,constList,bond,angle,dihe,impr,ub,*mass,*rmass,*frozen,*nAtConst);
-  
-  fprintf(outFile,"Setup done\n");
-  
+  setup_para(ctrl,param,parallel,bath,neigh,ewald,box,constList,
+	     bond,angle,dihe,impr,ub,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,q,
+	     eps,sig,eps14,sig14,frozen,nAtConst,dBuffer,iBuffer);
+      
   get_kinfromtemp(param,box);
-  
+    
   init_box(box);
+    
+  image_update(parallel,box,*x,*y,*z);
   
-  image_update(param,box,*x,*y,*z);
-
-  makelist(ctrl,param,box,neigh,*constList,*bond,*angle,*dihe,*impr,*x,*y,*z,*frozen,
-	   neighList,neighPair,neighOrder,neighList14,exclList,exclPair);
-  
+  makelist(ctrl,param,parallel,box,neigh,*constList,*bond,*angle,*dihe,*impr,*x,*y,*z,*frozen,
+	   neighList,neighPair,neighList14,exclList,exclPair);
+      
   init_energy_ptrs(ctrl);
   
   if(ctrl->keyEwald==1)
   {
-    init_ewald(ctrl,param,ewald,box);
-    fprintf(outFile,"\n");
-    fprintf(outFile,"Ewald Sum requested for coulombic interaction.\n\n");
-    fprintf(outFile,"Ewald percision: %e\n",ewald->prec);
-    fprintf(outFile,"Ewald gaussian width: %lf\n",ewald->alpha);
-    fprintf(outFile,"Ewald wavevectors: %d %d %d\n",ewald->m1max,ewald->m2max,ewald->m3max);
-    fprintf(outFile,"Ewald maximum wavevectors: %d\n\n",ewald->mmax);
+    init_ewald(ctrl,param,parallel,ewald,box);
+    
+    if(parallel->nProc>1)
+      parallel_reallocate_buffers(parallel,ewald,dBuffer);
+    
+    if(parallel->idProc==0)
+    {
+      fprintf(outFile,"\n");
+      fprintf(outFile,"Ewald Sum requested for coulombic interaction.\n\n");
+      fprintf(outFile,"Ewald percision: %e\n",ewald->prec);
+      fprintf(outFile,"Ewald gaussian width: %lf\n",ewald->alpha);
+      fprintf(outFile,"Ewald wavevectors: %d %d %d\n",ewald->m1max,ewald->m2max,ewald->m3max);
+      fprintf(outFile,"Ewald maximum wavevectors: %d\n\n",ewald->mmax);
+    }
   }
   else if(ctrl->keyEwald==2)
   {
-    init_spme(ctrl,param,ewald,box);
-    fprintf(outFile,"\n");
-    fprintf(outFile,"Ewald Sum requested for coulombic interaction.\n\n");
-    fprintf(outFile,"The Smooth Particle-Mesh Ewald is used to calculate\n");
-    fprintf(outFile,"the reciprocal space contibution.\n\n");
-    fprintf(outFile,"B-splines order: %d\n",ewald->nbsp);
-    fprintf(outFile,"Ewald percision: %e\n",ewald->prec);
-    fprintf(outFile,"Ewald gaussian width: %lf\n",ewald->alpha);
-    fprintf(outFile,"Ewald wavevectors: %d %d %d\n",ewald->m1max,ewald->m2max,ewald->m3max);
-    fprintf(outFile,"Ewald maximum wavevectors: %d\n\n",ewald->mmax);
+    init_spme(ctrl,param,parallel,ewald,box);
+    
+    if(parallel->nProc>1)
+      parallel_reallocate_buffers(parallel,ewald,dBuffer);
+    
+    if(parallel->idProc==0)
+    {
+      fprintf(outFile,"\n");
+      fprintf(outFile,"Ewald Sum requested for coulombic interaction.\n\n");
+      fprintf(outFile,"The Smooth Particle-Mesh Ewald is used to calculate\n");
+      fprintf(outFile,"the reciprocal space contibution.\n\n");
+      fprintf(outFile,"B-splines order: %d\n",ewald->nbsp);
+      fprintf(outFile,"Ewald percision: %e\n",ewald->prec);
+      fprintf(outFile,"Ewald gaussian width: %lf\n",ewald->alpha);
+      fprintf(outFile,"Ewald wavevectors: %d %d %d\n",ewald->m1max,ewald->m2max,ewald->m3max);
+      fprintf(outFile,"Ewald maximum wavevectors: %d\n\n",ewald->mmax);
+    }
   }
   
   /** Initialization of the simulation ends here. */
-  
+    
   /** Initialization of velocities starts here. */
+  
+  init_rand(ctrl->seed);
   
   if(!ctrl->keyRest)
   {
-    
     remove(inout->propName);
     
-    init_vel(param,box,*constList,*x,*y,*z,*vx,*vy,*vz,*mass,*rmass,*frozen,*nAtConst);
+    init_vel(param,parallel,box,*constList,*x,*y,*z,*vx,*vy,*vz,*mass,*rmass,
+	     *frozen,*nAtConst,*dBuffer);
     
     bath->chiT=0.;
     bath->chiP=0.;
@@ -258,17 +264,123 @@ void init_system(int argc, char* argv[],IO *inout,CTRL *ctrl,PARAM *param,ENERGY
   
   if(ctrl->keyTraj)
   {
-    write_DCD_header(inout,ctrl,param,box,*frozen);
+    if(parallel->idProc==0)
+      write_DCD_header(inout,ctrl,param,box,*frozen);
   }
-  
-  parallel->nProc=num_proc();
-  parallel->nAtProc=(param->nAtom+parallel->nProc-1)/parallel->nProc;
-  param->nCtProc=(param->nConst+parallel->nProc-1)/parallel->nProc;
-  
-  /** allocate arrays for integrators and for shake **/
-  integrators_allocate_arrays(ctrl,param);
-  if(param->nConst>0) shake_allocate_arrays(param);
     
+  /** allocate arrays for integrators and for shake **/
+  integrators_allocate_arrays(ctrl,param,parallel);
+  if(param->nConst>0)
+    shake_allocate_arrays(param,parallel);
+      
+}
+
+void init_variables(CTRL *ctrl,PARAM *param,PARALLEL *parallel,BATH *bath,NEIGH *neigh,
+		    EWALD *ewald,PBC *box)
+{
+  parallel->idProc=my_proc();
+  parallel->nProc=num_proc();
+  
+  parallel->iBufferSize=128;
+  parallel->dBufferSize=128;
+  
+  ctrl->newjob=1;
+  ctrl->mdType=1;
+  
+  ctrl->keyMd=1;
+  ctrl->keyRest=0;
+  ctrl->keyMinim=0;
+  
+  ctrl->ens=NVE;
+  
+  ctrl->keyRand=0;
+  ctrl->seed=time(NULL);
+  
+  ctrl->keyEwald=0;
+  ctrl->keyAlpha=0;
+  ctrl->keyMmax=0;
+  
+  ctrl->elecType=FULL;
+  ctrl->vdwType=VFULL;
+  ctrl->keyNb14=0;
+  
+  ctrl->keyNumForce=0;
+  
+  ctrl->noLink=0;
+
+  ctrl->integrator=VELOCITY;
+  
+  ctrl->keyConstH=0;
+  
+  ctrl->keyProp=0;
+  ctrl->keyTraj=0;
+  ctrl->keyForF=0;
+  ctrl->printOut=1000;
+  ctrl->printProp=1000;
+  ctrl->printTraj=1000;
+  ctrl->printRest=1000;
+  
+  param->tolMinim=1.e-3;
+  param->maxminst=1000.;
+  param->maxminsiz=0.15;
+  
+  param->step=0;
+  param->timeStep=0.001;
+  param->nSteps=0;
+ 
+  param->cutOff=12.0;
+  param->cutOn=10.0;
+  param->delr=2.0;
+
+  param->temp0=300.0;
+  param->press0=1.0;
+  
+  param->scal14=1.0;
+  
+  param->tolShake=1.e-8;
+  param->maxCycle=150;
+  
+  param->nAtom=0;
+  param->nDegFree=0;
+  param->nFrozen=0;
+  
+  param->nBond=0;
+  param->nAngle=0;
+  param->nUb=0;
+  param->nDihedral=0;
+  param->nImproper=0;
+  param->nConst=0;
+  
+  bath->tauT=0.1;
+  bath->tauP=0.5;
+  bath->chiT=0.;
+  bath->chiP=0.;
+  bath->compress=watercomp;
+  
+  ewald->nbsp=8;
+  ewald->mmax=216;
+  ewald->m1max=6;
+  ewald->m2max=6;
+  ewald->m3max=6;
+  ewald->prec=1e-6;
+  ewald->alpha=0.1;
+  
+  neigh->update=20;
+  neigh->linkRatio=1;
+
+  box->type=0;
+  
+  box->a1=0.;
+  box->a2=0.;
+  box->a3=0.;
+  
+  box->b1=0.;
+  box->b2=0.;
+  box->b3=0.;
+  
+  box->c1=0.;
+  box->c2=0.;
+  box->c3=0.;
 }
 
 void setup(CTRL *ctrl,PARAM *param,ATOM atom[],CONSTRAINT **constList,
@@ -650,9 +762,10 @@ void setup(CTRL *ctrl,PARAM *param,ATOM atom[],CONSTRAINT **constList,
  * \brief Initialise velocity of atoms according to a random normal distribution.
  * \remarks If constraints are used, init_constvel is internally called.
  */
-void init_vel(PARAM *param,PBC *box,CONSTRAINT constList[],double x[],
-	      double y[],double z[],double vx[],double vy[],double vz[],
-	      double mass[],double rmass[],int frozen[],int nAtConst[])
+void init_vel(PARAM *param,PARALLEL *parallel,PBC *box,CONSTRAINT constList[],
+	      double x[],double y[],double z[],double vx[],double vy[],
+	      double vz[],double mass[],double rmass[],int frozen[],
+	      int nAtConst[], double dBuffer[])
 {
   int i,natoms;
   double cmvx=0.,cmvy=0.,cmvz=0.,cmm=0.,initKin=0.;
@@ -725,7 +838,7 @@ void init_vel(PARAM *param,PBC *box,CONSTRAINT constList[],double x[],
     }
   }
   
-  initKin=kinetic(param,vx,vy,vz,mass);
+  initKin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
   
   factor=sqrt(param->kinTemp0/initKin);
   
@@ -933,13 +1046,13 @@ void init_box(PBC *box)
   
 }
 
-void free_all(CTRL *ctrl,PARAM *param,EWALD *ewald,ATOM **atom,CONSTRAINT **constList,
-	      BOND **bond,ANGLE **angle,DIHE **dihe,DIHE **impr,BOND **ub,double **x,
-	      double **y, double **z,double **vx,double **vy,double **vz,double **fx,
-	      double **fy, double **fz,double **mass,double **rmass,double **q,
-	      double **eps,double **sig,double **eps14,double **sig14,int **frozen,
-	      int **nAtConst,int **neighList,int **neighPair,int **neighOrder,
-	      int **neighList14,int ***exclList,int **exclPair)
+void free_all(CTRL *ctrl,PARAM *param, PARALLEL *parallel,EWALD *ewald,ATOM **atom,
+	      CONSTRAINT **constList,BOND **bond,ANGLE **angle,DIHE **dihe,DIHE **impr,
+	      BOND **ub,double **x,double **y, double **z,double **vx,double **vy,
+	      double **vz,double **fx,double **fy, double **fz,double **mass,double **rmass,
+	      double **q,double **eps,double **sig,double **eps14,double **sig14,int **frozen,
+	      int **nAtConst,int ***neighList,int **neighPair,int **neighList14,
+	      int ***exclList,int **exclPair,double **dBuffer,int **iBuffer)
 {
   
   integrators_free_arrays(ctrl,param);
@@ -958,28 +1071,37 @@ void free_all(CTRL *ctrl,PARAM *param,EWALD *ewald,ATOM **atom,CONSTRAINT **cons
   
   if(param->nUb>0) free(*ub);
   
-  free(*atom); free(*x); free(*y); free(*z); free(*vx); free(*vy); free(*vz);
+  free(*x); free(*y); free(*z); free(*vx); free(*vy); free(*vz);
   
   free(*fx); free(*fy); free(*fz); free(*mass); free(*rmass); free(*q); free(*eps);
   
   free(*sig); free(*eps14); free(*sig14); free(*frozen); free(*nAtConst);
   
-  free(*neighList); free(*neighPair); free(*neighOrder); free(*neighList14);
+  free(*neighPair); free(*neighList14); free(*exclPair);
   
-  free(*exclPair);
+  if(parallel->idProc==0)
+    free(*atom);
   
-  int i,nDealloc;
-  
-  if(ctrl->keyLink)
-    nDealloc=param->nAtom;
-  else
-    nDealloc=param->nAtom-1;
-  
-  for(i=0;i<nDealloc;i++)
+  if(parallel->nProc>1)
   {
-    free((*exclList)[i]);
+    free(*dBuffer);
+    free(*iBuffer);
   }
-  free(*exclList);
+  
+  int ii=0;
+  for(int i=parallel->idProc;i<param->nAtom;i+=parallel->nProc)
+  {
+    free((*exclList)[ii]);
+    ii++;
+  }
+  
+  for(int i=0;i<parallel->maxAtProc;i++)
+  {
+    free((*neighList)[i]);
+    
+  }
+  
+  free(*exclList); free(*neighList);
   
   if(ctrl->keyEwald==1)
   {
@@ -987,11 +1109,10 @@ void free_all(CTRL *ctrl,PARAM *param,EWALD *ewald,ATOM **atom,CONSTRAINT **cons
   }
   else if(ctrl->keyEwald==2)
   {
-    spme_free(param);
+    spme_free(parallel);
   }
   
 #ifdef TIMER
   free_timers();
 #endif
-  
 }
