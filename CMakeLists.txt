@@ -74,6 +74,7 @@ else(NOT ENABLE_MPI)
     include_directories(${MPI_INCLUDE_PATH})
     add_executable(${TGT}_MPI ${SRCS})
     target_link_libraries(${TGT}_MPI ${MPI_LIBRARY})
+    add_definitions(-DUSING_MPI)
     
 endif(NOT ENABLE_MPI)
 

@@ -240,6 +240,7 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
     ener->consv=0.;
     
     ener->virshake=0.;
+    
   }
   
   /** Initialization of velocities ends here. */

@@ -2284,12 +2284,15 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
               double *fx,double *fy,double *fz,
               double *mass,double *rmass,int *nAtConst,double dBuffer[],int stage)
 {
-    int i,l,ia,ib,k,kk,nosecycle,hoovercycle=5;
+    int i,l,ia,ib,k,kk,nosecycle,hoovercycle;
     double hts,chts,cqts;
     double cons0,lambda,lambda0,qmass;
     double gamma,gamma0,pmass,cbrga,scale;
     double volume,volume0,cell0[9],masst=0.,com[3]= {0.},vom[3]= {0.};
     double virshake,stress[6]= {0.},stresk[6]= {0.};
+    
+    nosecycle=1;
+    hoovercycle=5;
 
     hts=0.5*param->timeStep;
     chts=hts/(double)hoovercycle;
@@ -2316,6 +2319,8 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 
     qmass=2.0*param->kinTemp0*X2(bath->tauT);
     pmass=2.0*param->kinTemp0*X2(bath->tauP);
+    
+    virshake=ener->virshake;
 
     if(param->nConst>0)
     {
@@ -2323,7 +2328,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 #ifdef _OPENMP
         #pragma omp parallel for default(none) shared(param,constList,dd,atom) private(i,ia,ib)
 #endif
-        for(i=0; i<param->nConst; i++)
+        for(i=parallel->fCtProc; i<parallel->lCtProc; i++)
         {
             ia=constList[i].a;
             ib=constList[i].b;

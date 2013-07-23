@@ -390,16 +390,20 @@ void bcast_bath_para(BATH *bath,PARALLEL *parallel,double *dBuffer)
   {
     dBuffer[0]=bath->tauT;
     dBuffer[1]=bath->tauP;
-    dBuffer[2]=bath->compress;
+    dBuffer[2]=bath->chiT;
+    dBuffer[3]=bath->chiP;
+    dBuffer[4]=bath->compress;
   }
   
-  bcast_double_para(dBuffer,3,0);
+  bcast_double_para(dBuffer,5,0);
   
   if(parallel->idProc>0)
   {
     bath->tauT=dBuffer[0];
     bath->tauP=dBuffer[1];
-    bath->compress=dBuffer[2];
+    bath->chiT=dBuffer[2];
+    bath->chiP=dBuffer[3];
+    bath->compress=dBuffer[4];
   }
    
 }
