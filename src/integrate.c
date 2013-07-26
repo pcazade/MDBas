@@ -1235,20 +1235,22 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 
     // total mass and center of mass
 
-    masst=0.;
-    com[0]=0.;
-    com[1]=0.;
-    com[2]=0.;
-    for(i=0; i<param->nAtom; i++)
-    {
-        masst+=mass[i];
-        com[0]+=mass[i]*x[i];
-        com[1]+=mass[i]*y[i];
-        com[2]+=mass[i]*z[i];
-    }
-    com[0]/=masst;
-    com[1]/=masst;
-    com[2]/=masst;
+//     masst=0.;
+//     com[0]=0.;
+//     com[1]=0.;
+//     com[2]=0.;
+//     for(i=0; i<param->nAtom; i++)
+//     {
+//         masst+=mass[i];
+//         com[0]+=mass[i]*x[i];
+//         com[1]+=mass[i]*y[i];
+//         com[2]+=mass[i]*z[i];
+//     }
+//     com[0]/=masst;
+//     com[1]/=masst;
+//     com[2]/=masst;
+    
+    getCom(parallel,mass,x,y,z,com,dBuffer);
 
     //   Mass parameter for Nose-Hoover thermostat
 
@@ -1466,18 +1468,20 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
         l++;
     }
 
-    vom[0]=0.;
-    vom[1]=0.;
-    vom[2]=0.;
-    for(i=0; i<param->nAtom; i++)
-    {
-        vom[0]+=mass[i]*vx[i];
-        vom[1]+=mass[i]*vy[i];
-        vom[2]+=mass[i]*vz[i];
-    }
-    vom[0]/=masst;
-    vom[1]/=masst;
-    vom[2]/=masst;
+//     vom[0]=0.;
+//     vom[1]=0.;
+//     vom[2]=0.;
+//     for(i=0; i<param->nAtom; i++)
+//     {
+//         vom[0]+=mass[i]*vx[i];
+//         vom[1]+=mass[i]*vy[i];
+//         vom[2]+=mass[i]*vz[i];
+//     }
+//     vom[0]/=masst;
+//     vom[1]/=masst;
+//     vom[2]/=masst;
+    
+    getCom(parallel,mass,vx,vy,vz,vom,dBuffer);
 
     for(i=parallel->fAtProc; i<parallel->lAtProc; i++)
     {
@@ -2488,18 +2492,20 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
                 vz[i]+=0.5*param->timeStep*fz[i]*rmass[i];
             }
 
-            com[0]=0.;
-            com[1]=0.;
-            com[2]=0.;
-            for(i=0; i<param->nAtom; i++)
-            {
-                com[0]+=mass[i]*x[i];
-                com[1]+=mass[i]*y[i];
-                com[2]+=mass[i]*z[i];
-            }
-            com[0]/=masst;
-            com[1]/=masst;
-            com[2]/=masst;
+//             com[0]=0.;
+//             com[1]=0.;
+//             com[2]=0.;
+//             for(i=0; i<param->nAtom; i++)
+//             {
+//                 com[0]+=mass[i]*x[i];
+//                 com[1]+=mass[i]*y[i];
+//                 com[2]+=mass[i]*z[i];
+//             }
+//             com[0]/=masst;
+//             com[1]/=masst;
+//             com[2]/=masst;
+	    
+	    getCom(parallel,mass,x,y,z,com,dBuffer);
 
             cbrga=exp(param->timeStep*bath->chiP);
 
@@ -2689,18 +2695,20 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
                                   pmass*X2(bath->chiP)-rboltzui*param->temp0)/qmass;
         }
 
-        vom[0]=0.;
-        vom[1]=0.;
-        vom[2]=0.;
-        for(i=0; i<param->nAtom; i++)
-        {
-            vom[0]+=mass[i]*vx[i];
-            vom[1]+=mass[i]*vy[i];
-            vom[2]+=mass[i]*vz[i];
-        }
-        vom[0]/=masst;
-        vom[1]/=masst;
-        vom[2]/=masst;
+//         vom[0]=0.;
+//         vom[1]=0.;
+//         vom[2]=0.;
+//         for(i=0; i<param->nAtom; i++)
+//         {
+//             vom[0]+=mass[i]*vx[i];
+//             vom[1]+=mass[i]*vy[i];
+//             vom[2]+=mass[i]*vz[i];
+//         }
+//         vom[0]/=masst;
+//         vom[1]/=masst;
+//         vom[2]/=masst;
+	
+	getVom(parallel,mass,vx,vy,vz,vom,dBuffer);
 
         for(i=parallel->fAtProc; i<parallel->lAtProc; i++)
         {

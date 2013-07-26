@@ -612,6 +612,64 @@ void get_degfree(PARAM *param, const PBC *box)
 
 }
 
+void getCom(const PARALLEL *parallel,const double mass[],
+	    const double x[],const double y[],const double z[],
+	    double com[3],double dBuffer[])
+{
+  double totMass;
+  
+  totMass=0.;
+  
+  com[0]=0.;
+  com[1]=0.;
+  com[2]=0.;
+  
+  for(int i=parallel->fAtProc;i<parallel->lAtProc;i++)
+  {
+    totMass+=mass[i];
+    
+    com[0]+=mass[i]*x[i];
+    com[1]+=mass[i]*y[i];
+    com[2]+=mass[i]*z[i];
+  }
+  
+  sum_double_para(com,dBuffer,3);
+  sum_double_para(&totMass,dBuffer,1);
+  
+  com[0]/=totMass;
+  com[1]/=totMass;
+  com[2]/=totMass;
+}
+
+void getVom(const PARALLEL *parallel,const double mass[],
+	    const double vx[],const double vy[],const double vz[],
+	    double vom[3],double dBuffer[])
+{
+  double totMass;
+  
+  totMass=0.;
+  
+  vom[0]=0.;
+  vom[1]=0.;
+  vom[2]=0.;
+  
+  for(int i=parallel->fAtProc;i<parallel->lAtProc;i++)
+  {
+    totMass+=mass[i];
+    
+    vom[0]+=mass[i]*vx[i];
+    vom[1]+=mass[i]*vy[i];
+    vom[2]+=mass[i]*vz[i];
+  }
+  
+  sum_double_para(vom,dBuffer,3);
+  sum_double_para(&totMass,dBuffer,1);
+  
+  vom[0]/=totMass;
+  vom[1]/=totMass;
+  vom[2]/=totMass;
+}
+
 /**
  * \param str A character string of any length.
  *

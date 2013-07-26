@@ -34,6 +34,14 @@ extern "C" {
     void get_kinfromtemp(PARAM *param, const PBC *box);
 
     void get_degfree(PARAM *param, const PBC *box);
+    
+    void getCom(const PARALLEL *parallel,const double mass[],
+	    const double x[],const double y[],const double z[],
+	    double com[3],double dBuffer[]);
+    
+    void getVom(const PARALLEL *parallel,const double mass[],
+	    const double vx[],const double vy[],const double vz[],
+	    double vom[3],double dBuffer[]);
 
     void nocase(char *str);
 
