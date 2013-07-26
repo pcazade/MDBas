@@ -1553,6 +1553,8 @@ void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *
 {
     int i,l,ia,ib;
     double virshake,stress[6]= {0.},stresk[6]= {0.};
+    
+    virshake=ener->virshake;
 
     if(param->nConst>0)
     {
@@ -1693,6 +1695,8 @@ void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     int i,l,ia,ib;
     double lambda;
     double virshake,stress[6]= {0.},stresk[6]= {0.};
+    
+    virshake=ener->virshake;
 
     l=0;
     if(param->nConst>0)
@@ -1856,6 +1860,8 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     double virshake,stress[6]= {0.},stresk[6]= {0.};
 
     volume=box->vol;
+    
+    virshake=ener->virshake;
 
     if(param->nConst>0)
     {
@@ -2088,6 +2094,8 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     int i,l,ia,ib;
     double lambda,qmass;
     double virshake,stress[6]= {0.},stresk[6]= {0.};
+    
+    virshake=ener->virshake;
 
     l=0;
     if(param->nConst>0)
