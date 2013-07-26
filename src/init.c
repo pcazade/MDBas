@@ -171,7 +171,7 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
 	     bond,angle,dihe,impr,ub,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,q,
 	     eps,sig,eps14,sig14,frozen,nAtConst,dBuffer,iBuffer);
       
-  get_kinfromtemp(param,box);
+  getKin0(param,box);
     
   init_box(box);
     
@@ -843,7 +843,7 @@ void init_vel(PARAM *param,PARALLEL *parallel,PBC *box,CONSTRAINT constList[],
     }
   }
   
-  initKin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
+  initKin=getKin(parallel,vx,vy,vz,mass,dBuffer);
   
   factor=sqrt(param->kinTemp0/initKin);
   

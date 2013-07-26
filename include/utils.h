@@ -24,16 +24,16 @@ extern "C" {
 
     void box_to_crystal(const PBC *box,double crystal[6]);
 
-    double kinetic(const PARALLEL *parallel, const double vx[],const double vy[],
+    double getKin(const PARALLEL *parallel, const double vx[],const double vy[],
                    const double vz[],const double mass[],double dBuffer[]);
 
-    void stress_kinetic(const PARALLEL *parallel,const double vx[],const double vy[],
+    void getKinStress(const PARALLEL *parallel,const double vx[],const double vy[],
                         const double vz[],const double mass[],double stress[6],
                         double dBuffer[]);
 
-    void get_kinfromtemp(PARAM *param, const PBC *box);
+    void getKin0(PARAM *param, const PBC *box);
 
-    void get_degfree(PARAM *param, const PBC *box);
+    void getDegFree(PARAM *param, const PBC *box);
     
     void getCom(const PARALLEL *parallel,const double mass[],
 	    const double x[],const double y[],const double z[],

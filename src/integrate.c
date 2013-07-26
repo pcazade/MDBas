@@ -374,12 +374,12 @@ void lf_nve(PARAM *param,ENERGY *ener,PBC *box,
 
 // calculate kinetic energy
 
-    ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
+    ener->kin=getKin(parallel,vx,vy,vz,mass,dBuffer);
 
     ener->virshake=virshake;
 
 //   stress_kinetic(atom,simulCond,stresk);
-    stress_kinetic(parallel,vx,vy,vz,mass,stresk,dBuffer);
+    getKinStress(parallel,vx,vy,vz,mass,stresk,dBuffer);
 
     box->stress1+=stress[0]+stresk[0];
     box->stress2+=stress[1]+stresk[1];
@@ -497,7 +497,7 @@ void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
         vz[i]+=0.5*param->timeStep*fz[i]*rmass[i];
     }
 
-    ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
+    ener->kin=getKin(parallel,vx,vy,vz,mass,dBuffer);
 
     if(param->nConst>0)
         bercycle=2;
@@ -600,14 +600,14 @@ void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 
 // calculate kinetic energy
 
-        ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
+        ener->kin=getKin(parallel,vx,vy,vz,mass,dBuffer);
 
     }
 
     ener->virshake=virshake;
 
 //   stress_kinetic(atom,simulCond,stresk);
-    stress_kinetic(parallel,vx,vy,vz,mass,stresk,dBuffer);
+    getKinStress(parallel,vx,vy,vz,mass,stresk,dBuffer);
 
     box->stress1+=stress[0]+stresk[0];
     box->stress2+=stress[1]+stresk[1];
@@ -741,7 +741,7 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
         vz[i]+=0.5*param->timeStep*fz[i]*rmass[i];
     }
 
-    ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
+    ener->kin=getKin(parallel,vx,vy,vz,mass,dBuffer);
 
     pp=(2.*ener->kin-ener->virpot-virshake)/(3.*volume);
     gamma=1.+bath->compress*param->timeStep*(pp-param->press0)/bath->tauP;
@@ -852,7 +852,7 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 
 // calculate kinetic energy
 
-        ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
+        ener->kin=getKin(parallel,vx,vy,vz,mass,dBuffer);
 
         pp=(2.*ener->kin-ener->virpot-virshake)/(3.*volume);
         gamma=1.+watercomp*param->timeStep*(pp-param->press0)/bath->tauP;
@@ -865,7 +865,7 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     ener->virshake=virshake;
 
 //   stress_kinetic(atom,simulCond,stresk);
-    stress_kinetic(parallel,vx,vy,vz,mass,stresk,dBuffer);
+    getKinStress(parallel,vx,vy,vz,mass,stresk,dBuffer);
 
     box->stress1+=stress[0]+stresk[0];
     box->stress2+=stress[1]+stresk[1];
@@ -989,7 +989,7 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
         vz[i]+=0.5*param->timeStep*fz[i]*rmass[i];
     }
 
-    ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
+    ener->kin=getKin(parallel,vx,vy,vz,mass,dBuffer);
 
     lambdb=2.0*(ener->kin-param->kinTemp0)/qmass;
     lambdc=bath->chiT+param->timeStep*lambdb;
@@ -1094,7 +1094,7 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 
 // calculate kinetic energy
 
-        ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
+        ener->kin=getKin(parallel,vx,vy,vz,mass,dBuffer);
 
         lambdb=2.0*(ener->kin-param->kinTemp0)/qmass;
         lambdc=bath->chiT+param->timeStep*lambdb;
@@ -1104,7 +1104,7 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 
     ener->virshake=virshake;
 
-    stress_kinetic(parallel,vx,vy,vz,mass,stresk,dBuffer);
+    getKinStress(parallel,vx,vy,vz,mass,stresk,dBuffer);
 
     box->stress1+=stress[0]+stresk[0];
     box->stress2+=stress[1]+stresk[1];
@@ -1279,7 +1279,7 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
         update_double_para(param,parallel,vz,dBuffer);
     }
 
-    ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
+    ener->kin=getKin(parallel,vx,vy,vz,mass,dBuffer);
     /* **************************************************/
 
     gammb=(2.0*ener->kin - ener->virpot - virshake - 3.0*param->press0*volume)/pmass-
@@ -1407,7 +1407,7 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
             update_double_para(param,parallel,vz,dBuffer);
         }
 
-        ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
+        ener->kin=getKin(parallel,vx,vy,vz,mass,dBuffer);
         /* **************************************************/
 
         //ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
@@ -1426,7 +1426,7 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 
     ener->virshake=virshake; // Has to be checked
 
-    stress_kinetic(parallel,vx,vy,vz,mass,stresk,dBuffer);
+    getKinStress(parallel,vx,vy,vz,mass,stresk,dBuffer);
 
     box->stress1+=stress[0]+stresk[0];
     box->stress2+=stress[1]+stresk[1];
@@ -1658,9 +1658,9 @@ void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *
 
         }
 
-        ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
+        ener->kin=getKin(parallel,vx,vy,vz,mass,dBuffer);
 
-        stress_kinetic(parallel,vx,vy,vz,mass,stresk,dBuffer);
+        getKinStress(parallel,vx,vy,vz,mass,stresk,dBuffer);
 
         box->stress1+=stress[0]+stresk[0];
         box->stress2+=stress[1]+stresk[1];
@@ -1800,7 +1800,7 @@ void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 
         }
 
-        ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
+        ener->kin=getKin(parallel,vx,vy,vz,mass,dBuffer);
 
         lambda=sqrt(1.0+param->timeStep/bath->tauT*(param->kinTemp0/ener->kin-1.0));
 
@@ -1823,7 +1823,7 @@ void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
             update_double_para(param,parallel,vz,dBuffer);
         }
 
-        stress_kinetic(parallel,vx,vy,vz,mass,stresk,dBuffer);
+        getKinStress(parallel,vx,vy,vz,mass,stresk,dBuffer);
 
         box->stress1+=stress[0]+stresk[0];
         box->stress2+=stress[1]+stresk[1];
@@ -1892,7 +1892,7 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     if(stage==1)
     {
 
-        ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
+        ener->kin=getKin(parallel,vx,vy,vz,mass,dBuffer);
 
 #ifdef _OPENMP
         #pragma omp parallel for default(none) shared(param,atom) private(i)
@@ -2028,7 +2028,7 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 
 // calculate kinetic energy
 
-        ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
+        ener->kin=getKin(parallel,vx,vy,vz,mass,dBuffer);
 
         lambda=sqrt(1.0+param->timeStep/bath->tauT*(param->kinTemp0/ener->kin-1.0));
 
@@ -2057,9 +2057,9 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 
         }
 
-        ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
+        ener->kin=getKin(parallel,vx,vy,vz,mass,dBuffer);
 
-        stress_kinetic(parallel,vx,vy,vz,mass,stresk,dBuffer);
+        getKinStress(parallel,vx,vy,vz,mass,stresk,dBuffer);
 
         box->stress1+=stress[0]+stresk[0];
         box->stress2+=stress[1]+stresk[1];
@@ -2129,7 +2129,7 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
     if(stage==1)
     {
 
-        ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
+        ener->kin=getKin(parallel,vx,vy,vz,mass,dBuffer);
 
         bath->chiT+=0.5*param->timeStep*(ener->kin-param->kinTemp0)/qmass;
 
@@ -2229,7 +2229,7 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 
         }
 
-        ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
+        ener->kin=getKin(parallel,vx,vy,vz,mass,dBuffer);
 
         bath->chiT+=0.5*param->timeStep*(ener->kin-param->kinTemp0)/qmass;
 
@@ -2260,7 +2260,7 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
             update_double_para(param,parallel,vz,dBuffer);
         }
 
-        stress_kinetic(parallel,vx,vy,vz,mass,stresk,dBuffer);
+        getKinStress(parallel,vx,vy,vz,mass,stresk,dBuffer);
 
         box->stress1+=stress[0]+stresk[0];
         box->stress2+=stress[1]+stresk[1];
@@ -2395,7 +2395,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
             {
 
                 // apply nvt
-                ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
+                ener->kin=getKin(parallel,vx,vy,vz,mass,dBuffer);
 
                 bath->chiT+=0.5*cqts*(2.0*(ener->kin-param->kinTemp0)+
                                       pmass*X2(bath->chiP)-rboltzui*param->temp0)/qmass;
@@ -2449,7 +2449,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
                 // apply nvt
 
                 /**************** check **************/
-                ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
+                ener->kin=getKin(parallel,vx,vy,vz,mass,dBuffer);
 
                 bath->chiT+=0.5*cqts*(2.0*(ener->kin-param->kinTemp0)+
                                       pmass*X2(bath->chiP)-rboltzui*param->temp0)/qmass;
@@ -2613,7 +2613,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
         {
 
             // apply nvt
-            ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
+            ener->kin=getKin(parallel,vx,vy,vz,mass,dBuffer);
 
             bath->chiT+=0.5*cqts*(2.0*(ener->kin-param->kinTemp0)+
                                   pmass*X2(bath->chiP)-rboltzui*param->temp0)/qmass;
@@ -2667,7 +2667,7 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
             // apply nvt
 
             /*************** check *******************/
-            ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
+            ener->kin=getKin(parallel,vx,vy,vz,mass,dBuffer);
 
             bath->chiT+=0.5*cqts*(2.0*(ener->kin-param->kinTemp0)+
                                   pmass*X2(bath->chiP)-rboltzui*param->temp0)/qmass;
@@ -2729,9 +2729,9 @@ void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 
         ener->consv=ener->conint+param->press0*volume+0.5*(qmass*X2(bath->chiT)+pmass*X2(bath->chiP));
 
-        ener->kin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
+        ener->kin=getKin(parallel,vx,vy,vz,mass,dBuffer);
 
-        stress_kinetic(parallel,vx,vy,vz,mass,stresk,dBuffer);
+        getKinStress(parallel,vx,vy,vz,mass,stresk,dBuffer);
 
         box->stress1+=stress[0]+stresk[0];
         box->stress2+=stress[1]+stresk[1];

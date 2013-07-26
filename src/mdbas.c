@@ -206,7 +206,7 @@ int main(int argc, char* argv[])
 
    /** Computes kinetic energy at time=0. */
 
-    ener.kin=kinetic(&parallel,vx,vy,vz,mass,dBuffer);
+    ener.kin=getKin(&parallel,vx,vy,vz,mass,dBuffer);
   
   /** Computes potential energies and forces at time=0. */
     

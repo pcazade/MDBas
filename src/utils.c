@@ -525,7 +525,7 @@ void box_to_crystal(const PBC *box,double crystal[6])
  *
  * \return On return, the kinetic energy : \f$ 1/2*m*v^2 \f$
  */
-double kinetic(const PARALLEL *parallel,const double vx[],const double vy[],
+double getKin(const PARALLEL *parallel,const double vx[],const double vy[],
                const double vz[],const double mass[],double *dBuffer)
 {
     int i;
@@ -550,7 +550,7 @@ double kinetic(const PARALLEL *parallel,const double vx[],const double vy[],
  *
  * \brief Adds to the stress tensor the kinetic energy.
  */
-void stress_kinetic(const PARALLEL *parallel,const double vx[],const double vy[],
+void getKinStress(const PARALLEL *parallel,const double vx[],const double vy[],
                     const double vz[],const double mass[],double stress[6],
                     double dBuffer[])
 {
@@ -579,11 +579,11 @@ void stress_kinetic(const PARALLEL *parallel,const double vx[],const double vy[]
  *
  * \brief Get initial kinetic energy from the temperature.
  */
-void get_kinfromtemp(PARAM *param, const PBC *box)
+void getKin0(PARAM *param, const PBC *box)
 {
     double degf;
 
-    get_degfree(param,box);
+    getDegFree(param,box);
 
     //   Energy in internal units 10 J/mol. rboltzui=R/10.
 
@@ -597,7 +597,7 @@ void get_kinfromtemp(PARAM *param, const PBC *box)
  *
  * \brief Obtains the number of degrees of freedom of the system.
  */
-void get_degfree(PARAM *param, const PBC *box)
+void getDegFree(PARAM *param, const PBC *box)
 {
 
 //   Atoms degrees of freedom - 3 degrees of freedom of the CoM.
