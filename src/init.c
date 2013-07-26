@@ -39,7 +39,7 @@
 #include "integrate.h"
 #include "shake.h"
 
-#ifdef MPI_VERSION
+#ifdef USING_MPI
 #include "parallel.h"
 #else
 #include "serial.h"
@@ -66,19 +66,12 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
   /** Initialization of the simulation starts here. */
   
   init_variables(ctrl,param,parallel,bath,neigh,ewald,box);
-    
-  int err=read_command_line(argc,argv,inout,parallel);
   
-  switch(err)
+  if(parallel->idProc==0)
   {
-    case 1:
-      close_para();
-      exit(0);
-    case 2:
-      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
-    default:
-      if(parallel->idProc==0)
-	fprintf(outFile,"Command line read\n");
+    read_command_line(argc,argv,inout,parallel);
+    
+    fprintf(outFile,"Command line read\n");
   }
   
   if(parallel->idProc==0)
@@ -139,13 +132,13 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
       read_CONF(inout,param,atom,x,y,z);
       fprintf(outFile,"%s file read\n",inout->confName);
       
-      *vx=(double*)my_malloc(param->nAtom*sizeof(double));
-      *vy=(double*)my_malloc(param->nAtom*sizeof(double));
-      *vz=(double*)my_malloc(param->nAtom*sizeof(double));
+      *vx=(double*)my_calloc(param->nAtom,sizeof(double));
+      *vy=(double*)my_calloc(param->nAtom,sizeof(double));
+      *vz=(double*)my_calloc(param->nAtom,sizeof(double));
       
-      *fx=(double*)my_malloc(param->nAtom*sizeof(double));
-      *fy=(double*)my_malloc(param->nAtom*sizeof(double));
-      *fz=(double*)my_malloc(param->nAtom*sizeof(double));
+      *fx=(double*)my_calloc(param->nAtom,sizeof(double));
+      *fy=(double*)my_calloc(param->nAtom,sizeof(double));
+      *fz=(double*)my_calloc(param->nAtom,sizeof(double));
       
       *q=(double*)my_malloc(param->nAtom*sizeof(double));
       
@@ -235,7 +228,8 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
   
   if(!ctrl->keyRest)
   {
-    remove(inout->propName);
+    if(parallel->idProc==0)
+      remove(inout->propName);
     
     init_vel(param,parallel,box,*constList,*x,*y,*z,*vx,*vy,*vz,*mass,*rmass,
 	     *frozen,*nAtConst,*dBuffer);
@@ -246,6 +240,7 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
     ener->consv=0.;
     
     ener->virshake=0.;
+    
   }
   
   /** Initialization of velocities ends here. */
@@ -306,6 +301,7 @@ void init_variables(CTRL *ctrl,PARAM *param,PARALLEL *parallel,BATH *bath,NEIGH 
   
   ctrl->keyNumForce=0;
   
+  ctrl->keyLink=0;
   ctrl->noLink=0;
 
   ctrl->integrator=VELOCITY;
@@ -331,9 +327,18 @@ void init_variables(CTRL *ctrl,PARAM *param,PARALLEL *parallel,BATH *bath,NEIGH 
   param->cutOff=12.0;
   param->cutOn=10.0;
   param->delr=2.0;
-
+  
+  param->cutOff2=X2(param->cutOff);
+  param->cutOn2=X2(param->cutOn);
+  
+  param->rcutOff=1./param->cutOff;
+  param->rcutOff2=1./param->cutOff2;
+  
+  param->switch2=1./X3(param->cutOff2-param->cutOn2);
+  
   param->temp0=300.0;
   param->press0=1.0;
+  param->kinTemp0=0.;
   
   param->scal14=1.0;
   

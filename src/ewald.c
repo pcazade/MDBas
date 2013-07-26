@@ -25,7 +25,7 @@
 #include "utils.h"
 #include "memory.h"
 
-#ifdef MPI_VERSION
+#ifdef USING_MPI
 #include "parallel.h"
 #else
 #include "serial.h"

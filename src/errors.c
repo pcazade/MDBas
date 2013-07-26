@@ -30,7 +30,17 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+#include "global.h"
+
 #include "errors.h"
+
+#ifdef USING_MPI
+#include "parallel.h"
+#else
+#include "serial.h"
+#endif
+
+static FILE *errFile;
 
 /**
  * \param errorNumber An enumerated type corresponding to an error code describing the problem encountered ; see errors.h and the manual for a full list.
@@ -63,15 +73,15 @@
  * \code
  *            case CONF_ATNUM_ERROR:
  *            {
- *                   fprintf(outFile,"MDBas found a different number of atoms in CONF file and\n");
- *                   fprintf(outFile,"in FORF file. Structure does not match configuration.\n");
- *                   fprintf(outFile,"Check carefully these files.\n");
+ *                   fprintf(errFile,"MDBas found a different number of atoms in CONF file and\n");
+ *                   fprintf(errFile,"in FORF file. Structure does not match configuration.\n");
+ *                   fprintf(errFile,"Check carefully these files.\n");
  *
  *                   if(num_optional_args>0)
  *                   {
  *                       int *n1 = (int*)optArgs[0];
  *                       int *n2 = (int*)optArgs[1];
- *                       fprintf(outFile,"NATOM is %d (CONF) but the value currently parsed is %d (FORF)\n",*n1,*n2);
+ *                       fprintf(errFile,"NATOM is %d (CONF) but the value currently parsed is %d (FORF)\n",*n1,*n2);
  *                   }
  *            }
  *            break;
@@ -84,6 +94,12 @@ void my_error(enum ERROR_TYPE errorNumber, char file[], int line, int num_option
     va_list ap;
     va_start(ap,num_optional_args);
     void** optArgs = NULL;
+    
+    char errName[128]="";
+    
+    sprintf(errName,"error_node%d.log",my_proc());
+    
+    errFile=fopen(errName,"w");
 
     if (num_optional_args > 0)
     {
@@ -101,229 +117,229 @@ void my_error(enum ERROR_TYPE errorNumber, char file[], int line, int num_option
         }
     }
 
-    fprintf(outFile,"MDBas failed due to error number: %d\n",errorNumber);
-    fprintf(outFile,"For file %s , on line %d\n",file,line);
-    fprintf(outFile,"Now more details concerning this error : \n");
+    fprintf(errFile,"MDBas failed due to error number: %d\n",errorNumber);
+    fprintf(errFile,"For file %s , on line %d\n",file,line);
+    fprintf(errFile,"Now more details concerning this error : \n");
 
     switch (errorNumber)
     {
 
     case MEM_ALLOC_ERROR:
-        fprintf(outFile,"MDBas failed with memory allocation.\n");
+        fprintf(errFile,"MDBas failed with memory allocation.\n");
         break;
 
     case TOP_FILE_ERROR:
-        fprintf(outFile,"MDBas cannot find or open topology file TOP.\n");
-        fprintf(outFile,"Most likely, it is not properly named. Please check.\n");
+        fprintf(errFile,"MDBas cannot find or open topology file TOP.\n");
+        fprintf(errFile,"Most likely, it is not properly named. Please check.\n");
         break;
 
     case PSF_FILE_ERROR:
-        fprintf(outFile,"MDBas cannot find or open structure file PSF.\n");
-        fprintf(outFile,"Most likely, it is not properly named. Please check.\n");
+        fprintf(errFile,"MDBas cannot find or open structure file PSF.\n");
+        fprintf(errFile,"Most likely, it is not properly named. Please check.\n");
         break;
 
     case PSF_BADLINE_ERROR:
-        fprintf(outFile,"MDBas encountered a problem while reading atomic properties\n");
-        fprintf(outFile,"in the PSF file. There is an unexpected line there. Please\n");
-        fprintf(outFile,"consult the manual for further details about PSF file\n");
+        fprintf(errFile,"MDBas encountered a problem while reading atomic properties\n");
+        fprintf(errFile,"in the PSF file. There is an unexpected line there. Please\n");
+        fprintf(errFile,"consult the manual for further details about PSF file\n");
         break;
 
     case PSF_BOND_SEQ_ERROR:
-        fprintf(outFile,"There is problem in bonds sequence in the PSF file. Please\n");
-        fprintf(outFile,"consult the manual for further details about PSF file\n");
+        fprintf(errFile,"There is problem in bonds sequence in the PSF file. Please\n");
+        fprintf(errFile,"consult the manual for further details about PSF file\n");
         break;
 
     case PSF_ANGL_SEQ_ERROR:
-        fprintf(outFile,"There is problem in angles sequence in the PSF file. Please\n");
-        fprintf(outFile,"consult the manual for further details about PSF file\n");
+        fprintf(errFile,"There is problem in angles sequence in the PSF file. Please\n");
+        fprintf(errFile,"consult the manual for further details about PSF file\n");
         break;
 
     case PSF_DIHE_SEQ_ERROR:
-        fprintf(outFile,"There is problem in dihedrals sequence in the PSF file. Please\n");
-        fprintf(outFile,"consult the manual for further details about PSF file\n");
+        fprintf(errFile,"There is problem in dihedrals sequence in the PSF file. Please\n");
+        fprintf(errFile,"consult the manual for further details about PSF file\n");
         break;
 
     case PSF_IMPR_SEQ_ERROR:
-        fprintf(outFile,"There is problem in improper angles sequence in the PSF file.\n");
-        fprintf(outFile,"Please consult the manual for further details about PSF file\n");
+        fprintf(errFile,"There is problem in improper angles sequence in the PSF file.\n");
+        fprintf(errFile,"Please consult the manual for further details about PSF file\n");
         break;
 
     case PAR_FILE_ERROR:
-        fprintf(outFile,"MDBas cannot find or open parameter file PAR.\n");
-        fprintf(outFile,"Most likely, it is not properly named. Please check.\n");
+        fprintf(errFile,"MDBas cannot find or open parameter file PAR.\n");
+        fprintf(errFile,"Most likely, it is not properly named. Please check.\n");
         break;
 
     case CONF_FILE_ERROR:
-        fprintf(outFile,"MDBas cannot find or open configuration file CONF.\n");
-        fprintf(outFile,"Most likely, it is not properly named. Please check.\n");
+        fprintf(errFile,"MDBas cannot find or open configuration file CONF.\n");
+        fprintf(errFile,"Most likely, it is not properly named. Please check.\n");
         break;
 
     case CONF_ATNUM_ERROR:
     {
-        fprintf(outFile,"MDBas found a different number of atoms in CONF file and\n");
-        fprintf(outFile,"in FORF file. Structure does not match configuration.\n");
-        fprintf(outFile,"Check carefully these files.\n");
+        fprintf(errFile,"MDBas found a different number of atoms in CONF file and\n");
+        fprintf(errFile,"in FORF file. Structure does not match configuration.\n");
+        fprintf(errFile,"Check carefully these files.\n");
 
         if(num_optional_args>0)
         {
             int *n1 = (int*)optArgs[0];
             int *n2 = (int*)optArgs[1];
-            fprintf(outFile,"NATOM is %d (CONF) but the value currently parsed is %d (FORF)\n",*n1,*n2);
+            fprintf(errFile,"NATOM is %d (CONF) but the value currently parsed is %d (FORF)\n",*n1,*n2);
         }
     }
     break;
 
     case RESCONF_FILE_ERROR:
-        fprintf(outFile,"MDBas cannot open configuration file RESCONF.\n");
+        fprintf(errFile,"MDBas cannot open configuration file RESCONF.\n");
         break;
 
     case PAR_DIHE_FOURIER_HARMONIC_ERROR:
-        fprintf(outFile,"A dihedral angle is specified as a Fourier series but\n");
-        fprintf(outFile,"with one of the component being an harmonic potential.\n");
-        fprintf(outFile,"Check in PAR file.\n");
+        fprintf(errFile,"A dihedral angle is specified as a Fourier series but\n");
+        fprintf(errFile,"with one of the component being an harmonic potential.\n");
+        fprintf(errFile,"Check in PAR file.\n");
         break;
 
     case SIMU_FILE_ERROR:
-        fprintf(outFile,"MDBas cannot find or open simulation file SIMU.\n");
-        fprintf(outFile,"Most likely, it is not properly named. Please check.\n");
+        fprintf(errFile,"MDBas cannot find or open simulation file SIMU.\n");
+        fprintf(errFile,"Most likely, it is not properly named. Please check.\n");
         break;
 
     case SIMU_KEYWORD_ERROR:
     {
-        fprintf(outFile,"MDBas does not recognise a keyword specified in SIMU.\n");
-        fprintf(outFile,"Please check SIMU file and the manual for the list of\n");
-        fprintf(outFile,"allowed keywords.\n");
+        fprintf(errFile,"MDBas does not recognise a keyword specified in SIMU.\n");
+        fprintf(errFile,"Please check SIMU file and the manual for the list of\n");
+        fprintf(errFile,"allowed keywords.\n");
 
         if(num_optional_args>0)
         {
             char *s = (char*)optArgs[0];
-            fprintf(outFile,"The following keyword is unknown: '%s'\n",s);
+            fprintf(errFile,"The following keyword is unknown: '%s'\n",s);
         }
     }
     break;
 
     case SIMU_PARAM_ERROR:
     {
-        fprintf(outFile,"MDBas does not recognise a parameter specified in SIMU.\n");
-        fprintf(outFile,"Please check SIMU file and the manual for the list of\n");
-        fprintf(outFile,"allowed keywords and their associated parameters.\n");
+        fprintf(errFile,"MDBas does not recognise a parameter specified in SIMU.\n");
+        fprintf(errFile,"Please check SIMU file and the manual for the list of\n");
+        fprintf(errFile,"allowed keywords and their associated parameters.\n");
 
         if(num_optional_args>0)
         {
             char *s1 = (char*)optArgs[0];
             char *s2 = (char*)optArgs[1];
-            fprintf(outFile,"For the following keyword '%s'; the unknown parameter is '%s'\n",s1,s2);
+            fprintf(errFile,"For the following keyword '%s'; the unknown parameter is '%s'\n",s1,s2);
         }
     }
     break;
 
     case SIMU_NOTFOUND_ERROR:
     {
-        fprintf(outFile,"MDBas does not find a required parameter in SIMU.\n");
-        fprintf(outFile,"Please check SIMU file and the manual for the list of\n");
-        fprintf(outFile,"allowed keywords and their associated parameters.\n");
+        fprintf(errFile,"MDBas does not find a required parameter in SIMU.\n");
+        fprintf(errFile,"Please check SIMU file and the manual for the list of\n");
+        fprintf(errFile,"allowed keywords and their associated parameters.\n");
 
         if(num_optional_args>0)
         {
             char *s1 = (char*)optArgs[0];
             char *s2 = (char*)optArgs[1];
-            fprintf(outFile,"For the following keyword '%s'; the parameter '%s' was not found.\n",s1,s2);
+            fprintf(errFile,"For the following keyword '%s'; the parameter '%s' was not found.\n",s1,s2);
         }
     }
     break;
 
     case PSF_UNDEF_BOND_ERROR:
-        fprintf(outFile,"There is an undefined bond in the PSF. Most likely,\n");
-        fprintf(outFile,"there are missing parameters in the PAR file. Please check\n");
+        fprintf(errFile,"There is an undefined bond in the PSF. Most likely,\n");
+        fprintf(errFile,"there are missing parameters in the PAR file. Please check\n");
         break;
 
     case PSF_UNDEF_ANGL_ERROR:
-        fprintf(outFile,"There is an undefined angle in the PSF. Most likely,\n");
-        fprintf(outFile,"there are missing parameters in the PAR file. Please check\n");
+        fprintf(errFile,"There is an undefined angle in the PSF. Most likely,\n");
+        fprintf(errFile,"there are missing parameters in the PAR file. Please check\n");
         break;
 
     case PSF_UNDEF_DIHE_ERROR:
-        fprintf(outFile,"There is an undefined dihedral angle in the PSF. Most likely,\n");
-        fprintf(outFile,"there are missing parameters in the PAR file. Please check\n");
+        fprintf(errFile,"There is an undefined dihedral angle in the PSF. Most likely,\n");
+        fprintf(errFile,"there are missing parameters in the PAR file. Please check\n");
         break;
     case PSF_UNDEF_IMPR_ERROR:
-        fprintf(outFile,"There is an undefined improper angle in the PSF. Most likely,\n");
-        fprintf(outFile,"there are missing parameters in the PAR file. Please check\n");
+        fprintf(errFile,"There is an undefined improper angle in the PSF. Most likely,\n");
+        fprintf(errFile,"there are missing parameters in the PAR file. Please check\n");
         break;
 
     case DIHE_NONPARAM_ERROR:
-        fprintf(outFile,"MDBas found a too many non-parameterised dihedral angles:\n");
-        fprintf(outFile,"4*nDihedrals. nDihedrals comes from the value specified\n");
-        fprintf(outFile,"in PSF file. Please check in PAR file. If such a number is\n");
-        fprintf(outFile,"normal for your simulation, you have to enter list.c to\n");
-        fprintf(outFile,"increase the size of the 1-4 pairs array from 5*nDihedrals to\n");
-        fprintf(outFile,"the size you really need. Then recompile MDBas.\n");
+        fprintf(errFile,"MDBas found a too many non-parameterised dihedral angles:\n");
+        fprintf(errFile,"4*nDihedrals. nDihedrals comes from the value specified\n");
+        fprintf(errFile,"in PSF file. Please check in PAR file. If such a number is\n");
+        fprintf(errFile,"normal for your simulation, you have to enter list.c to\n");
+        fprintf(errFile,"increase the size of the 1-4 pairs array from 5*nDihedrals to\n");
+        fprintf(errFile,"the size you really need. Then recompile MDBas.\n");
         break;
 
     case EXCLLIST_LASTATOM_ERROR:
-        fprintf(outFile,"MDBas encountered a problem while setting the excluded atoms\n");
-        fprintf(outFile,"list. The last atom has exclusion which should not happen. This\n");
-        fprintf(outFile,"a bit annoying for there is no simple explanation for this.\n");
-        fprintf(outFile,"Maybe an error in one of the input files which is not detected\n");
-        fprintf(outFile,"by MDBas. Sorry for the trouble.\n");
+        fprintf(errFile,"MDBas encountered a problem while setting the excluded atoms\n");
+        fprintf(errFile,"list. The last atom has exclusion which should not happen. This\n");
+        fprintf(errFile,"a bit annoying for there is no simple explanation for this.\n");
+        fprintf(errFile,"Maybe an error in one of the input files which is not detected\n");
+        fprintf(errFile,"by MDBas. Sorry for the trouble.\n");
         break;
 
     case EXCLLIST_SUMATOM_ERROR:
-        fprintf(outFile,"MDBas encountered a problem while setting the excluded atoms\n");
-        fprintf(outFile,"list. The total excluded atoms does not match of the sum of\n");
-        fprintf(outFile,"excluded atoms for each atom. This a bit annoying for there is\n");
-        fprintf(outFile,"no simple explanation for this. Maybe an error in one of the\n");
-        fprintf(outFile,"input files which is not detected by MDBas. Sorry for the trouble.\n");
+        fprintf(errFile,"MDBas encountered a problem while setting the excluded atoms\n");
+        fprintf(errFile,"list. The total excluded atoms does not match of the sum of\n");
+        fprintf(errFile,"excluded atoms for each atom. This a bit annoying for there is\n");
+        fprintf(errFile,"no simple explanation for this. Maybe an error in one of the\n");
+        fprintf(errFile,"input files which is not detected by MDBas. Sorry for the trouble.\n");
         break;
 
     case NBLIST_TOTNUM_ERROR:
-        fprintf(outFile,"The number of neighbours around an atom is larger than the\n");
-        fprintf(outFile,"maximum allocated memory in the verList array (default 2048).\n");
-        fprintf(outFile,"This can occur fo very large cutoffs or in very heterogeneous\n");
-        fprintf(outFile,"systems. This can be fixed by changing the variable MAXLIST in\n");
-        fprintf(outFile,"global.h and recompilation of MDBas. An easy way to achieve this\n");
-        fprintf(outFile,"without editing the header file, is to add the compilation option\n");
-        fprintf(outFile,"-DMAXLIST=X, X being the new size of the array, for example 3072.\n");
+        fprintf(errFile,"The number of neighbours around an atom is larger than the\n");
+        fprintf(errFile,"maximum allocated memory in the verList array (default 2048).\n");
+        fprintf(errFile,"This can occur fo very large cutoffs or in very heterogeneous\n");
+        fprintf(errFile,"systems. This can be fixed by changing the variable MAXLIST in\n");
+        fprintf(errFile,"global.h and recompilation of MDBas. An easy way to achieve this\n");
+        fprintf(errFile,"without editing the header file, is to add the compilation option\n");
+        fprintf(errFile,"-DMAXLIST=X, X being the new size of the array, for example 3072.\n");
         break;
 
     case UNKNOWN_ELEC_ERROR:
-        fprintf(outFile,"Unknown electrostatic potential. This is most likely due to an\n");
-        fprintf(outFile,"error in the SIMU file. Please check this file and the manual\n");
-        fprintf(outFile,"for the list of keywords and available potentials.\n");
+        fprintf(errFile,"Unknown electrostatic potential. This is most likely due to an\n");
+        fprintf(errFile,"error in the SIMU file. Please check this file and the manual\n");
+        fprintf(errFile,"for the list of keywords and available potentials.\n");
         break;
 
     case UNKNOWN_VDW_ERROR:
-        fprintf(outFile,"Unknown van der Waals potential. This is most likely due to an\n");
-        fprintf(outFile,"error in the SIMU file. Please check this file and the manual\n");
-        fprintf(outFile,"for the list of keywords and available potentials.\n");
+        fprintf(errFile,"Unknown van der Waals potential. This is most likely due to an\n");
+        fprintf(errFile,"error in the SIMU file. Please check this file and the manual\n");
+        fprintf(errFile,"for the list of keywords and available potentials.\n");
         break;
 
     case CONVERG_VEL_ERROR:
-        fprintf(outFile,"Velocities quenching convergence failure, most likely due a non suitable\n");
-        fprintf(outFile,"initial configuration. If not, you can try increasing the number of cycles or\n");
-        fprintf(outFile,"make Shake convergence criterion more tolerant. Please check the manual.\n");
+        fprintf(errFile,"Velocities quenching convergence failure, most likely due a non suitable\n");
+        fprintf(errFile,"initial configuration. If not, you can try increasing the number of cycles or\n");
+        fprintf(errFile,"make Shake convergence criterion more tolerant. Please check the manual.\n");
         break;
 
     case CONVERG_SHAKE_ERROR:
-        fprintf(outFile,"Shake convergence failure, most likely due a non suitable initial\n");
-        fprintf(outFile,"configuration. If not, you can try increasing the number of cycles or\n");
-        fprintf(outFile,"make Shake convergence criterion more tolerant. Please check the manual.\n");
+        fprintf(errFile,"Shake convergence failure, most likely due a non suitable initial\n");
+        fprintf(errFile,"configuration. If not, you can try increasing the number of cycles or\n");
+        fprintf(errFile,"make Shake convergence criterion more tolerant. Please check the manual.\n");
         break;
 
     case LNKCELL_CUTOFF_ERROR:
-        fprintf(outFile,"Too large ratio of the cutoff for the link cell is asked. Maximum is 5.\n");
+        fprintf(errFile,"Too large ratio of the cutoff for the link cell is asked. Maximum is 5.\n");
         break;
 
     case LNKCELL_NCELLS_ERROR:
-        fprintf(outFile,"Too few link cells are created compared to the required ratio of the\n");
-        fprintf(outFile,"cutoff. Please check first that you cutoff is smaller than half of the\n");
-        fprintf(outFile,"smallest lattice parameter of your simulation. Alternatively, you can\n");
-        fprintf(outFile,"change the ratio or force the use of the standard neighbour list algorithm.\n");
+        fprintf(errFile,"Too few link cells are created compared to the required ratio of the\n");
+        fprintf(errFile,"cutoff. Please check first that you cutoff is smaller than half of the\n");
+        fprintf(errFile,"smallest lattice parameter of your simulation. Alternatively, you can\n");
+        fprintf(errFile,"change the ratio or force the use of the standard neighbour list algorithm.\n");
         break;
 
     case MPI_ERROR:
     {
-        fprintf(outFile,"MPI error message above.\n");
+        fprintf(errFile,"MPI error message above.\n");
     }
     break;
 
@@ -331,8 +347,8 @@ void my_error(enum ERROR_TYPE errorNumber, char file[], int line, int num_option
     {
         char *funcname = (char*)optArgs[0];
         char *plugname = (char*)optArgs[1];
-        fprintf(outFile,"Error for the function '%s' : \n",funcname);
-        fprintf(outFile,"Unable to open the following plugin file : '%s' \n",plugname);
+        fprintf(errFile,"Error for the function '%s' : \n",funcname);
+        fprintf(errFile,"Unable to open the following plugin file : '%s' \n",plugname);
     }
     break;
 
@@ -341,19 +357,19 @@ void my_error(enum ERROR_TYPE errorNumber, char file[], int line, int num_option
         char *funcname = (char*)optArgs[0];
         char *plugname = (char*)optArgs[1];
         char *symname  = (char*)optArgs[2];
-        fprintf(outFile,"Error for the function %s : \n",funcname);
-        fprintf(outFile,"Unable to find the following symbol '%s' in file '%s' \n",symname,plugname);
+        fprintf(errFile,"Error for the function %s : \n",funcname);
+        fprintf(errFile,"Unable to find the following symbol '%s' in file '%s' \n",symname,plugname);
     }
     break;
 
     case UNKNOWN_GENERAL_ERROR:
-        fprintf(outFile,"An undocumented error happened.\nPlease check the corresponding source file. Praying or reading the manual will not help you.\n");
+        fprintf(errFile,"An undocumented error happened.\nPlease check the corresponding source file. Praying or reading the manual will not help you.\n");
         break;
 
     default:
-        fprintf(outFile,"MDBas failed due to unknown error number: %d\n",errorNumber);
-        fprintf(outFile,"Reading the manual will not help you. You are by yourself.\n");
-        fprintf(outFile,"Errare humanum est.\n");
+        fprintf(errFile,"MDBas failed due to unknown error number: %d\n",errorNumber);
+        fprintf(errFile,"Reading the manual will not help you. You are by yourself.\n");
+        fprintf(errFile,"Errare humanum est.\n");
         break;
 
 
@@ -362,6 +378,8 @@ void my_error(enum ERROR_TYPE errorNumber, char file[], int line, int num_option
     if (num_optional_args > 0)
         free(optArgs);
 
-    exit(errorNumber);
+    fclose(errFile);
+    
+    abort_para(errorNumber);
 
 }

@@ -71,10 +71,9 @@ extern "C" {
     };
 
     /* Pointer to the output file. */
-    extern FILE *outFile;
 
     void my_error(enum ERROR_TYPE errorNumber, char file[], int line, int num_optional_args, ...);
-
+  
 #ifdef	__cplusplus
 }
 #endif

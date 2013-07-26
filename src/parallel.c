@@ -19,14 +19,18 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <mpi.h>
 
 #include "global.h"
 #include "errors.h"
-#include "parallel.h"
 #include "memory.h"
 
+#include "parallel.h"
+
 #define STRBUFSIZ 8192
+
+extern FILE *outFile;
 
 void init_para(int *argc, char ***argv)
 {
@@ -386,16 +390,20 @@ void bcast_bath_para(BATH *bath,PARALLEL *parallel,double *dBuffer)
   {
     dBuffer[0]=bath->tauT;
     dBuffer[1]=bath->tauP;
-    dBuffer[2]=bath->compress;
+    dBuffer[2]=bath->chiT;
+    dBuffer[3]=bath->chiP;
+    dBuffer[4]=bath->compress;
   }
   
-  bcast_double_para(dBuffer,3,0);
+  bcast_double_para(dBuffer,5,0);
   
   if(parallel->idProc>0)
   {
     bath->tauT=dBuffer[0];
     bath->tauP=dBuffer[1];
-    bath->compress=dBuffer[2];
+    bath->chiT=dBuffer[2];
+    bath->chiP=dBuffer[3];
+    bath->compress=dBuffer[4];
   }
    
 }
@@ -837,9 +845,24 @@ void mpi_error(int err, char file[],int line)
   MPI_Error_string(err, errString, &lenErrString);
   fprintf(outFile, "%3d: %s\n", idProc, errString);
   
-  MPI_Abort(MPI_COMM_WORLD, err);
+  //MPI_Abort(MPI_COMM_WORLD, err);
   
   my_error(MPI_ERROR,file,line,0);
     
+}
+
+void abort_para(int err)
+{
+  
+  if(err==0)
+  {
+    MPI_Abort(MPI_COMM_WORLD,MPI_SUCCESS);
+  }
+  else
+  {
+    MPI_Abort(MPI_COMM_WORLD,MPI_ERR_UNKNOWN);
+  }
+  
+  exit(err);
 }
 

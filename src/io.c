@@ -40,7 +40,7 @@
 #include "utils.h"
 #include "errors.h"
 
-#ifdef MPI_VERSION
+#ifdef USING_MPI
 #include "parallel.h"
 #else
 #include "serial.h"
@@ -52,67 +52,49 @@ extern FILE *outFile;
 /** First write of traj in dcd, or not*/
 static int first=1;
 
-int read_command_line(int *argc, char ***argv,IO *inout,PARALLEL *parallel)
+void read_command_line(int *argc, char ***argv,IO *inout,PARALLEL *parallel)
 {
+  
   char outName[FINAMELEN];
   
   int i=1;
   
-  int err=0;
-  
   outFile=NULL;
+    
+  strcpy(outName,"OUTPUT");
   
-  if(parallel->idProc==0)
+  strcpy(inout->simuName,"SIMU");
+  
+  while(i<*argc)
   {
-    
-    strcpy(outName,"OUTPUT");
-    
-    strcpy(inout->simuName,"SIMU");
-    
-    while(i<*argc)
+    if(!strcmp((*argv)[i],"-i"))
     {
-      if(!strcmp((*argv)[i],"-i"))
-      {
-	strcpy(inout->simuName,(*argv)[++i]);
-      }
-      else if (!strcmp((*argv)[i],"-o"))
-      {
-	strcpy(outName,(*argv)[++i]);
-      }
-      else if (!strcmp((*argv)[i],"--help"))
-      {
-	printf("%s [-i input_file] [-o output_file] [--help]\n",(*argv)[0]);
-	err=1;
-	break;
-      }
-      else
-      {
-	err=2;
-	break;
-      }
-      i++;
+      strcpy(inout->simuName,(*argv)[++i]);
     }
-    
-    if(err==0)
+    else if (!strcmp((*argv)[i],"-o"))
     {
-      outFile=fopen(outName,"w");
-      if(outFile==NULL)
-      {
-	outFile=stdout;
-	my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
-	
-      } 
+      strcpy(outName,(*argv)[++i]);
+    }
+    else if (!strcmp((*argv)[i],"--help"))
+    {
+      printf("%s [-i input_file] [-o output_file] [--help]\n",(*argv)[0]);
+      abort_para(0);
     }
     else
     {
-      outFile=stdout;
+      my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
     }
-  
+    i++;
   }
   
-  bcast_int_para(&err,1,0);
+  outFile=fopen(outName,"w");
+  if(outFile==NULL)
+  {
+    outFile=stdout;
+    my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
+    
+  }
   
-  return(err);
 }
 
 void read_SIMU(IO *inout,CTRL *ctrl,PARAM *param,BATH *bath,NEIGH *neigh,EWALD *ewald,PBC *box)
