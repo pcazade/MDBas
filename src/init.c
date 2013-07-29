@@ -177,8 +177,9 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
     
   image_update(parallel,box,*x,*y,*z);
   
-  makelist(ctrl,param,parallel,box,neigh,*constList,*bond,*angle,*dihe,*impr,*x,*y,*z,*frozen,
-	   neighList,neighPair,neighList14,exclList,exclPair);
+  makelist(ctrl,param,parallel,box,neigh,*constList,*bond,*angle,*dihe,*impr,
+	   *x,*y,*z,*vx,*vy,*vz,*frozen,neighList,neighPair,neighList14,exclList,
+	   exclPair,iBuffer);
       
   init_energy_ptrs(ctrl);
   
@@ -303,6 +304,8 @@ void init_variables(CTRL *ctrl,PARAM *param,PARALLEL *parallel,BATH *bath,NEIGH 
   
   ctrl->keyLink=0;
   ctrl->noLink=0;
+  
+  ctrl->keyHeuristic=1;
 
   ctrl->integrator=VELOCITY;
   

@@ -396,6 +396,11 @@ void read_SIMU(IO *inout,CTRL *ctrl,PARAM *param,BATH *bath,NEIGH *neigh,EWALD *
                 my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
 
             neigh->update=atoi(buff3);
+	    
+	    if(neigh->update<=0)
+	      ctrl->keyHeuristic=1;
+	    else
+	      ctrl->keyHeuristic=0;
         }
         else if(!strcmp(buff2,"link"))
         {

@@ -189,6 +189,8 @@ extern "C" {
         int keyNb14,keyNumForce;
 
         int keyEwald,keyAlpha,keyMmax;
+	
+	int keyHeuristic;
 
         enum ELEC_TYPE elecType;
         enum VDW_TYPE  vdwType;
@@ -248,6 +250,7 @@ extern "C" {
 
     typedef struct
     {
+        int listUpdate;
         int update;
         int linkRatio;
         int nCells;

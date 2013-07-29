@@ -54,11 +54,20 @@ extern FILE *outFile;
 
 int *counter;
 
+static double *xh,*yh,*zh;
+
+void allocate_heuristic(PARALLEL *parallel)
+{
+  xh=(double*)my_malloc(parallel->maxAtProc*sizeof(*xh));
+  yh=(double*)my_malloc(parallel->maxAtProc*sizeof(*yh));
+  zh=(double*)my_malloc(parallel->maxAtProc*sizeof(*zh));
+}
+
 void makelist(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,
-	      CONSTRAINT constList[],
-	      BOND bond[],ANGLE angle[],DIHE dihe[],DIHE impr[],double x[], double y[],
-	      double z[],int frozen[],int ***neighList,int **neighPair,int **neighList14,
-	      int ***exclList,int **exclPair)
+	      CONSTRAINT constList[],BOND bond[],ANGLE angle[],DIHE dihe[],DIHE impr[],
+	      double x[], double y[],double z[],double vx[], double vy[],double vz[],
+	      int frozen[],int ***neighList,int **neighPair,int **neighList14,
+	      int ***exclList,int **exclPair,int iBuffer[])
 {
   int nlcx,nlcy,nlcz;
   double cutnb;
@@ -122,7 +131,31 @@ void makelist(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,
             
     }
     
+    if(ctrl->keyHeuristic)
+	heuristic_update(ctrl,param,parallel,neigh,vx,vy,vz,iBuffer);
+    
     ctrl->newjob=0;
+    
+  }
+  else if(ctrl->keyHeuristic)
+  {
+    
+    heuristic_update(ctrl,param,parallel,neigh,vx,vy,vz,iBuffer);
+    
+    if(neigh->listUpdate)
+    {
+      if(ctrl->keyLink)
+      {
+	link_cell_verlet_list(param,parallel,box,neigh,x,y,z,frozen,neighList,*neighPair,
+			      *exclList,*exclPair);
+      }
+      else
+      {
+	printf("List update at time step: %d\n",param->timeStep);
+	verlet_list(param,parallel,box,neigh,x,y,z,frozen,neighList,*neighPair,
+			  *exclList,*exclPair);
+      }
+    }
     
   }
   else if( (param->step%neigh->update==0 ) )
@@ -138,6 +171,70 @@ void makelist(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,
       verlet_list(param,parallel,box,neigh,x,y,z,frozen,neighList,*neighPair,
 			 *exclList,*exclPair);
     }
+  }
+}
+
+void heuristic_update(CTRL *ctrl,PARAM *param,PARALLEL *parallel,NEIGH *neigh,
+		      double vx[],double vy[],double vz[],int iBuffer[])
+{
+  int ii;
+  double r2;
+  
+  neigh->listUpdate=0;
+  
+  if(ctrl->newjob)
+  {
+    allocate_heuristic(parallel);
+    
+    for(ii=0;ii<parallel->nAtProc;ii++)
+    {
+      xh[ii]=0.;
+      yh[ii]=0.;
+      zh[ii]=0.;
+    }
+    
+    neigh->listUpdate=1;
+  }
+  else
+  {
+    ii=0;
+    for(int i=parallel->fAtProc;i<parallel->lAtProc;i++)
+    {
+      xh[ii]+=vx[i];
+      yh[ii]+=vy[i];
+      zh[ii]+=vz[i];
+      
+      ii++;
+    }
+    
+    double r2max=X2(param->delr/2.0);
+    double ts2=X2(param->timeStep);
+    
+    int heurTest=0;
+    
+    for(ii=0;ii<parallel->nAtProc;ii++)
+    {
+      r2=ts2*(X2(xh[ii])+X2(yh[ii])+X2(zh[ii]));
+      if(r2>=r2max)
+	heurTest+=1;
+    }
+    
+    if(parallel->nProc>1)
+      sum_int_para(&heurTest,iBuffer,1);
+    
+    if(heurTest>=2)
+      neigh->listUpdate=1;
+    
+    if(neigh->listUpdate)
+    {
+      for(ii=0;ii<parallel->nAtProc;ii++)
+      {
+	xh[ii]=0.;
+	yh[ii]=0.;
+	zh[ii]=0.;
+      }
+    }
+    
   }
 }
 
