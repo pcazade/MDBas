@@ -39,6 +39,8 @@ typedef double complex cplx;
 
 static int newJob;
 
+static double eEwaldself,systq;
+
 static double *sx,*sy,*sz;
 
 static double *bsp,*qsp;
@@ -397,7 +399,7 @@ double spme_energy(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const d
     double rm,rrm,rmx,rmy,rmz;
     double rm1x,rm1y,rm1z,rm2x,rm2y,rm2z;
     double recCutOff,recCutOff2,rAlpha2,rVol;
-    double eEwaldRec,eEwaldself,systq,eNonNeutral;
+    double eEwaldRec,eNonNeutral;
     double fbx,fby,fbz;
     double fm[3];
 

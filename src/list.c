@@ -144,6 +144,8 @@ void makelist(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,
     
     if(neigh->listUpdate)
     {
+      printf("List update at step: %d\n",param->step);
+      
       if(ctrl->keyLink)
       {
 	link_cell_verlet_list(param,parallel,box,neigh,x,y,z,frozen,neighList,*neighPair,
@@ -151,7 +153,6 @@ void makelist(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,
       }
       else
       {
-	printf("List update at time step: %d\n",param->timeStep);
 	verlet_list(param,parallel,box,neigh,x,y,z,frozen,neighList,*neighPair,
 			  *exclList,*exclPair);
       }
