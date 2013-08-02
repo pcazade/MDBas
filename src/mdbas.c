@@ -385,7 +385,7 @@ int main(int argc, char* argv[])
       
       if( (ctrl.keyTraj) && (param.step%ctrl.printTraj==0) && (parallel.idProc==0) )
       {
-	write_DCD_traj(&inout,&param,&box,x,y,z,frozen);
+	write_DCD_traj(&inout,&param,&box,atom,x,y,z,frozen);
       }
       
     /** Writes restart files. */

@@ -479,6 +479,40 @@ void vv_scale_box(PBC *box, const double scale)
 
 }
 
+void traj_rebuild(const PARAM *param,const PBC *box,const ATOM *atom,double x[],double y[], double z[])
+{
+
+    int i,j,k;
+    double dx,dy,dz;
+    
+    int nResidue=atom[param->nAtom-1].ires;
+    
+    k=0;
+    j=0;
+    for(i=1; i<=nResidue;i++)
+    {
+      while(atom[j].ires==i)
+      {
+	
+	dx=x[j]-x[k];
+	dy=y[j]-y[k];
+	dz=z[j]-z[k];
+	
+	dist2(box,&dx,&dy,&dz);
+	
+	x[j]=dx+x[k];
+	y[j]=dy+y[k];
+	z[j]=dz+z[k];
+	
+	j++;
+	
+	if(j>=param->nAtom)
+	  break;
+      }
+      k=j;
+    }
+}
+
 void box_to_lattice(const PBC *box, double lattice[6])
 {
     double cost;

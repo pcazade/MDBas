@@ -16,6 +16,8 @@ extern "C" {
 
     void image_array(const PBC *box, double dx[],double dy[],double dz[],const int size_array);
 
+    void traj_rebuild(const PARAM *param,const PBC *box,const ATOM *atom,double x[],double y[], double z[]);
+    
     void scale_box(PBC *box, const double cell0[9], const double scale);
 
     void vv_scale_box(PBC *box, const double scale);

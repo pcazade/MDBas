@@ -29,7 +29,7 @@ extern "C" {
 
     void write_DCD_header(IO *inout,CTRL *ctrl,PARAM *param, PBC *box,int frozen[]);
 
-    void write_DCD_traj(IO *inout,PARAM *param,PBC *box,double x[],double y[],double z[],int frozen[]);
+    void write_DCD_traj(IO *inout,PARAM *param,PBC *box,ATOM *atom,double x[],double y[],double z[],int frozen[]);
 
 #ifdef	__cplusplus
 }
