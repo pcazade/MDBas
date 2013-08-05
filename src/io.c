@@ -396,6 +396,11 @@ void read_SIMU(IO *inout,CTRL *ctrl,PARAM *param,BATH *bath,NEIGH *neigh,EWALD *
                 my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
 
             neigh->update=atoi(buff3);
+	    
+	    if(neigh->update<=0)
+	      ctrl->keyHeuristic=1;
+	    else
+	      ctrl->keyHeuristic=0;
         }
         else if(!strcmp(buff2,"link"))
         {
@@ -736,7 +741,7 @@ void read_CONF(IO *inout,PARAM *param,ATOM **atom,double **x,double **y, double 
     char buff1[1024]="", *buff2=NULL;
 
     char ren[5]="",atl[5]="",sen[5]="";
-    int i,/*j,*/atn,res,ire;
+    int i,j,atn,res,ire;
     double wei,xx,yy,zz;
 
     inout->confFile=fopen(inout->confName,"r");
@@ -773,10 +778,28 @@ void read_CONF(IO *inout,PARAM *param,ATOM **atom,double **x,double **y, double 
 
         (*atom)[i].ires=ire;
         (*atom)[i].resi=res;
-
-        strcpy((*atom)[i].label,atl);
-        strcpy((*atom)[i].resn,ren);
-        strcpy((*atom)[i].segn,sen);
+	
+	for(j=0;j<4;j++)
+	{
+	  if(atl[j]!='\0')
+	    (*atom)[i].label[j]=atl[j];
+	  else
+	    (*atom)[i].label[j]=' ';
+	  
+	  if(ren[j]!='\0')
+	    (*atom)[i].resn[j]=ren[j];
+	  else
+	    (*atom)[i].resn[j]=' ';
+	  
+	  if(sen[j]!='\0')
+	    (*atom)[i].segn[j]=sen[j];
+	  else
+	    (*atom)[i].segn[j]=' ';
+	}
+	
+	(*atom)[i].label[4]='\0';
+	(*atom)[i].resn[4]='\0';
+	(*atom)[i].segn[4]='\0';
 
     }
 
@@ -1452,8 +1475,10 @@ void write_DCD_header(IO *inout,CTRL *ctrl,PARAM *param,PBC *box,int frozen[])
     fclose(inout->trajFile);
 }
 
-void write_DCD_traj(IO *inout,PARAM *param,PBC *box,double x[],double y[], double z[],int frozen[])
+void write_DCD_traj(IO *inout,PARAM *param,PBC *box,ATOM *atom,double x[],double y[], double z[],int frozen[])
 {
+    traj_rebuild(param,box,atom,x,y,z);
+  
     inout->trajFile=fopen(inout->trajName,"ab");
 
     unsigned int size;

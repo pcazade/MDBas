@@ -171,14 +171,15 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
 	     bond,angle,dihe,impr,ub,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,q,
 	     eps,sig,eps14,sig14,frozen,nAtConst,dBuffer,iBuffer);
       
-  get_kinfromtemp(param,box);
+  getKin0(param,box);
     
   init_box(box);
     
   image_update(parallel,box,*x,*y,*z);
   
-  makelist(ctrl,param,parallel,box,neigh,*constList,*bond,*angle,*dihe,*impr,*x,*y,*z,*frozen,
-	   neighList,neighPair,neighList14,exclList,exclPair);
+  makelist(ctrl,param,parallel,box,neigh,*constList,*bond,*angle,*dihe,*impr,
+	   *x,*y,*z,*vx,*vy,*vz,*frozen,neighList,neighPair,neighList14,exclList,
+	   exclPair,iBuffer);
       
   init_energy_ptrs(ctrl);
   
@@ -303,6 +304,8 @@ void init_variables(CTRL *ctrl,PARAM *param,PARALLEL *parallel,BATH *bath,NEIGH 
   
   ctrl->keyLink=0;
   ctrl->noLink=0;
+  
+  ctrl->keyHeuristic=1;
 
   ctrl->integrator=VELOCITY;
   
@@ -843,7 +846,7 @@ void init_vel(PARAM *param,PARALLEL *parallel,PBC *box,CONSTRAINT constList[],
     }
   }
   
-  initKin=kinetic(parallel,vx,vy,vz,mass,dBuffer);
+  initKin=getKin(parallel,vx,vy,vz,mass,dBuffer);
   
   factor=sqrt(param->kinTemp0/initKin);
   

@@ -538,7 +538,7 @@ void ewald_energy(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,EWALD 
         eEwaldRec=ewald_rec(param,parallel,ewald,box,x,y,z,fx,fy,fz,q,stress1,&virEwaldRec,dBuffer);
     else if(ctrl->keyEwald==2)
         eEwaldRec=spme_energy(param,parallel,ewald,box,x,y,z,fx,fy,fz,q,stress1,&virEwaldRec,dBuffer);
-
+    
     l=0;
 #ifdef _OPENMP
     #pragma omp parallel default(none) shared(atom,param,box,vdw,neigh,ptr_coulomb,ptr_vdw) private(i,j,k,delec,dvdw,r,fx,fy,fz,fxi,fyi,fzi,delta) reduction(+:elec,evdw,virelec,virvdw)

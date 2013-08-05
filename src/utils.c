@@ -479,6 +479,40 @@ void vv_scale_box(PBC *box, const double scale)
 
 }
 
+void traj_rebuild(const PARAM *param,const PBC *box,const ATOM *atom,double x[],double y[], double z[])
+{
+
+    int i,j,k;
+    double dx,dy,dz;
+    
+    int nResidue=atom[param->nAtom-1].ires;
+    
+    k=0;
+    j=0;
+    for(i=1; i<=nResidue;i++)
+    {
+      while(atom[j].ires==i)
+      {
+	
+	dx=x[j]-x[k];
+	dy=y[j]-y[k];
+	dz=z[j]-z[k];
+	
+	dist2(box,&dx,&dy,&dz);
+	
+	x[j]=dx+x[k];
+	y[j]=dy+y[k];
+	z[j]=dz+z[k];
+	
+	j++;
+	
+	if(j>=param->nAtom)
+	  break;
+      }
+      k=j;
+    }
+}
+
 void box_to_lattice(const PBC *box, double lattice[6])
 {
     double cost;
@@ -525,7 +559,7 @@ void box_to_crystal(const PBC *box,double crystal[6])
  *
  * \return On return, the kinetic energy : \f$ 1/2*m*v^2 \f$
  */
-double kinetic(const PARALLEL *parallel,const double vx[],const double vy[],
+double getKin(const PARALLEL *parallel,const double vx[],const double vy[],
                const double vz[],const double mass[],double *dBuffer)
 {
     int i;
@@ -550,7 +584,7 @@ double kinetic(const PARALLEL *parallel,const double vx[],const double vy[],
  *
  * \brief Adds to the stress tensor the kinetic energy.
  */
-void stress_kinetic(const PARALLEL *parallel,const double vx[],const double vy[],
+void getKinStress(const PARALLEL *parallel,const double vx[],const double vy[],
                     const double vz[],const double mass[],double stress[6],
                     double dBuffer[])
 {
@@ -579,11 +613,11 @@ void stress_kinetic(const PARALLEL *parallel,const double vx[],const double vy[]
  *
  * \brief Get initial kinetic energy from the temperature.
  */
-void get_kinfromtemp(PARAM *param, const PBC *box)
+void getKin0(PARAM *param, const PBC *box)
 {
     double degf;
 
-    get_degfree(param,box);
+    getDegFree(param,box);
 
     //   Energy in internal units 10 J/mol. rboltzui=R/10.
 
@@ -597,7 +631,7 @@ void get_kinfromtemp(PARAM *param, const PBC *box)
  *
  * \brief Obtains the number of degrees of freedom of the system.
  */
-void get_degfree(PARAM *param, const PBC *box)
+void getDegFree(PARAM *param, const PBC *box)
 {
 
 //   Atoms degrees of freedom - 3 degrees of freedom of the CoM.
@@ -610,6 +644,64 @@ void get_degfree(PARAM *param, const PBC *box)
     if(param->nConst>0)
         param->nDegFree-=param->nConst;
 
+}
+
+void getCom(const PARALLEL *parallel,const double mass[],
+	    const double x[],const double y[],const double z[],
+	    double com[3],double dBuffer[])
+{
+  double totMass;
+  
+  totMass=0.;
+  
+  com[0]=0.;
+  com[1]=0.;
+  com[2]=0.;
+  
+  for(int i=parallel->fAtProc;i<parallel->lAtProc;i++)
+  {
+    totMass+=mass[i];
+    
+    com[0]+=mass[i]*x[i];
+    com[1]+=mass[i]*y[i];
+    com[2]+=mass[i]*z[i];
+  }
+  
+  sum_double_para(com,dBuffer,3);
+  sum_double_para(&totMass,dBuffer,1);
+  
+  com[0]/=totMass;
+  com[1]/=totMass;
+  com[2]/=totMass;
+}
+
+void getVom(const PARALLEL *parallel,const double mass[],
+	    const double vx[],const double vy[],const double vz[],
+	    double vom[3],double dBuffer[])
+{
+  double totMass;
+  
+  totMass=0.;
+  
+  vom[0]=0.;
+  vom[1]=0.;
+  vom[2]=0.;
+  
+  for(int i=parallel->fAtProc;i<parallel->lAtProc;i++)
+  {
+    totMass+=mass[i];
+    
+    vom[0]+=mass[i]*vx[i];
+    vom[1]+=mass[i]*vy[i];
+    vom[2]+=mass[i]*vz[i];
+  }
+  
+  sum_double_para(vom,dBuffer,3);
+  sum_double_para(&totMass,dBuffer,1);
+  
+  vom[0]/=totMass;
+  vom[1]/=totMass;
+  vom[2]/=totMass;
 }
 
 /**

@@ -211,7 +211,7 @@ void parallel_reallocate_buffers(PARALLEL *parallel,EWALD *ewald,double **dBuffe
 {
   
   if(ewald->mmax>parallel->dBufferSize)
-  {
+  { 
     parallel->dBufferSize=ewald->mmax;
     
     (*dBuffer)=(double*)my_realloc(*dBuffer,parallel->dBufferSize*sizeof(**dBuffer));
@@ -347,9 +347,10 @@ void bcast_ctrl_para(CTRL *ctrl,PARALLEL *parallel,int *iBuffer)
     iBuffer[23]=ctrl->vdwType;
     iBuffer[24]=ctrl->integrator;
     iBuffer[25]=ctrl->ens;
+    iBuffer[26]=ctrl->keyHeuristic;
   }
   
-  bcast_int_para(iBuffer,26,0);
+  bcast_int_para(iBuffer,27,0);
   
   if(parallel->idProc>0)
   {
@@ -379,6 +380,7 @@ void bcast_ctrl_para(CTRL *ctrl,PARALLEL *parallel,int *iBuffer)
     ctrl->vdwType=iBuffer[23];
     ctrl->integrator=iBuffer[24];
     ctrl->ens=iBuffer[25];
+    ctrl->keyHeuristic=iBuffer[26];
   }
    
 }

@@ -187,8 +187,9 @@ int main(int argc, char* argv[])
   {
     steepestDescent(&ctrl,&param,&ener,&box,&neigh,atom,bond,ub,angle,dihe,impr,x,y,z,fx,fy,fz);
     
-    makelist(&ctrl,&param,&parallel,&box,&neigh,constList,bond,angle,dihe,impr,x,y,z,frozen,
-	     &neighList,&neighPair,&neighList14,&exclList,&exclPair);
+    makelist(&ctrl,&param,&parallel,&box,&neigh,constList,bond,angle,dihe,impr,
+	     x,y,z,vx,vy,vz,frozen,&neighList,&neighPair,&neighList14,&exclList,
+	     &exclPair,iBuffer);
     
     init_vel(&param,&parallel,&box,constList,x,y,z,vx,vy,vz,mass,rmass,frozen,nAtConst,dBuffer);
   }
@@ -206,7 +207,7 @@ int main(int argc, char* argv[])
 
    /** Computes kinetic energy at time=0. */
 
-    ener.kin=kinetic(&parallel,vx,vy,vz,mass,dBuffer);
+    ener.kin=getKin(&parallel,vx,vy,vz,mass,dBuffer);
   
   /** Computes potential energies and forces at time=0. */
     
@@ -296,8 +297,9 @@ int main(int argc, char* argv[])
       
     /** List update if needed. */
     
-      makelist(&ctrl,&param,&parallel,&box,&neigh,constList,bond,angle,dihe,impr,x,y,z,frozen,
-	       &neighList,&neighPair,&neighList14,&exclList,&exclPair);
+      makelist(&ctrl,&param,&parallel,&box,&neigh,constList,bond,angle,dihe,impr,
+	       x,y,z,vx,vy,vz,frozen,&neighList,&neighPair,&neighList14,&exclList,
+	       &exclPair,iBuffer);
       
     /** Energies calculation. */
     
@@ -383,7 +385,7 @@ int main(int argc, char* argv[])
       
       if( (ctrl.keyTraj) && (param.step%ctrl.printTraj==0) && (parallel.idProc==0) )
       {
-	write_DCD_traj(&inout,&param,&box,x,y,z,frozen);
+	write_DCD_traj(&inout,&param,&box,atom,x,y,z,frozen);
       }
       
     /** Writes restart files. */
