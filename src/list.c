@@ -1157,11 +1157,9 @@ void verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,double x[
 	  {
 	    if(neighPair[ii]>=neigh->sizeList)
 	    {
-// 	      fprintf(outFile,"WARNING: List larger than estimated. Size increased from %d",neigh->sizeList);
-	      printf("WARNING: List for atom %d %d larger than estimated: %d. Size increased from %d",i,ii,neighPair[ii],neigh->sizeList);
+	      fprintf(outFile,"WARNING: List larger than estimated. Size increased from %d",neigh->sizeList);
 	      neigh->sizeList=(int)(neigh->sizeList*(1.+TOLLIST))+1;
-	      printf(" to %d.\n",neigh->sizeList);
-// 	      fprintf(outFile," to %d.\n",neigh->sizeList);
+	      fprintf(outFile," to %d.\n",neigh->sizeList);
 	      
 	      for(l=0;l<parallel->maxAtProc;l++)
 	      {

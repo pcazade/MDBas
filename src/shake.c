@@ -47,18 +47,12 @@
 #include "timing.h"
 #endif
 
-static FILE *toto;
-
-static int newJob;
-
 static double *xt,*yt,*zt;
 static double *rt2;
 static double *dtx,*dty,*dtz;
 
 void shake_allocate_arrays(const PARAM *param,const PARALLEL *parallel)
 {
-    toto=NULL;
-    newJob=1;
     
     xt=yt=zt=rt2=dtx=dty=dtz=NULL;
 
@@ -258,14 +252,6 @@ void vv_shake_r(PARAM *param,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
     {
         stress[i]=0.;
     }
-    
-//     if((newJob)&&(parallel->idProc==1))
-//     {
-//       newJob=0;
-//       toto=fopen("toto1.log","w");
-//     }
-//     
-//     printf("node: %d step: %d top of shake\n",parallel->idProc,param->step);
 
     do
     {
@@ -368,18 +354,10 @@ void vv_shake_r(PARAM *param,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
             }
 
         }
-        
-//         if(parallel->idProc==1)
-// 	{
-// 	  fprintf(toto,"node: %d step: %d icycle: %d\n",parallel->idProc,param->step,icycle);
-// 	  fflush(toto);
-// 	}
 
         icycle++;
 
     } while( (!converged) && (icycle<param->maxCycle) );
-    
-//     printf("node: %d step: %d icycle: %d\n",parallel->idProc,param->step,icycle);
 
     if(!converged)
         my_error(CONVERG_SHAKE_ERROR,__FILE__,__LINE__,0);
