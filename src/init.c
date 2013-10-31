@@ -179,7 +179,7 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
   
   makelist(ctrl,param,parallel,box,neigh,*constList,*bond,*angle,*dihe,*impr,
 	   *x,*y,*z,*vx,*vy,*vz,*frozen,neighList,neighPair,neighList14,exclList,
-	   exclPair,iBuffer);
+	   exclPair,*iBuffer);
       
   init_energy_ptrs(ctrl);
   
@@ -296,8 +296,8 @@ void init_variables(CTRL *ctrl,PARAM *param,PARALLEL *parallel,BATH *bath,NEIGH 
   ctrl->keyAlpha=0;
   ctrl->keyMmax=0;
   
-  ctrl->elecType=FULL;
-  ctrl->vdwType=VFULL;
+  ctrl->elecType=DAMP;
+  ctrl->vdwType=VSWITCH;
   ctrl->keyNb14=0;
   
   ctrl->keyNumForce=0;
@@ -338,6 +338,12 @@ void init_variables(CTRL *ctrl,PARAM *param,PARALLEL *parallel,BATH *bath,NEIGH 
   param->rcutOff2=1./param->cutOff2;
   
   param->switch2=1./X3(param->cutOff2-param->cutOn2);
+  
+  param->prec=1e-6;
+  param->alpha=0.1;
+  
+  param->damp1=0.;
+  param->damp2=0.;
   
   param->temp0=300.0;
   param->press0=1.0;

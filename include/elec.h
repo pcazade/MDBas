@@ -20,6 +20,9 @@ extern "C" {
 
     double coulomb_switch(const PARAM *param,double *delec,const double qel,
                           const double r2,const double rt);
+    
+    double coulomb_damp(const PARAM *param,double *delec,const double qel,
+			const double r2,const double rt);
 
     double coulomb14_none(const PARAM *param,double *delec,const double qel,
                           const double r2,const double rt);
@@ -35,6 +38,9 @@ extern "C" {
 
     double coulomb14_switch(const PARAM *param,double *delec,const double qel,
                             const double r2,const double rt);
+    
+    double coulomb14_damp(const PARAM *param,double *delec,const double qel,
+			  const double r2,const double rt);
 
     /** Pointer to the output file. **/
     extern FILE *outFile;

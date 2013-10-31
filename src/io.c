@@ -334,6 +334,34 @@ void read_SIMU(IO *inout,CTRL *ctrl,PARAM *param,BATH *bath,NEIGH *neigh,EWALD *
             else
                 my_error(SIMU_PARAM_ERROR,__FILE__,__LINE__,2,buff2,buff3);
         }
+        else if(!strcmp(buff2,"damp"))
+        {
+            buff3=strtok(NULL," \n\t");
+            if(buff3==NULL)
+                my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
+
+            nocase(buff3);
+
+            if(!strcmp(buff3,"prec"))
+            {
+                buff4=strtok(NULL," \n\t");
+                if(buff4==NULL)
+                    my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
+
+                param->prec=atof(buff4);
+            }
+            else if(!strcmp(buff3,"alpha"))
+            {
+                buff4=strtok(NULL," \n\t");
+                if(buff4==NULL)
+                    my_error(SIMU_NOTFOUND_ERROR,__FILE__,__LINE__,0);
+
+                ctrl->keyAlpha=1;
+                param->alpha=atof(buff4);
+            }
+            else
+                my_error(SIMU_PARAM_ERROR,__FILE__,__LINE__,2,buff2,buff3);
+        }
         else if(!strcmp(buff2,"elec"))
         {
             buff3=strtok(NULL," \n\t");
@@ -352,6 +380,8 @@ void read_SIMU(IO *inout,CTRL *ctrl,PARAM *param,BATH *bath,NEIGH *neigh,EWALD *
                 ctrl->elecType=SHIFT2;
             else if(!strcmp(buff3,"switch"))
                 ctrl->elecType=SWITCH;
+	    else if(!strcmp(buff3,"damp"))
+                ctrl->elecType=DAMP;
             else if(!strcmp(buff3,"ewald"))
                 ctrl->keyEwald=1;
             else if(!strcmp(buff3,"spme"))
@@ -731,6 +761,15 @@ void read_SIMU(IO *inout,CTRL *ctrl,PARAM *param,BATH *bath,NEIGH *neigh,EWALD *
     param->switch2=1./X3(param->cutOff2-param->cutOn2);
 
     param->rTimeStep=1./param->timeStep;
+    
+    param->prec=fmin( fabs( param->prec ) , 0.5 );
+    param->tol=sqrt( fabs( log( param->prec * param->cutOff ) ) );
+    if(!ctrl->keyAlpha)
+        param->alpha=sqrt( fabs( log( param->prec * param->cutOff * param->tol ) ) ) / param->cutOff;
+    
+    param->damp1=erfc(param->alpha*param->cutOff)*param->rcutOff;
+    param->damp2=param->damp1+(2.*param->alpha/SQRTPI*exp(-X2(param->alpha*param->cutOff)));
+    param->damp2*=param->rcutOff;
 
 
 }

@@ -88,6 +88,11 @@ void init_energy_ptrs(CTRL *ctrl)
         ptr_coulomb = &(coulomb_switch);
         ptr_coulomb14 = &(coulomb14_switch);
         break;
+	
+    case DAMP:
+	ptr_coulomb = &(coulomb_damp);
+	ptr_coulomb14 = &(coulomb14_damp);
+        break;
 
     default:
         my_error(UNKNOWN_ELEC_ERROR,__FILE__,__LINE__,0);

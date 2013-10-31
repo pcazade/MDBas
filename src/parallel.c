@@ -275,11 +275,16 @@ void bcast_param_para(PARAM *param,PARALLEL *parallel,double *dBuffer,int *iBuff
     dBuffer[13]=param->temp0;
     dBuffer[14]=param->press0;
     dBuffer[15]=param->kinTemp0;
+    dBuffer[16]=param->alpha;
+    dBuffer[17]=param->prec;
+    dBuffer[18]=param->tol;
+    dBuffer[19]=param->damp1;
+    dBuffer[20]=param->damp2;
   }
     
   bcast_int_para(iBuffer,12,0);
     
-  bcast_double_para(dBuffer,16,0);
+  bcast_double_para(dBuffer,21,0);
     
   if(parallel->idProc>0)
   {
@@ -312,6 +317,11 @@ void bcast_param_para(PARAM *param,PARALLEL *parallel,double *dBuffer,int *iBuff
     param->temp0=dBuffer[13];
     param->press0=dBuffer[14];
     param->kinTemp0=dBuffer[15];
+    param->alpha=dBuffer[16];
+    param->prec=dBuffer[17];
+    param->tol=dBuffer[18];
+    param->damp1=dBuffer[19];
+    param->damp2=dBuffer[20];
   }
   
 }

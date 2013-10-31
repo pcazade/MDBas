@@ -59,9 +59,10 @@ extern "C" {
     enum ELEC_TYPE {
         NOELEC = 0,       /*!< No electrostatic evaluation. */
         FULL   = 1,       /*!< Full electrostatic evaluation. */
-        SHIFT1 = 2,       /*!< Electrostatic evaluation with SHIFT_1 cutoff. */
-        SHIFT2 = 3,       /*!< Electrostatic evaluation with SHIFT_2 cutoff. */
-        SWITCH = 4        /*!< Electrostatic evaluation with SWITCH cutoff. */
+        SHIFT1 = 2,       /*!< Electrostatic evaluation with SHIFT_1 function. */
+        SHIFT2 = 3,       /*!< Electrostatic evaluation with SHIFT_2 function. */
+        SWITCH = 4,       /*!< Electrostatic evaluation with SWITCH function. */
+        DAMP = 5          /*!< Electrostatic evaluation with DAMP function. */
     };
 
     /*!
@@ -213,6 +214,9 @@ extern "C" {
         double cutOff,rcutOff,delr;
         double cutOff2,rcutOff2;
         double cutOn,cutOn2,switch2;
+	
+	double alpha,prec,tol;
+	double damp1,damp2;
 
         double temp0,press0,kinTemp0;
 
