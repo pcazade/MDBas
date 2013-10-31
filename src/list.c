@@ -1063,7 +1063,6 @@ void init_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,doub
 	  
 	  if(r2<=cutnb2)
 	  {
-	    neigh->sizeList++;
 	    (*neighPair)[ii]++;
 	  }
 	}
@@ -1072,14 +1071,16 @@ void init_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,doub
     }
   }
   
-  neigh->sizeList=0;
+  neigh->sizeList=1.5*param->nAtom*4.0*PI*X3(param->cutOff+param->delr)/(3.0*box->vol);
+  neigh->sizeList=MIN(neigh->sizeList,(param->nAtom+1)/2);
+  
   for(i=0;i<parallel->maxAtProc;i++)
   {
     if((*neighPair)[i]>neigh->sizeList)
       neigh->sizeList=(*neighPair)[i];
   }
   
-  neigh->sizeList=(int)(neigh->sizeList*(1.+2.*TOLLIST))+1;
+  neigh->sizeList=(int)(neigh->sizeList*(1.+10.*TOLLIST))+1;
 
   *neighList=(int**)my_malloc(parallel->maxAtProc*sizeof(**neighList));
   for(i=0;i<parallel->maxAtProc;i++)
@@ -1156,9 +1157,11 @@ void verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,double x[
 	  {
 	    if(neighPair[ii]>=neigh->sizeList)
 	    {
-	      fprintf(outFile,"WARNING: List larger than estimated. Size increased from %d",neigh->sizeList);
+// 	      fprintf(outFile,"WARNING: List larger than estimated. Size increased from %d",neigh->sizeList);
+	      printf("WARNING: List for atom %d %d larger than estimated: %d. Size increased from %d",i,ii,neighPair[ii],neigh->sizeList);
 	      neigh->sizeList=(int)(neigh->sizeList*(1.+TOLLIST))+1;
-	      fprintf(outFile," to %d.\n",neigh->sizeList);
+	      printf(" to %d.\n",neigh->sizeList);
+// 	      fprintf(outFile," to %d.\n",neigh->sizeList);
 	      
 	      for(l=0;l<parallel->maxAtProc;l++)
 	      {

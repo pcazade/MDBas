@@ -39,7 +39,7 @@ int main(int argc, char* argv[])
     };
 
     strcpy(propName,"PROP");
-    opt=SHORT;
+    opt=ALL;
 
     i=1;
     while(i<argc)
