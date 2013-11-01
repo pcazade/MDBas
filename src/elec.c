@@ -297,7 +297,7 @@ double coulomb_damp(const PARAM *param,double *delec,const double qel,
     elec=erfc(param->alpha*r)*rt;
     
     *delec=rt*(elec+(2.*param->alpha/SQRTPI*exp(-X2(param->alpha*r))));
-    *delec=pelec*(*delec-param->damp2);
+    *delec=-pelec*(*delec-param->damp2);
     
     elec=pelec*(elec-param->damp1+param->damp2*drRC);
 
@@ -519,7 +519,7 @@ double coulomb14_damp(const PARAM *param,double *delec,const double qel,
     elec=erfc(param->alpha*r)*rt;
     
     *delec=rt*(elec+(2.*param->alpha/SQRTPI*exp(-X2(param->alpha*r))));
-    *delec=pelec*(*delec-param->damp2);
+    *delec=-pelec*(*delec-param->damp2);
     
     elec=pelec*(elec-param->damp1+param->damp2*drRC);
 
