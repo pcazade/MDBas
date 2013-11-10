@@ -318,11 +318,12 @@ void nonbond_energy(PARAM *param,PARALLEL *parallel,ENERGY *ener,PBC *box,const 
                 delta[2]=z[j]-z[i];
 
                 r2=dist(box,delta);
-                r=sqrt(r2);
-                rt=1./r;
 
                 if(r2<=param->cutOff2)
                 {
+		    r=sqrt(r2);
+		    rt=1./r;
+		    
                     qel=q[i]*q[j];
                     elec+=(*ptr_coulomb)(param,&delec,qel,r2,rt);
 
@@ -563,11 +564,12 @@ void ewald_energy(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,EWALD 
                 delta[2]=z[j]-z[i];
 
                 r2=dist(box,delta);
-                r=sqrt(r2);
-                rt=1./r;
 
                 if(r2<=param->cutOff2)
                 {
+		    r=sqrt(r2);
+		    rt=1./r;
+		
                     qel=param->chargeConst*q[i]*q[j];
                     eEwaldDir+=ewald_dir(ewald,&dEwaldDir,qel,r,rt);
 
