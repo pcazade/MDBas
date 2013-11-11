@@ -34,6 +34,7 @@ static double *elFieldX,*elFieldY,*elFieldZ;
 static double *elFieldIndX,*elFieldIndY,*elFieldIndZ;
 static double *muIndX,*muIndY,*muIndZ;
 static double *muOldX,*muOldY,*muOldZ;
+static double *polTensor;
 
 void init_polar(PARAM *param)
 {
@@ -151,11 +152,11 @@ void static_field(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box,
   
 }
 
-double polar_ener(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box, POLAR *polar,
-		  const double x[],const double y[],const double z[],double fx[],
-		  double fy[],double fz[],const double q[],
-		  const double alPol[],const int polList,int **neighList,
-		  const int neighPair[],double dBuffer[])
+double polar_ener_iter(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box, POLAR *polar,
+		       const double x[],const double y[],const double z[],double fx[],
+		       double fy[],double fz[],const double q[],
+		       const double alPol[],const int polList,int **neighList,
+		       const int neighPair[],double dBuffer[])
 {
   int i,j,k,l;
   int icycle;
@@ -169,6 +170,8 @@ double polar_ener(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box, POLAR *po
   double mrt2,mrt5,mufi,mufj,mufij;
   double muftx,mufty,muftz;
   double delta[3];
+  
+  static_field(ctrl,param,parallel,box,x,y,z,q,neighList,neighPair,dBuffer);
   
   for(i=0;i<param->nAtom;i++)
   {
@@ -394,6 +397,7 @@ double polar_ener(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box, POLAR *po
 	fyi+=qi*tmyj-qj*tmyi-mufty;
 	fzi+=qi*tmzj-qj*tmzi-muftz;
       }
+      
     }
     
     epol+=muIndX[i]*elFieldX[i]+muIndY[i]*elFieldY[i]+muIndZ[i]*elFieldZ[i];
@@ -404,8 +408,31 @@ double polar_ener(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box, POLAR *po
     
   }
   
+  if(parallel->nProc>1)
+  { 
+    sum_double_para(&epol,dBuffer,1);
+  }
+  
   epol*=0.5*param->chargeConst;
   
   return(epol);
+  
+}
+
+double polar_ener_iter(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box, POLAR *polar,
+		       const double x[],const double y[],const double z[],double fx[],
+		       double fy[],double fz[],const double q[],const double alPol[],
+		       const int polList,int **neighList,const int neighPair[],
+		       double dBuffer[])
+{
+  int i,j,k,l;
+  double epol,qi,qj;
+  double fxi,fyi,fzi;
+  double r2,rt,rt2,rt3,rt5;
+  double tm1,tm2,tm3,tm4,tm5,tm6;
+  double delta[3];
+  
+  static_field(ctrl,param,parallel,box,x,y,z,q,neighList,neighPair,dBuffer);
+  
   
 }
