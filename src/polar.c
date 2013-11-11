@@ -35,8 +35,45 @@ static double *elFieldIndX,*elFieldIndY,*elFieldIndZ;
 static double *muIndX,*muIndY,*muIndZ;
 static double *muOldX,*muOldY,*muOldZ;
 
-void init_polar(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box)
+void init_polar(PARAM *param)
 {
+  
+  elFieldX=(double*)my_malloc(param->nAtom*sizeof(*elFieldX));
+  elFieldY=(double*)my_malloc(param->nAtom*sizeof(*elFieldY));
+  elFieldZ=(double*)my_malloc(param->nAtom*sizeof(*elFieldZ));
+  
+  elFieldIndX=(double*)my_malloc(param->nAtom*sizeof(*elFieldIndX));
+  elFieldIndY=(double*)my_malloc(param->nAtom*sizeof(*elFieldIndY));
+  elFieldIndZ=(double*)my_malloc(param->nAtom*sizeof(*elFieldIndZ));
+  
+  muIndX=(double*)my_malloc(param->nAtom*sizeof(*muIndX));
+  muIndY=(double*)my_malloc(param->nAtom*sizeof(*muIndY));
+  muIndZ=(double*)my_malloc(param->nAtom*sizeof(*muIndZ));
+  
+  muOldX=(double*)my_malloc(param->nAtom*sizeof(*muOldX));
+  muOldY=(double*)my_malloc(param->nAtom*sizeof(*muOldY));
+  muOldZ=(double*)my_malloc(param->nAtom*sizeof(*muOldZ));
+  
+}
+
+void free_polar()
+{
+  
+  free(elFieldX);
+  free(elFieldY);
+  free(elFieldZ);
+  
+  free(elFieldIndX);
+  free(elFieldIndY);
+  free(elFieldIndZ);
+  
+  free(muIndX);
+  free(muIndY);
+  free(muIndZ);
+  
+  free(muOldX);
+  free(muOldY);
+  free(muOldZ);
   
 }
 
@@ -114,21 +151,24 @@ void static_field(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box,
   
 }
 
-double epol(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box, POLAR *polar,
-	    const double x[],const double y[],const double z[],
-	    const double alPol[],const int polList,int **neighList,
-	    const int neighPair[],double dBuffer[])
+double polar_ener(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box, POLAR *polar,
+		  const double x[],const double y[],const double z[],double fx[],
+		  double fy[],double fz[],const double q[],
+		  const double alPol[],const int polList,int **neighList,
+		  const int neighPair[],double dBuffer[])
 {
   int i,j,k,l;
   int icycle;
-  double epol;
+  double epol,qi,qj;
   double muVar,converged;
   double efxi,efyi,efzi;
+  double fxi,fyi,fzi;
   double r2,rt,rt2,rt3,rt5;
   double tm1,tm2,tm3,tm4,tm5,tm6;
+  double tmxi,tmyi,tmzi,tmxj,tmyj,tmzj;
+  double mrt2,mrt5,mufi,mufj,mufij;
+  double muftx,mufty,muftz;
   double delta[3];
-  
-  epol=0;
   
   for(i=0;i<param->nAtom;i++)
   {
@@ -287,17 +327,85 @@ double epol(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box, POLAR *polar,
     if(!polList[i])
       continue;
     
+    fxi=0.;
+    fyi=0.;
+    fzi=0.;
+    
+    qi=param->chargeConst*q[i];
+    
+    for(k=0; k<neighPair[l]; k++)
+    {
+      j=neighList[l][k];
+      
+      if(!polList[j])
+	continue;
+      
+      qj=param->chargeConst*q[j];
+
+      delta[0]=x[j]-x[i];
+      delta[1]=y[j]-y[i];
+      delta[2]=z[j]-z[i];
+
+      r2=dist(box,delta);
+
+      if(r2<=param->cutOff2)
+      {
+	rt2=1./r2;
+	rt=sqrt(rt2);
+	rt3=rt*rt2;
+	rt5=rt3*rt2;
+	
+	mrt2=5.0*rt2;
+	mrt5=3.0*param->chargeConst*rt5;
+	
+	tm1=delta[0]*rt5;
+	tm3=delta[1]*rt5;
+	tm6=delta[2]*rt5;
+	
+	tm2=tm1*delta[1];
+	tm4=tm1*delta[2];
+	tm5=tm3*delta[2];
+	
+	tm1=tm1*delta[0]-rt3;
+	tm3=tm3*delta[1]-rt3;
+	tm6=tm6*delta[2]-rt3;
+	
+	tmxi=tm1*muIndX[i]+tm2*muIndY[i]+tm4*muIndZ[i];
+	tmyi=tm2*muIndX[i]+tm3*muIndY[i]+tm5*muIndZ[i];
+	tmzi=tm4*muIndX[i]+tm5*muIndY[i]+tm6*muIndZ[i];
+	
+	tmxj=tm1*muIndX[j]+tm2*muIndY[j]+tm4*muIndZ[j];
+	tmyj=tm2*muIndX[j]+tm3*muIndY[j]+tm5*muIndZ[j];
+	tmzj=tm4*muIndX[j]+tm5*muIndY[j]+tm6*muIndZ[j];
+	
+	mufi=muIndX[i]*delta[0]+muIndY[i]*delta[1]+muIndZ[i]*delta[2];
+	mufj=muIndX[j]*delta[0]+muIndY[j]*delta[1]+muIndZ[j]*delta[2];
+	mufij=muIndX[i]*muIndX[j]+muIndY[i]*muIndY[j]+muIndZ[i]*muIndZ[j];
+	
+	muftx=mrt5*(mrt2*mufi*mufj*delta[0]-mufij*delta[0]-mufi*muIndX[j]-mufj*muIndX[i]);
+	mufty=mrt5*(mrt2*mufi*mufj*delta[1]-mufij*delta[1]-mufi*muIndY[j]-mufj*muIndY[i]);
+	muftz=mrt5*(mrt2*mufi*mufj*delta[2]-mufij*delta[2]-mufi*muIndZ[j]-mufj*muIndZ[i]);
+	
+	fx[j]+=qj*tmxi-qi*tmxj+muftx;
+	fy[j]+=qj*tmyi-qi*tmyj+mufty;
+	fz[j]+=qj*tmzi-qi*tmzj+muftz;
+	
+	fxi+=qi*tmxj-qj*tmxi-muftx;
+	fyi+=qi*tmyj-qj*tmyi-mufty;
+	fzi+=qi*tmzj-qj*tmzi-muftz;
+      }
+    }
+    
     epol+=muIndX[i]*elFieldX[i]+muIndY[i]*elFieldY[i]+muIndZ[i]*elFieldZ[i];
+    
+    fx[i]+=fxi;
+    fy[i]+=fyi;
+    fz[i]+=fzi;
     
   }
   
   epol*=0.5*param->chargeConst;
   
   return(epol);
-  
-}
-
-double polar_ener()
-{
   
 }
