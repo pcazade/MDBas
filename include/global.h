@@ -191,6 +191,8 @@ extern "C" {
 
         int keyEwald,keyAlpha,keyMmax;
 	
+	int keyPolInv;
+	
 	int keyHeuristic;
 
         enum ELEC_TYPE elecType;
@@ -269,10 +271,11 @@ extern "C" {
     typedef struct
     {
         double tot,pot,kin;
-        double elec,vdw;
+        double elec,vdw,epol;
         double bond,ang,ub,dihe,impr;
         double conint,consv;
-        double virelec,virvdw,virbond,virub;
+        double virelec,virvdw,virpol;
+	double virbond,virub;
         double virshake,virpot,virtot;
     } ENERGY;
 
@@ -301,6 +304,12 @@ extern "C" {
         int mmax,m1max,m2max,m3max;
         double prec,tol,tol1,alpha;
     } EWALD;
+    
+    typedef struct
+    {
+        int nAtPol,nPolTensor;
+        double tol;
+    } POLAR;
 
     typedef struct
     {

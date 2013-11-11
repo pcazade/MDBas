@@ -19,6 +19,7 @@
  */
 
 #include <math.h>
+#include <float.h>
 
 #include "global.h"
 #include "utils.h"
@@ -34,10 +35,12 @@ static double *elFieldX,*elFieldY,*elFieldZ;
 static double *elFieldIndX,*elFieldIndY,*elFieldIndZ;
 static double *muIndX,*muIndY,*muIndZ;
 static double *muOldX,*muOldY,*muOldZ;
-static double *polTensor;
+static double *polTensor,*polList,*polMap;
 
-void init_polar(PARAM *param)
+void init_polar(CTRL *ctrl,PARAM *param,POLAR *polar,const double alPol)
 {
+  
+  int i,ii;
   
   elFieldX=(double*)my_malloc(param->nAtom*sizeof(*elFieldX));
   elFieldY=(double*)my_malloc(param->nAtom*sizeof(*elFieldY));
@@ -55,9 +58,46 @@ void init_polar(PARAM *param)
   muOldY=(double*)my_malloc(param->nAtom*sizeof(*muOldY));
   muOldZ=(double*)my_malloc(param->nAtom*sizeof(*muOldZ));
   
+  polList=(int*)my_malloc(param->nAtom*sizeof(*polList));
+  polMap=(int*)my_malloc(param->nAtom*sizeof(*polMap));
+  
+  for(i=0;i<param->nAtom;i++)
+  {
+    if(alPol[i]>DBL_EPSILON)
+      polList[i]=1;
+    else
+      polList[i]=0;
+  }
+  
+  if(ctrl->keyPolInv)
+  {
+    
+    ii=0;
+    polar->nAtPol=0;
+    for(i=0;i<param->nAtom;i++)
+    {
+      
+      if(polList[i])
+      {
+	
+	polMap[i]=ii;
+	
+	polar->nAtPol++;
+	ii++;
+	
+      }// end if(polList[i])
+      
+    } // end for(i=0;i<param->nAtom;i++)
+    
+    polar->nPolTensor=polar->nAtPol*(polar->nAtPol+1)/2;
+    
+    polTensor=(double*)my_malloc(polar->nPolTensor*sizeof(*polTensor));
+    
+  } // end if(ctrl->keyPolInv)
+  
 }
 
-void free_polar()
+void free_polar(CTRL *ctrl)
 {
   
   free(elFieldX);
@@ -75,6 +115,12 @@ void free_polar()
   free(muOldX);
   free(muOldY);
   free(muOldZ);
+  
+  free(polList);
+  free(polMap);
+  
+  if(ctrl->keyPolInv)
+    free(polTensor);
   
 }
 
@@ -425,7 +471,9 @@ double polar_ener_iter(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box, POLA
 		       const int polList,int **neighList,const int neighPair[],
 		       double dBuffer[])
 {
-  int i,j,k,l;
+  int i,ii,j,jj,k,l;
+  int mix,miy,miz,mjx,mjy,mjz;
+  double alPolInv;
   double epol,qi,qj;
   double fxi,fyi,fzi;
   double r2,rt,rt2,rt3,rt5;
@@ -434,5 +482,97 @@ double polar_ener_iter(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box, POLA
   
   static_field(ctrl,param,parallel,box,x,y,z,q,neighList,neighPair,dBuffer);
   
+  for(i=0;i<polar->nPolTensor;i++)
+  {
+    polTensor[i]=0.;
+  }
+  
+  for(i=parallel->idProc; i<param->nAtom; i+=parallel->nProc)
+  {
+    if(!polList[i])
+      continue;
+    
+    ii=polMap[i];
+    
+    mix=3*ii;
+    miy=mix+1;
+    miz=mix+2;
+    
+    alPolInv=1./alPol[i];
+    
+    l=mix+mix(mix+1)/2;
+    polTensor[l]=alPolInv;
+    
+    l=miy+miy(miy+1)/2;
+    polTensor[l]=alPolInv;
+    
+    l=miz+miz(miz+1)/2;
+    polTensor[l]=alPolInv;
+    
+  }
+  
+  for(i=parallel->idProc; i<param->nAtom; i+=parallel->nProc)
+  {
+    if(!polList[i])
+      continue;
+    
+    ii=polMap[i];
+    
+    for(k=0; k<neighPair[l]; k++)
+    {
+      j=neighList[l][k];
+      
+      if(!polList[j])
+	continue;
+
+      delta[0]=x[j]-x[i];
+      delta[1]=y[j]-y[i];
+      delta[2]=z[j]-z[i];
+
+      r2=dist(box,delta);
+
+      if(r2<=param->cutOff2)
+      {
+	
+	rt2=1./r2;
+	rt=sqrt(rt2);
+	rt3=rt*rt2;
+	rt5=rt3*rt2;
+	
+	tm1=delta[0]*rt5;
+	tm3=delta[1]*rt5;
+	tm6=delta[2]*rt5;
+	
+	tm2=tm1*delta[1];
+	tm4=tm1*delta[2];
+	tm5=tm3*delta[2];
+	
+	tm1=tm1*delta[0]-rt3;
+	tm3=tm3*delta[1]-rt3;
+	tm6=tm6*delta[2]-rt3;
+	
+	if(i<j)
+	{
+	  mix=3*i;
+	  mjx=3*j;
+	}
+	else
+	{
+	  mix=3*j;
+	  mjx=3*i;
+	}
+	
+	miy=mix+1;
+	miz=mix+2;
+	
+	mjy=mjx+1;
+	mjz=mjx+2;
+	
+	
+      } // end if(r2<=param->cutOff2)
+      
+    } // end for(k=0; k<neighPair[l]; k++)
+    
+  } // end for(i=parallel->idProc; i<param->nAtom; i+=parallel->nProc)
   
 }
