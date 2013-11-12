@@ -308,6 +308,7 @@ extern "C" {
     typedef struct
     {
         int nAtPol,nPolTensor;
+	int maxCycle;
         double tol;
     } POLAR;
 

@@ -28,6 +28,7 @@ src/user.c
 src/vdw.c
 src/energy.c
 src/ewald.c
+src/polar.c
 src/integrate.c
 src/io.c 
 src/mdbas.c
@@ -57,10 +58,11 @@ set(CUSTOM_C_FLAGS "-std=gnu99 -Wall -Wextra " CACHE STRING "Custom C compiler o
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CUSTOM_C_FLAGS}")
 
 #common defines
-add_definitions(-DHAVE_SSE2 -DDSFMT_MEXP=19937 -DTIMING -DFFTW)
+#add_definitions(-DHAVE_SSE2 -DDSFMT_MEXP=19937 -DTIMING -DFFTW)
+add_definitions(-DDSFMT_MEXP=19937 -DTIMING -DFFTW)
 
 # common libraries
-link_libraries(m rt dl fftw3)
+link_libraries(m rt dl fftw3 lapack)
 
 # check if we need to add MPI related files
 if(NOT ENABLE_MPI)

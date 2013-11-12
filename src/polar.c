@@ -22,6 +22,7 @@
 #include <float.h>
 
 #include "global.h"
+#include "polar.h"
 #include "utils.h"
 #include "memory.h"
 #include "errors.h"
@@ -34,13 +35,15 @@
 
 extern void dtptri_(char* UPLO,char* DIAG,int* N,double *AP,int *INFO);
 
+static int *polList,*polMap;
+
 static double *elFieldX,*elFieldY,*elFieldZ;
 static double *elFieldIndX,*elFieldIndY,*elFieldIndZ;
 static double *muIndX,*muIndY,*muIndZ;
 static double *muOldX,*muOldY,*muOldZ;
-static double *polTensor,*polList,*polMap;
+static double *polTensor;
 
-void init_polar(CTRL *ctrl,PARAM *param,POLAR *polar,const double alPol)
+void init_polar(CTRL *ctrl,PARAM *param,POLAR *polar,const double alPol[])
 {
   
   int i,ii;
@@ -127,7 +130,7 @@ void free_polar(CTRL *ctrl)
   
 }
 
-void static_field(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box,
+void static_field(PARAM *param,PARALLEL *parallel,PBC *box,
 		  const double x[],const double y[],const double z[],
 		  const double q[],int **neighList,const int neighPair[],
 		  double dBuffer[])
@@ -201,26 +204,21 @@ void static_field(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box,
   
 }
 
-double polar_ener_iter(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box, POLAR *polar,
+double polar_ener_iter(PARAM *param,PARALLEL *parallel,PBC *box, POLAR *polar,
 		       const double x[],const double y[],const double z[],double fx[],
-		       double fy[],double fz[],const double q[],
-		       const double alPol[],int **neighList,
-		       const int neighPair[],double dBuffer[])
+		       double fy[],double fz[],const double q[],const double alPol[],
+		       int **neighList,const int neighPair[],double dBuffer[])
 {
   int i,j,k,l;
   int icycle;
-  double epol,qi,qj;
+  double epol;
   double muVar,converged;
   double efxi,efyi,efzi;
-  double fxi,fyi,fzi;
   double r2,rt,rt2,rt3,rt5;
   double tm1,tm2,tm3,tm4,tm5,tm6;
-  double tmxi,tmyi,tmzi,tmxj,tmyj,tmzj;
-  double mrt2,mrt5,mufi,mufj,mufij;
-  double muftx,mufty,muftz;
   double delta[3];
   
-  static_field(ctrl,param,parallel,box,x,y,z,q,neighList,neighPair,dBuffer);
+  static_field(param,parallel,box,x,y,z,q,neighList,neighPair,dBuffer);
   
   for(i=0;i<param->nAtom;i++)
   {
@@ -372,8 +370,300 @@ double polar_ener_iter(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box, POLA
     
   }while((!converged)&&(icycle<=polar->maxCycle));
   
-  epol=0.;
+  polar_forces(param,parallel,box,x,y,z,fx,fy,fz,q,neighList,neighPair);
   
+  epol=0.;
+  for(i=parallel->idProc; i<param->nAtom; i+=parallel->nProc)
+  {
+    if(!polList[i])
+      continue;
+    
+    epol+=muIndX[i]*elFieldX[i]+muIndY[i]*elFieldY[i]+muIndZ[i]*elFieldZ[i];
+    
+  }
+  
+  epol*=0.5*param->chargeConst;
+  
+  return(epol);
+  
+}
+
+double polar_ener_inv(PARAM *param,PARALLEL *parallel,PBC *box, POLAR *polar,
+		      const double x[],const double y[],const double z[],double fx[],
+		      double fy[],double fz[],const double q[],const double alPol[],
+		      int **neighList,const int neighPair[],double dBuffer[])
+{
+  char UPLO='U',DIAG='N';
+  
+  int i,ii,j,jj,k,l;
+  int mix,miy,miz;
+  int mjx,mjy,mjz;
+  int m1,m2,m3;
+  int ierr;
+  
+  double alPolInv,epol;
+  double r2,rt,rt2,rt3,rt5;
+  double tm1,tm2,tm3,tm4,tm5,tm6;
+  double delta[3];
+  
+  static_field(param,parallel,box,x,y,z,q,neighList,neighPair,dBuffer);
+  
+  for(i=0;i<polar->nPolTensor;i++)
+  {
+    polTensor[i]=0.;
+  }
+  
+  for(i=parallel->idProc; i<param->nAtom; i+=parallel->nProc)
+  {
+    if(!polList[i])
+      continue;
+    
+    ii=polMap[i];
+    
+    mix=3*ii;
+    miy=mix+1;
+    miz=mix+2;
+    
+    alPolInv=1./alPol[i];
+    
+    m1=mix+mix*(mix+1)/2;
+    polTensor[m1]=alPolInv;
+    
+    m2=miy+miy*(miy+1)/2;
+    polTensor[m2]=alPolInv;
+    
+    m3=miz+miz*(miz+1)/2;
+    polTensor[m3]=alPolInv;
+    
+  }
+  
+  l=0;
+  for(i=parallel->idProc; i<param->nAtom; i+=parallel->nProc)
+  {
+    if(!polList[i])
+      continue;
+    
+    ii=polMap[i];
+    
+    for(k=0; k<neighPair[l]; k++)
+    {
+      j=neighList[l][k];
+      
+      if(!polList[j])
+	continue;
+      
+      jj=polMap[j];
+
+      delta[0]=x[j]-x[i];
+      delta[1]=y[j]-y[i];
+      delta[2]=z[j]-z[i];
+
+      r2=dist(box,delta);
+
+      if(r2<=param->cutOff2)
+      {
+	
+	rt2=1./r2;
+	rt=sqrt(rt2);
+	rt3=rt*rt2;
+	rt5=rt3*rt2;
+	
+	tm1=delta[0]*rt5;
+	tm3=delta[1]*rt5;
+	tm6=delta[2]*rt5;
+	
+	tm2=tm1*delta[1];
+	tm4=tm1*delta[2];
+	tm5=tm3*delta[2];
+	
+	tm1=tm1*delta[0]-rt3;
+	tm3=tm3*delta[1]-rt3;
+	tm6=tm6*delta[2]-rt3;
+	
+	if(i<j)
+	{
+	  mix=3*ii;
+	  mjx=3*jj;
+	}
+	else
+	{
+	  mix=3*jj;
+	  mjx=3*ii;
+	}
+	
+	miy=mix+1;
+	miz=mix+2;
+	
+	mjy=mjx+1;
+	mjz=mjx+2;
+	
+	m1=mix+mjx*(mjx+1);
+	polTensor[m1]=-tm1;
+	
+	m1++; // m1=miy+mjx*(mjx+1)
+	polTensor[m1]=-tm2;
+	
+	m1++; // m1=miz+mjx*(mjx+1)
+	polTensor[m1]=-tm4;
+	
+	m2=mix+mjy*(mjy+1);
+	polTensor[m2]=-tm2;
+	
+	m2++; // m2=miy+mjy*(mjy+1)
+	polTensor[m2]=-tm3;
+	
+	m2++; // m2=miz+mjy*(mjy+1)
+	polTensor[m2]=-tm5;
+	
+	m3=mix+mjz*(mjz+1);
+	polTensor[m3]=-tm4;
+	
+	m3++; // m3=miy+mjz*(mjz+1)
+	polTensor[m3]=-tm5;
+	
+	m3++; // m3=miz+mjz*(mjz+1)
+	polTensor[m3]=-tm6;
+	
+      } // end if(r2<=param->cutOff2)
+      
+    } // end for(k=0; k<neighPair[l]; k++)
+    
+    l++;
+    
+  } // end for(i=parallel->idProc; i<param->nAtom; i+=parallel->nProc)
+  
+  if(parallel->nProc>1)
+  {
+    sum_double_para(polTensor,dBuffer,polar->nPolTensor);
+  }
+  
+  dtptri_(&UPLO,&DIAG,&(polar->nAtPol),polTensor,&ierr);
+  
+  if(ierr>0)
+    my_error(POLAR_DIAG_ERROR,__FILE__,__LINE__,0);
+  else if(ierr<0)
+    my_error(POLAR_VALU_ERROR,__FILE__,__LINE__,0);
+  
+  for(i=0;i<param->nAtom;i++)
+  {
+    muIndX[i]=0.;
+    muIndY[i]=0.;
+    muIndZ[i]=0.;
+  }
+  
+  l=0;
+  for(i=parallel->idProc; i<param->nAtom; i+=parallel->nProc)
+  {
+    if(!polList[i])
+      continue;
+    
+    ii=polMap[i];
+    
+    mix=3*ii;
+    miy=mix+1;
+    miz=mix+2;
+    
+    m1=mix+mix*(mix+1);
+    m2=miy+miy*(miy+1);
+    m3=miz+miz*(miz+1);
+    
+    muIndX[i]+=polTensor[m1]*elFieldX[i];
+    muIndY[i]+=polTensor[m2]*elFieldY[i];
+    muIndZ[i]+=polTensor[m3]*elFieldZ[i];
+    
+    for(k=0; k<neighPair[l]; k++)
+    {
+      j=neighList[l][k];
+      
+      if(!polList[j])
+	continue;
+      
+      jj=polMap[j];
+	
+      if(i<j)
+      {
+	mix=3*ii;
+	mjx=3*jj;
+      }
+      else
+      {
+	mix=3*jj;
+	mjx=3*ii;
+      }
+	
+      miy=mix+1;
+      miz=mix+2;
+      
+      mjy=mjx+1;
+      mjz=mjx+2;
+      
+      m1=mix+mjx*(mjx+1);
+      m2=mix+mjy*(mjy+1);
+      m3=mix+mjz*(mjz+1);
+      
+      muIndX[j]+=polTensor[m1]*elFieldX[i]+polTensor[m2]*elFieldY[i]+polTensor[m3]*elFieldZ[i];
+      muIndX[i]+=polTensor[m1]*elFieldX[j]+polTensor[m2]*elFieldY[j]+polTensor[m3]*elFieldZ[j];
+      
+      m1++;
+      m2++;
+      m3++;
+      
+      muIndY[j]+=polTensor[m1]*elFieldX[i]+polTensor[m2]*elFieldY[i]+polTensor[m3]*elFieldZ[i];
+      muIndY[i]+=polTensor[m1]*elFieldX[j]+polTensor[m2]*elFieldY[j]+polTensor[m3]*elFieldZ[j];
+      
+      m1++;
+      m2++;
+      m3++;
+      
+      muIndZ[j]+=polTensor[m1]*elFieldX[i]+polTensor[m2]*elFieldY[i]+polTensor[m3]*elFieldZ[i];
+      muIndZ[i]+=polTensor[m1]*elFieldX[j]+polTensor[m2]*elFieldY[j]+polTensor[m3]*elFieldZ[j];
+      
+    } // end for(k=0; k<neighPair[l]; k++)
+    
+    l++;
+    
+  } // end for(i=parallel->idProc; i<param->nAtom; i+=parallel->nProc)
+  
+  if(parallel->nProc>1)
+  {
+    sum_double_para(muIndX,dBuffer,param->nAtom);
+    sum_double_para(muIndY,dBuffer,param->nAtom);
+    sum_double_para(muIndZ,dBuffer,param->nAtom);
+  }
+  
+  polar_forces(param,parallel,box,x,y,z,fx,fy,fz,q,neighList,neighPair);
+  
+  for(i=parallel->idProc; i<param->nAtom; i+=parallel->nProc)
+  {
+    if(!polList[i])
+      continue;
+    
+    epol+=muIndX[i]*elFieldX[i]+muIndY[i]*elFieldY[i]+muIndZ[i]*elFieldZ[i];
+    
+  }
+  
+  epol*=0.5*param->chargeConst;
+  
+  return(epol);
+  
+}
+
+void polar_forces(PARAM *param,PARALLEL *parallel,PBC *box,const double x[],
+		  const double y[],const double z[],double fx[],double fy[],
+		  double fz[],const double q[],int **neighList,const int neighPair[])
+{
+  int i,j,k,l;
+  
+  double qi,qj;
+  double fxi,fyi,fzi;
+  double r2,rt,rt2,rt3,rt5;
+  double tm1,tm2,tm3,tm4,tm5,tm6;
+  double tmxi,tmyi,tmzi,tmxj,tmyj,tmzj;
+  double mrt2,mrt5,mufi,mufj,mufij;
+  double muftx,mufty,muftz;
+  double delta[3];
+
+  l=0;
   for(i=parallel->idProc; i<param->nAtom; i+=parallel->nProc)
   {
     if(!polList[i])
@@ -449,255 +739,11 @@ double polar_ener_iter(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box, POLA
       
     }
     
-    epol+=muIndX[i]*elFieldX[i]+muIndY[i]*elFieldY[i]+muIndZ[i]*elFieldZ[i];
-    
     fx[i]+=fxi;
     fy[i]+=fyi;
     fz[i]+=fzi;
     
+    l++;
   }
-  
-  if(parallel->nProc>1)
-  { 
-    sum_double_para(&epol,dBuffer,1);
-  }
-  
-  epol*=0.5*param->chargeConst;
-  
-  return(epol);
-  
-}
-
-double polar_ener_inv(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box, POLAR *polar,
-		       const double x[],const double y[],const double z[],double fx[],
-		       double fy[],double fz[],const double q[],const double alPol[],
-		       int **neighList,const int neighPair[],double dBuffer[])
-{
-  char UPLO='U',DIAG='N';
-  
-  int i,ii,j,jj,k,l;
-  int mix,miy,miz;
-  int mjx,mjy,mjz;
-  int m1,m2,m3;
-  int ierr;
-  
-  double alPolInv,epol;
-  double r2,rt,rt2,rt3,rt5;
-  double tm1,tm2,tm3,tm4,tm5,tm6;
-  double delta[3];
-  
-  static_field(ctrl,param,parallel,box,x,y,z,q,neighList,neighPair,dBuffer);
-  
-  for(i=0;i<polar->nPolTensor;i++)
-  {
-    polTensor[i]=0.;
-  }
-  
-  for(i=parallel->idProc; i<param->nAtom; i+=parallel->nProc)
-  {
-    if(!polList[i])
-      continue;
-    
-    ii=polMap[i];
-    
-    mix=3*ii;
-    miy=mix+1;
-    miz=mix+2;
-    
-    alPolInv=1./alPol[i];
-    
-    l=mix+mix(mix+1)/2;
-    polTensor[l]=alPolInv;
-    
-    l=miy+miy(miy+1)/2;
-    polTensor[l]=alPolInv;
-    
-    l=miz+miz(miz+1)/2;
-    polTensor[l]=alPolInv;
-    
-  }
-  
-  for(i=parallel->idProc; i<param->nAtom; i+=parallel->nProc)
-  {
-    if(!polList[i])
-      continue;
-    
-    ii=polMap[i];
-    
-    for(k=0; k<neighPair[l]; k++)
-    {
-      j=neighList[l][k];
-      
-      if(!polList[j])
-	continue;
-      
-      jj=polMap[j];
-
-      delta[0]=x[j]-x[i];
-      delta[1]=y[j]-y[i];
-      delta[2]=z[j]-z[i];
-
-      r2=dist(box,delta);
-
-      if(r2<=param->cutOff2)
-      {
-	
-	rt2=1./r2;
-	rt=sqrt(rt2);
-	rt3=rt*rt2;
-	rt5=rt3*rt2;
-	
-	tm1=delta[0]*rt5;
-	tm3=delta[1]*rt5;
-	tm6=delta[2]*rt5;
-	
-	tm2=tm1*delta[1];
-	tm4=tm1*delta[2];
-	tm5=tm3*delta[2];
-	
-	tm1=tm1*delta[0]-rt3;
-	tm3=tm3*delta[1]-rt3;
-	tm6=tm6*delta[2]-rt3;
-	
-	if(i<j)
-	{
-	  mix=3*ii;
-	  mjx=3*jj;
-	}
-	else
-	{
-	  mix=3*jj;
-	  mjx=3*ii;
-	}
-	
-	miy=mix+1;
-	miz=mix+2;
-	
-	mjy=mjx+1;
-	mjz=mjx+2;
-	
-	l=mix+mjx*(mjx+1);
-	polTensor[l]=-tm1;
-	
-	l++; // l=miy+mjx*(mjx+1)
-	polTensor[l]=-tm2;
-	
-	l++; // l=miz+mjx*(mjx+1)
-	polTensor[l]=-tm4;
-	
-	l=mix+mjy*(mjy+1);
-	polTensor[l]=-tm2;
-	
-	l++; // l=miy+mjy*(mjy+1)
-	polTensor[l]=-tm3;
-	
-	l++; // l=miz+mjy*(mjy+1)
-	polTensor[l]=-tm5;
-	
-	l=mix+mjz*(mjz+1);
-	polTensor[l]=-tm4;
-	
-	l++; // l=miy+mjz*(mjz+1)
-	polTensor[l]=-tm5;
-	
-	l++; // l=miz+mjz*(mjz+1)
-	polTensor[l]=-tm6;
-	
-      } // end if(r2<=param->cutOff2)
-      
-    } // end for(k=0; k<neighPair[l]; k++)
-    
-  } // end for(i=parallel->idProc; i<param->nAtom; i+=parallel->nProc)
-  
-  if(parallel->nProc>1)
-  {
-    sum_double_para(polTensor,dBuffer,polar->nPolTensor);
-  }
-  
-  dtptri_(&UPLO,&DIAG,&(polar->nAtPol),polTensor,&ierr);
-  
-  if(ierr>0)
-    my_error(POLAR_DIAG_ERROR,__FILE__,__LINE__,0);
-  else if(ierr<0)
-    my_error(POLAR_VALU_ERROR,__FILE__,__LINE__,0);
-  
-  for(i=0;i<param->nAtom;i++)
-  {
-    muIndX[i]=0.;
-    muIndY[i]=0.;
-    muIndZ[i]=0.;
-  }
-  
-  for(i=parallel->idProc; i<param->nAtom; i+=parallel->nProc)
-  {
-    if(!polList[i])
-      continue;
-    
-    ii=polMap[i];
-    
-    mix=3*ii;
-    miy=mix+1;
-    miz=mix+2;
-    
-    m1=mix+mix*(mix+1);
-    m2=miy+miy*(miy+1);
-    m3=miz+miz*(miz+1);
-    
-    muIndX[i]+=polTensor[m1]*elFieldX[i];
-    muIndY[i]+=polTensor[m2]*elFieldY[i];
-    muIndZ[i]+=polTensor[m3]*elFieldZ[i];
-    
-    for(k=0; k<neighPair[l]; k++)
-    {
-      j=neighList[l][k];
-      
-      if(!polList[j])
-	continue;
-      
-      jj=polMap[j];
-	
-      if(i<j)
-      {
-	mix=3*ii;
-	mjx=3*jj;
-      }
-      else
-      {
-	mix=3*jj;
-	mjx=3*ii;
-      }
-	
-      miy=mix+1;
-      miz=mix+2;
-      
-      mjy=mjx+1;
-      mjz=mjx+2;
-      
-      m1=mix+mjx*(mjx+1);
-      m2=mix+mjy*(mjy+1);
-      m3=mix+mjz*(mjz+1);
-      
-      muIndX[j]+=polTensor[m1]*elFieldX[i]+polTensor[m2]*elFieldY[i]+polTensor[m3]*elFieldZ[i];
-      muIndX[i]+=polTensor[m1]*elFieldX[j]+polTensor[m2]*elFieldY[j]+polTensor[m3]*elFieldZ[j];
-      
-      m1++;
-      m2++;
-      m3++;
-      
-      muIndY[j]+=polTensor[m1]*elFieldX[i]+polTensor[m2]*elFieldY[i]+polTensor[m3]*elFieldZ[i];
-      muIndY[i]+=polTensor[m1]*elFieldX[j]+polTensor[m2]*elFieldY[j]+polTensor[m3]*elFieldZ[j];
-      
-      m1++;
-      m2++;
-      m3++;
-      
-      muIndZ[j]+=polTensor[m1]*elFieldX[i]+polTensor[m2]*elFieldY[i]+polTensor[m3]*elFieldZ[i];
-      muIndZ[i]+=polTensor[m1]*elFieldX[j]+polTensor[m2]*elFieldY[j]+polTensor[m3]*elFieldZ[j];
-      
-    } // end for(k=0; k<neighPair[l]; k++)
-    
-  } // end for(i=parallel->idProc; i<param->nAtom; i+=parallel->nProc)
-  
-  
   
 }
