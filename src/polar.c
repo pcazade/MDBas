@@ -472,10 +472,9 @@ double polar_ener_iter(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box, POLA
 		       double dBuffer[])
 {
   int i,ii,j,jj,k,l;
-  int mix,miy,miz,mjx,mjy,mjz;
-  double alPolInv;
-  double epol,qi,qj;
-  double fxi,fyi,fzi;
+  int mix,miy,miz;
+  int mjx,mjy,mjz;
+  double alPolInv,epol;
   double r2,rt,rt2,rt3,rt5;
   double tm1,tm2,tm3,tm4,tm5,tm6;
   double delta[3];
@@ -524,6 +523,8 @@ double polar_ener_iter(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box, POLA
       
       if(!polList[j])
 	continue;
+      
+      jj=polMap[j];
 
       delta[0]=x[j]-x[i];
       delta[1]=y[j]-y[i];
@@ -553,13 +554,13 @@ double polar_ener_iter(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box, POLA
 	
 	if(i<j)
 	{
-	  mix=3*i;
-	  mjx=3*j;
+	  mix=3*ii;
+	  mjx=3*jj;
 	}
 	else
 	{
-	  mix=3*j;
-	  mjx=3*i;
+	  mix=3*jj;
+	  mjx=3*ii;
 	}
 	
 	miy=mix+1;
@@ -568,6 +569,32 @@ double polar_ener_iter(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box, POLA
 	mjy=mjx+1;
 	mjz=mjx+2;
 	
+	l=mix+mjx*(mjx+1);
+	polTensor[l]=-tm1;
+	
+	l++; // l=miy+mjx*(mjx+1)
+	polTensor[l]=-tm2;
+	
+	l++; // l=miz+mjx*(mjx+1)
+	polTensor[l]=-tm4;
+	
+	l=mix+mjy*(mjy+1);
+	polTensor[l]=-tm2;
+	
+	l++; // l=miy+mjy*(mjy+1)
+	polTensor[l]=-tm3;
+	
+	l++; // l=miz+mjy*(mjy+1)
+	polTensor[l]=-tm5;
+	
+	l=mix+mjz*(mjz+1);
+	polTensor[l]=-tm4;
+	
+	l++; // l=miy+mjz*(mjz+1)
+	polTensor[l]=-tm5;
+	
+	l++; // l=miz+mjz*(mjz+1)
+	polTensor[l]=-tm6;
 	
       } // end if(r2<=param->cutOff2)
       
@@ -575,4 +602,5 @@ double polar_ener_iter(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box, POLA
     
   } // end for(i=parallel->idProc; i<param->nAtom; i+=parallel->nProc)
   
+  _dtptri('U','N',polTensor,&(polar->nAtPol),&info);
 }
