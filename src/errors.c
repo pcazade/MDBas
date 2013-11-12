@@ -342,6 +342,14 @@ void my_error(enum ERROR_TYPE errorNumber, char file[], int line, int num_option
         fprintf(errFile,"MPI error message above.\n");
     }
     break;
+    
+    case POLAR_DIAG_ERROR:
+      fprintf(errFile,"polTensor[i][i] is exactly zero. The triangular matrix is singular and its inverse can not be computed.");
+      fprintf(errFile,"The LU decomposition method should be used instead.");
+      break;
+      
+    case POLAR_VALU_ERROR:
+      fprintf(errFile,"The i-th argument of the polarisability tensor has an illegal value");
 
     case PLUGINS_DLOPEN_ERROR:
     {

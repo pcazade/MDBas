@@ -55,6 +55,9 @@ extern "C" {
 
         UNKNOWN_ELEC_ERROR = 201, /*!< Error not yet documented during electrostatic calculations */
         UNKNOWN_VDW_ERROR = 202,  /*!< Error not yet documented during van der Walls calculations */
+	
+	POLAR_DIAG_ERROR = 251, /*!< There is a zero diagonal element in the polarisability tensor: singular matrix */
+	POLAR_VALU_ERROR = 252, /*!< There is an illegal element in the polarisability tensor */
 
         CONVERG_VEL_ERROR = 310,
         CONVERG_SHAKE_ERROR = 311,
