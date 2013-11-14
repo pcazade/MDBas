@@ -207,7 +207,7 @@ void static_field(PARAM *param,PARALLEL *parallel,PBC *box,
 double polar_ener_iter(PARAM *param,PARALLEL *parallel,PBC *box, POLAR *polar,
 		       const double x[],const double y[],const double z[],double fx[],
 		       double fy[],double fz[],const double q[],const double alPol[],
-		       int **neighList,const int neighPair[],double dBuffer[])
+		       double *virpol,int **neighList,const int neighPair[],double dBuffer[])
 {
   int i,j,k,l;
   int icycle;
@@ -370,7 +370,7 @@ double polar_ener_iter(PARAM *param,PARALLEL *parallel,PBC *box, POLAR *polar,
     
   }while((!converged)&&(icycle<=polar->maxCycle));
   
-  polar_forces(param,parallel,box,x,y,z,fx,fy,fz,q,neighList,neighPair);
+  polar_forces(param,parallel,box,x,y,z,fx,fy,fz,q,virpol,neighList,neighPair);
   
   epol=0.;
   for(i=parallel->idProc; i<param->nAtom; i+=parallel->nProc)
@@ -391,7 +391,7 @@ double polar_ener_iter(PARAM *param,PARALLEL *parallel,PBC *box, POLAR *polar,
 double polar_ener_inv(PARAM *param,PARALLEL *parallel,PBC *box, POLAR *polar,
 		      const double x[],const double y[],const double z[],double fx[],
 		      double fy[],double fz[],const double q[],const double alPol[],
-		      int **neighList,const int neighPair[],double dBuffer[])
+		      double *virpol,int **neighList,const int neighPair[],double dBuffer[])
 {
   char UPLO='U',DIAG='N';
   
@@ -631,7 +631,7 @@ double polar_ener_inv(PARAM *param,PARALLEL *parallel,PBC *box, POLAR *polar,
     sum_double_para(muIndZ,dBuffer,param->nAtom);
   }
   
-  polar_forces(param,parallel,box,x,y,z,fx,fy,fz,q,neighList,neighPair);
+  polar_forces(param,parallel,box,x,y,z,fx,fy,fz,q,virpol,neighList,neighPair);
   
   for(i=parallel->idProc; i<param->nAtom; i+=parallel->nProc)
   {
@@ -650,7 +650,8 @@ double polar_ener_inv(PARAM *param,PARALLEL *parallel,PBC *box, POLAR *polar,
 
 void polar_forces(PARAM *param,PARALLEL *parallel,PBC *box,const double x[],
 		  const double y[],const double z[],double fx[],double fy[],
-		  double fz[],const double q[],int **neighList,const int neighPair[])
+		  double fz[],const double q[],double *virpol,int **neighList,
+		  const int neighPair[])
 {
   int i,j,k,l;
   
@@ -661,7 +662,10 @@ void polar_forces(PARAM *param,PARALLEL *parallel,PBC *box,const double x[],
   double tmxi,tmyi,tmzi,tmxj,tmyj,tmzj;
   double mrt2,mrt5,mufi,mufj,mufij;
   double muftx,mufty,muftz;
+  double fpolx,fpoly,fpolz;
   double delta[3];
+  
+  *virpol=0.;
 
   l=0;
   for(i=parallel->idProc; i<param->nAtom; i+=parallel->nProc)
@@ -728,13 +732,19 @@ void polar_forces(PARAM *param,PARALLEL *parallel,PBC *box,const double x[],
 	mufty=mrt5*(mrt2*mufi*mufj*delta[1]-mufij*delta[1]-mufi*muIndY[j]-mufj*muIndY[i]);
 	muftz=mrt5*(mrt2*mufi*mufj*delta[2]-mufij*delta[2]-mufi*muIndZ[j]-mufj*muIndZ[i]);
 	
-	fx[j]+=qj*tmxi-qi*tmxj+muftx;
-	fy[j]+=qj*tmyi-qi*tmyj+mufty;
-	fz[j]+=qj*tmzi-qi*tmzj+muftz;
+	fpolx=qj*tmxi-qi*tmxj+muftx;
+	fpoly=qj*tmyi-qi*tmyj+mufty;
+	fpolz=qj*tmzi-qi*tmzj+muftz;
 	
-	fxi+=qi*tmxj-qj*tmxi-muftx;
-	fyi+=qi*tmyj-qj*tmyi-mufty;
-	fzi+=qi*tmzj-qj*tmzi-muftz;
+	fx[j]+=fpolx;
+	fy[j]+=fpoly;
+	fz[j]+=fpolz;
+	
+	fxi+=-fpolx;
+	fyi+=-fpoly;
+	fzi+=-fpolz;
+	
+	*virpol-=( (fpolx*delta[0]) + (fpoly*delta[1]) + (fpolz*delta[2]) );
       }
       
     }
