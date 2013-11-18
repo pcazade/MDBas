@@ -191,7 +191,7 @@ extern "C" {
 
         int keyEwald,keyAlpha,keyMmax;
 	
-	int keyPolInv;
+	int keyPol,keyPolInv;
 	
 	int keyHeuristic;
 

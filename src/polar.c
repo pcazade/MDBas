@@ -204,14 +204,14 @@ void static_field(PARAM *param,PARALLEL *parallel,PBC *box,
   
 }
 
-double polar_ener_iter(PARAM *param,PARALLEL *parallel,PBC *box, POLAR *polar,
-		       const double x[],const double y[],const double z[],double fx[],
-		       double fy[],double fz[],const double q[],const double alPol[],
-		       double *virpol,int **neighList,const int neighPair[],double dBuffer[])
+void polar_ener_iter(PARAM *param,PARALLEL *parallel,ENERGY *ener,PBC *box, POLAR *polar,
+		     const double x[],const double y[],const double z[],double fx[],
+		     double fy[],double fz[],const double q[],const double alPol[],
+		     int **neighList,const int neighPair[],double dBuffer[])
 {
   int i,j,k,l;
   int icycle;
-  double epol;
+  double epol,virpol;
   double muVar,converged;
   double efxi,efyi,efzi;
   double r2,rt,rt2,rt3,rt5;
@@ -384,14 +384,15 @@ double polar_ener_iter(PARAM *param,PARALLEL *parallel,PBC *box, POLAR *polar,
   
   epol*=0.5*param->chargeConst;
   
-  return(epol);
+  ener->epol=epol;
+  ener->virpol=virpol;
   
 }
 
-double polar_ener_inv(PARAM *param,PARALLEL *parallel,PBC *box, POLAR *polar,
-		      const double x[],const double y[],const double z[],double fx[],
-		      double fy[],double fz[],const double q[],const double alPol[],
-		      double *virpol,int **neighList,const int neighPair[],double dBuffer[])
+void polar_ener_inv(PARAM *param,PARALLEL *parallel,ENERGY *ener,PBC *box, POLAR *polar,
+		    const double x[],const double y[],const double z[],double fx[],
+		    double fy[],double fz[],const double q[],const double alPol[],
+		    int **neighList,const int neighPair[],double dBuffer[])
 {
   char UPLO='U',DIAG='N';
   
@@ -401,7 +402,7 @@ double polar_ener_inv(PARAM *param,PARALLEL *parallel,PBC *box, POLAR *polar,
   int m1,m2,m3;
   int ierr;
   
-  double alPolInv,epol;
+  double alPolInv,epol,virpol;
   double r2,rt,rt2,rt3,rt5;
   double tm1,tm2,tm3,tm4,tm5,tm6;
   double delta[3];
@@ -644,7 +645,8 @@ double polar_ener_inv(PARAM *param,PARALLEL *parallel,PBC *box, POLAR *polar,
   
   epol*=0.5*param->chargeConst;
   
-  return(epol);
+  ener->epol=epol;
+  ener->virpol=virpol;
   
 }
 

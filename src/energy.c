@@ -36,6 +36,7 @@
 #include "vdw.h"
 #include "ewald.h"
 #include "spme.h"
+#include "polar.h"
 #include "energy.h"
 #include "internal.h"
 #include "io.h"
@@ -132,12 +133,13 @@ void init_energy_ptrs(CTRL *ctrl)
  *
  * \brief Main energy function, collecting total energy by calling the required subfunctions.
  */
-void energy(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,EWALD *ewald,PBC *box,NEIGH *neigh,
+void energy(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,EWALD *ewald,POLAR *polar,
+	    PBC *box,NEIGH *neigh,
             BOND bond[],BOND ub[],ANGLE angle[],DIHE dihe[],DIHE impr[],
             const double x[],const double y[], const double z[],
             double vx[],double vy[], double vz[],double fx[],double fy[],
             double fz[],const double q[],const double eps[],const double sig[],
-            const double eps14[],const double sig14[],const int frozen[],
+            const double eps14[],const double sig14[],const double alPol[],const int frozen[],
             int **neighList,const int neighPair[],const int neighList14[],
             int **exclList,const int exclPair[],double dBuffer[])
 {
@@ -151,12 +153,14 @@ void energy(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,EWALD *ewald
     ener->ang=0.;
     ener->dihe=0.;
     ener->impr=0.;
+    ener->epol=0.;
 
     ener->virelec=0.;
     ener->virvdw=0.;
     ener->virbond=0.;
     ener->virub=0.;
     ener->virpot=0.;
+    ener->virpol=0.;
 
     box->stress1=0.;
     box->stress2=0.;
@@ -187,6 +191,10 @@ void energy(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,EWALD *ewald
                      neighList,neighPair,exclList,exclPair,dBuffer);
         if(ctrl->keyNb14)
             ewald14_energy(param,parallel,ener,ewald,box,neigh,x,y,z,fx,fy,fz,q,eps14,sig14,neighList14);
+	
+	if(ctrl->keyPol)
+	  polar_ener_iter(param,parallel,ener,box,polar,x,y,z,fx,fy,fz,q,alPol,
+			  neighList,neighPair,dBuffer);
     }
     else
     {
@@ -236,8 +244,11 @@ void energy(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,EWALD *ewald
         dBuffer[8]=ener->virvdw;
         dBuffer[9]=ener->virbond;
         dBuffer[10]=ener->virub;
+	
+	dBuffer[11]=ener->epol;
+	dBuffer[12]=ener->virpol;
 
-        sum_double_para(dBuffer,&(dBuffer[11]),11);
+        sum_double_para(dBuffer,&(dBuffer[13]),13);
 
         ener->elec=dBuffer[0];
         ener->vdw=dBuffer[1];
@@ -251,6 +262,9 @@ void energy(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,EWALD *ewald
         ener->virvdw=dBuffer[8];
         ener->virbond=dBuffer[9];
         ener->virub=dBuffer[10];
+	
+	ener->epol=dBuffer[11];
+	ener->virpol=dBuffer[12];
 
         sum_double_para(fx,dBuffer,param->nAtom);
         sum_double_para(fy,dBuffer,param->nAtom);
@@ -258,9 +272,11 @@ void energy(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,EWALD *ewald
     }
 
     ener->pot=ener->elec+ener->vdw+ener->bond+
-              ener->ang+ener->ub+ener->dihe+ener->impr;
+              ener->ang+ener->ub+ener->dihe+ener->impr+
+              ener->epol;
 
-    ener->virpot=ener->virbond+ener->virub+ener->virelec+ener->virvdw;
+    ener->virpot=ener->virbond+ener->virub+ener->virelec+ener->virvdw+
+		 ener->virpol;
 
 #ifdef TIMER
     update_timer_end(TIMER_ENERGY_TOT,__func__);
