@@ -121,6 +121,8 @@ int main(int argc, char* argv[])
   double *q,*mass,*rmass;
   double *eps,*sig,*eps14,*sig14;
   
+  double alPol;
+  
   double *dBuffer=NULL;
   
   int *frozen,*nAtConst;
@@ -163,7 +165,7 @@ int main(int argc, char* argv[])
   init_system(&argc,&argv,&inout,&ctrl,&param,&parallel,&ener,&bath,&neigh,&ewald,&box,
 	      &atom,&constList,&bond,&angle,&dihe,&impr,&ub,&x,&y,&z,
 	      &vx,&vy,&vz,&fx,&fy,&fz,&mass,&rmass,&q,&eps,&sig,&eps14,
-	      &sig14,&frozen,&nAtConst,&neighList,&neighPair,
+	      &sig14,&alPol,&frozen,&nAtConst,&neighList,&neighPair,
 	      &neighList14,&exclList,&exclPair,&dBuffer,&iBuffer);
   
   if(parallel.idProc==0)
@@ -212,7 +214,7 @@ int main(int argc, char* argv[])
   /** Computes potential energies and forces at time=0. */
     
     energy(&ctrl,&param,&parallel,&ener,&ewald,&box,&neigh,bond,ub,angle,dihe,impr,
-	   x,y,z,vx,vy,vz,fx,fy,fz,q,eps,sig,eps14,sig14,frozen,
+	   x,y,z,vx,vy,vz,fx,fy,fz,q,eps,sig,eps14,sig14,alPol,frozen,
 	   neighList,neighPair,neighList14,exclList,exclPair,dBuffer);
         
     ener.tot=ener.kin+ener.pot;
@@ -304,7 +306,7 @@ int main(int argc, char* argv[])
     /** Energies calculation. */
     
       energy(&ctrl,&param,&parallel,&ener,&ewald,&box,&neigh,bond,ub,angle,dihe,impr,
-	     x,y,z,vx,vy,vz,fx,fy,fz,q,eps,sig,eps14,sig14,frozen,
+	     x,y,z,vx,vy,vz,fx,fy,fz,q,eps,sig,eps14,sig14,alPol,frozen,
 	     neighList,neighPair,neighList14,exclList,exclPair,dBuffer);
       
     /** Numerical derivatives to estimate forces. */

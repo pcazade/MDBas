@@ -32,6 +32,7 @@
 #include "energy.h"
 #include "ewald.h"
 #include "spme.h"
+#include "polar.h"
 #include "rand.h"
 #include "memory.h"
 #include "utils.h"
@@ -54,11 +55,11 @@
 extern FILE *outFile;
 
 void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,
-		 BATH *bath,NEIGH *neigh,EWALD *ewald,PBC *box,ATOM **atom,CONSTRAINT **constList,
+		 BATH *bath,NEIGH *neigh,EWALD *ewald,POLAR *polar,PBC *box,ATOM **atom,CONSTRAINT **constList,
 		 BOND **bond,ANGLE **angle,DIHE **dihe,DIHE **impr,BOND **ub,double **x,
 		 double **y, double **z,double **vx,double **vy,double **vz,double **fx,
 		 double **fy, double **fz,double **mass,double **rmass,double **q,
-		 double **eps,double **sig,double **eps14,double **sig14,int **frozen,
+		 double **eps,double **sig,double **eps14,double **sig14,double **alPol,int **frozen,
 		 int **nAtConst,int ***neighList,int **neighPair,int **neighList14,
 		 int ***exclList,int **exclPair,double **dBuffer,int **iBuffer)
 {
@@ -125,6 +126,9 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
       *eps14=(double*)my_malloc(param->nAtom*sizeof(double));
       *sig14=(double*)my_malloc(param->nAtom*sizeof(double));
       
+      if(ctrl->keyPol)
+	*alPol=(double*)my_malloc(param->nAtom*sizeof(double));
+      
     }
     else
     {
@@ -153,11 +157,14 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
       *sig=(double*)my_malloc(param->nAtom*sizeof(double));
       *eps14=(double*)my_malloc(param->nAtom*sizeof(double));
       *sig14=(double*)my_malloc(param->nAtom*sizeof(double));
+      
+      if(ctrl->keyPol)
+	*alPol=(double*)my_malloc(param->nAtom*sizeof(double));
             
     }
     
     read_FORF(inout,param,*atom,constList,bond,angle,dihe,impr,ub,*eps,*sig,
-	      *eps14,*sig14,*mass,*q,*frozen,*nAtConst);
+	      *eps14,*sig14,*mass,*q,*alPol,*frozen,*nAtConst);
     
     fprintf(outFile,"%s file read\n",inout->forfName);
     
@@ -167,9 +174,9 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
   
   }
     
-  setup_para(ctrl,param,parallel,bath,neigh,ewald,box,constList,
+  setup_para(ctrl,param,parallel,bath,neigh,ewald,polar,box,constList,
 	     bond,angle,dihe,impr,ub,x,y,z,vx,vy,vz,fx,fy,fz,mass,rmass,q,
-	     eps,sig,eps14,sig14,frozen,nAtConst,dBuffer,iBuffer);
+	     eps,sig,eps14,sig14,alPol,frozen,nAtConst,dBuffer,iBuffer);
       
   getKin0(param,box);
     
@@ -187,8 +194,11 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
   {
     init_ewald(ctrl,param,parallel,ewald,box);
     
+    if(ctrl->keyPol)
+      init_polar(ctrl,param,polar,alPol);
+    
     if(parallel->nProc>1)
-      parallel_reallocate_buffers(parallel,ewald,dBuffer);
+      parallel_reallocate_buffers(parallel,ewald,polar,dBuffer);
     
     if(parallel->idProc==0)
     {
@@ -199,13 +209,17 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
       fprintf(outFile,"Ewald wavevectors: %d %d %d\n",ewald->m1max,ewald->m2max,ewald->m3max);
       fprintf(outFile,"Ewald maximum wavevectors: %d\n\n",ewald->mmax);
     }
+    
   }
   else if(ctrl->keyEwald==2)
   {
     init_spme(ctrl,param,parallel,ewald,box);
     
+    if(ctrl->keyPol)
+      init_polar(ctrl,param,polar,alPol);
+    
     if(parallel->nProc>1)
-      parallel_reallocate_buffers(parallel,ewald,dBuffer);
+      parallel_reallocate_buffers(parallel,ewald,polar,dBuffer);
     
     if(parallel->idProc==0)
     {
@@ -272,7 +286,7 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
 }
 
 void init_variables(CTRL *ctrl,PARAM *param,PARALLEL *parallel,BATH *bath,NEIGH *neigh,
-		    EWALD *ewald,PBC *box)
+		    EWALD *ewald,POLAR *polar,PBC *box)
 {
   parallel->idProc=my_proc();
   parallel->nProc=num_proc();
@@ -295,6 +309,9 @@ void init_variables(CTRL *ctrl,PARAM *param,PARALLEL *parallel,BATH *bath,NEIGH 
   ctrl->keyEwald=0;
   ctrl->keyAlpha=0;
   ctrl->keyMmax=0;
+  
+  ctrl->keyPol=0;
+  ctrl->keyPolInv=0;
   
   ctrl->elecType=DAMP;
   ctrl->vdwType=VSWITCH;
@@ -378,6 +395,11 @@ void init_variables(CTRL *ctrl,PARAM *param,PARALLEL *parallel,BATH *bath,NEIGH 
   ewald->m3max=6;
   ewald->prec=1e-6;
   ewald->alpha=0.1;
+  
+  polar->maxCycle=20;
+  polar->nAtPol=0;
+  polar->nPolTensor=0;
+  polar->tol=1e-6;
   
   neigh->update=20;
   neigh->linkRatio=1;
@@ -1060,11 +1082,11 @@ void init_box(PBC *box)
   
 }
 
-void free_all(CTRL *ctrl,PARAM *param, PARALLEL *parallel,EWALD *ewald,ATOM **atom,
+void free_all(CTRL *ctrl,PARAM *param, PARALLEL *parallel,EWALD *ewald,POLAR *polar,ATOM **atom,
 	      CONSTRAINT **constList,BOND **bond,ANGLE **angle,DIHE **dihe,DIHE **impr,
 	      BOND **ub,double **x,double **y, double **z,double **vx,double **vy,
 	      double **vz,double **fx,double **fy, double **fz,double **mass,double **rmass,
-	      double **q,double **eps,double **sig,double **eps14,double **sig14,int **frozen,
+	      double **q,double **eps,double **sig,double **eps14,double **sig14,double **alPol,int **frozen,
 	      int **nAtConst,int ***neighList,int **neighPair,int **neighList14,
 	      int ***exclList,int **exclPair,double **dBuffer,int **iBuffer)
 {
@@ -1125,6 +1147,8 @@ void free_all(CTRL *ctrl,PARAM *param, PARALLEL *parallel,EWALD *ewald,ATOM **at
   {
     spme_free(parallel);
   }
+  
+  if(ctrl->keyPol)
   
 #ifdef TIMER
   free_timers();
