@@ -932,9 +932,9 @@ void read_rest(IO *inout,PARAM *param,ENERGY *ener,BATH *bath,ATOM **atom,
 
 }
 
-void read_FORF(IO *inout,PARAM *param,ATOM atom[],CONSTRAINT **constList,BOND **bond,
+void read_FORF(IO *inout,CTRL *ctrl,PARAM *param,ATOM atom[],CONSTRAINT **constList,BOND **bond,
                ANGLE **angle,DIHE **dihe,DIHE **impr,BOND **ub,double *eps,double *sig,
-               double *eps14, double *sig14,double *mass,double *q,int *frozen,int *nAtConst)
+               double *eps14, double *sig14,double *mass,double *q,double *alPol,int *frozen,int *nAtConst)
 {
 
     char buff1[1024]="", *buff2=NULL, buff3[1024]="", *buff4=NULL;
@@ -984,6 +984,17 @@ void read_FORF(IO *inout,PARAM *param,ATOM atom[],CONSTRAINT **constList,BOND **
                     q[i]=atof(strtok(NULL," \n\t"));
                     mass[i]=atof(strtok(NULL," \n\t"));
                     frozen[i]=atoi(strtok(NULL," \n\t"));
+		    
+		    if(ctrl->keyPol)
+		    {
+		      buff4=strtok(NULL," \n\t");
+		      if(buff4!=NULL)
+		      {
+			alPol[i]=atof(buff4);
+		      }
+		      else
+			my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
+		    }
 
                     nAtConst[i]=0;
 

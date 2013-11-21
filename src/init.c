@@ -1149,6 +1149,10 @@ void free_all(CTRL *ctrl,PARAM *param, PARALLEL *parallel,EWALD *ewald,POLAR *po
   }
   
   if(ctrl->keyPol)
+  {
+    free_polar(ctrl);
+    free(*alPol);
+  }
   
 #ifdef TIMER
   free_timers();

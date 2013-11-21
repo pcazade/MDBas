@@ -193,8 +193,18 @@ void energy(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,EWALD *ewald
             ewald14_energy(param,parallel,ener,ewald,box,neigh,x,y,z,fx,fy,fz,q,eps14,sig14,neighList14);
 	
 	if(ctrl->keyPol)
-	  polar_ener_iter(param,parallel,ener,box,polar,x,y,z,fx,fy,fz,q,alPol,
-			  neighList,neighPair,dBuffer);
+	{
+	  if(ctrl->keyPolInv)
+	  {
+	    polar_ener_inv(param,parallel,ener,box,polar,x,y,z,fx,fy,fz,q,alPol,
+			   neighList,neighPair,dBuffer);
+	  }
+	  else
+	  {
+	    polar_ener_iter(param,parallel,ener,box,polar,x,y,z,fx,fy,fz,q,alPol,
+			    neighList,neighPair,dBuffer);
+	  }
+	}
     }
     else
     {
@@ -277,6 +287,17 @@ void energy(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,EWALD *ewald
 
     ener->virpot=ener->virbond+ener->virub+ener->virelec+ener->virvdw+
 		 ener->virpol;
+
+#ifdef DEBUG
+    double virCheck=0.;
+    if(parallel->idProc==0)
+    {
+      for(i=0;i<param->nAtom;i++)
+      {
+	virCheck+=( (fx[i])*x[i] )
+      }
+    }
+#endif
 
 #ifdef TIMER
     update_timer_end(TIMER_ENERGY_TOT,__func__);
