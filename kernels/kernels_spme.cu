@@ -31,7 +31,7 @@
 #include "utils.h"
 #include "memory.h"
 #include "spme.h"
-#include "cuda_utils.h"
+#include "kernels_utils.h"
 
 #ifdef USING_MPI
 #include "parallel.h"
@@ -39,30 +39,22 @@
 #include "serial.h"
 #endif
 
-# ifdef DOUBLE_CUDA
-typedef cuDoubleComplex cplx;
-typedef double real;
-#else
-typedef cuComplex cplx;
-typedef float real;
-#endif
-
 static int newJob;
 
-static double eEwaldself,systq;
+static real eEwaldself,systq;
 
-static double *sx,*sy,*sz;
+static real *sx,*sy,*sz;
 
-static double *bsp,*qsp;
-static double **bsp1,**bsp2,**bsp3;
-static double **bsd1,**bsd2,**bsd3;
+static real *bsp,*qsp;
+static real **bsp1,**bsp2,**bsp3;
+static real **bsd1,**bsd2,**bsd3;
 
 static cplx *bspc1,*bspc2,*bspc3;
 static cplx *epl1,*epl2,*epl3;
 
-static fftw_complex *ftqsp;
-static fftw_plan fft3d1;
-static fftw_plan fft3d2;
+static cufftComplex *d_ftqsp;
+static cufftHandle d_fft3d1;
+static cufftHandle d_fft3d2;
 
 void init_spme(CTRL *ctrl,PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box)
 {
@@ -186,10 +178,10 @@ void spme_free(PARALLEL *parallel)
     free(qsp);
 
 #ifdef FFTW
-    fftw_free(ftqsp);
+    cudaFree(d_ftqsp);
 
-    fftw_destroy_plan(fft3d1);
-    fftw_destroy_plan(fft3d2);
+    cufftDestroy(d_fft3d1);
+    cufftDestroy(d_fft3d2);
 #else
     free(ftqsp);
 #endif
@@ -300,7 +292,7 @@ void bspgen(PARALLEL *parallel,EWALD *ewald)
 {
 
     int i,j,k;
-    double tsx,tsy,tsz;
+    real tsx,tsy,tsz;
 
     for(i=0; i<parallel->nAtProc; i++)
     {
@@ -384,9 +376,9 @@ void bspgen(PARALLEL *parallel,EWALD *ewald)
 
 }
 
-double spme_energy(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const double x[],
-                   const double y[],const double z[],double fx[],double fy[],double fz[],
-                   const double q[],double stress[6],double *virEwaldRec,double dBuffer[])
+real spme_energy(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const real x[],
+                   const real y[],const real z[],real fx[],real fy[],real fz[],
+                   const real q[],real stress[6],real *virEwaldRec,real dBuffer[])
 {
 
     int i,ii,j,jj,k,kk,l,ll;
@@ -395,14 +387,14 @@ double spme_energy(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const d
 
     cplx cam,etmp;
 
-    double vam,qtmp,fact1;
-    double tt,bm1,bm2,bm3;
-    double rm,rrm,rmx,rmy,rmz;
-    double rm1x,rm1y,rm1z,rm2x,rm2y,rm2z;
-    double recCutOff,recCutOff2,rAlpha2,rVol;
-    double eEwaldRec,eNonNeutral;
-    double fbx,fby,fbz;
-    double fm[3];
+    real vam,qtmp,fact1;
+    real tt,bm1,bm2,bm3;
+    real rm,rrm,rmx,rmy,rmz;
+    real rm1x,rm1y,rm1z,rm2x,rm2y,rm2z;
+    real recCutOff,recCutOff2,rAlpha2,rVol;
+    real eEwaldRec,eNonNeutral;
+    real fbx,fby,fbz;
+    real fm[3];
 
     if(newJob)
     {
@@ -421,7 +413,7 @@ double spme_energy(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const d
         {
             dBuffer[0]=systq;
             dBuffer[1]=eEwaldself;
-            sum_real_para(dBuffer,&(dBuffer[3]),2);
+            sum_double_para(dBuffer,&(dBuffer[3]),2);
             systq=dBuffer[0];
             eEwaldself=dBuffer[1];
         }
@@ -433,17 +425,9 @@ double spme_energy(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const d
 
 //     Calculate the coefficient of the B-spline
         bspcoef(ewald);
-
-#ifdef FFTW
-
-        fft3d1=fftw_plan_dft_3d(ewald->m1max,ewald->m2max,ewald->m3max,
-                                ftqsp,ftqsp,FFTW_BACKWARD,FFTW_MEASURE);
-
-        fft3d2=fftw_plan_dft_3d(ewald->m1max,ewald->m2max,ewald->m3max,
-                                ftqsp,ftqsp,FFTW_FORWARD,FFTW_MEASURE);
-#else
-
-#endif
+	
+	cufftPlan3d(&d_fft3d1,ewald->m1max,ewald->m2max,ewald->m3max,CUFFT_C2C);
+	cufftPlan3d(&d_fft3d2,ewald->m1max,ewald->m2max,ewald->m3max,CUFFT_C2C);
 
     } //   End if(newJob)
 

@@ -51,6 +51,14 @@ extern "C" {
 
 //#define COSDIH  1                       /*!< Cosine potential type for dihedral and improper angles. */
 //#define HARMDIH 2                       /*!< Harmonic potential type for dihedral and improper angles. */
+  
+# ifdef DOUBLE_CUDA
+  typedef cuDoubleComplex cplx;
+  typedef double real;
+#else
+  typedef cuComplex cplx;
+  typedef float real;
+#endif
 
     /*!
      * \enum ELEC_TYPE
