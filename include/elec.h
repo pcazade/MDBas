@@ -5,42 +5,42 @@
 extern "C" {
 #endif
 
-    double coulomb_none(const PARAM *param,double *delec,const double qel,
-                        const double r2,const double rt);
+    real coulomb_none(const PARAM *param,real *delec,const real qel,
+                        const real r2,const real rt);
 
-    void coulomb_full(ENERGY *ener,PARAM *param,PARALLEL *parallel,PBC *box,double *x,double *y,
-                      double *z,double *fx, double *fy, double *fz,double *q,
+    void coulomb_full(ENERGY *ener,PARAM *param,PARALLEL *parallel,PBC *box,real *x,real *y,
+                      real *z,real *fx, real *fy, real *fz,real *q,
                       int **exclList,int *exclPair);
 
-    double coulomb_shift1(const PARAM *param,double *delec,const double qel,
-                          const double r2,const double rt);
+    real coulomb_shift1(const PARAM *param,real *delec,const real qel,
+                          const real r2,const real rt);
 
-    double coulomb_shift2(const PARAM *param,double *delec,const double qel,
-                          const double r2,const double rt);
+    real coulomb_shift2(const PARAM *param,real *delec,const real qel,
+                          const real r2,const real rt);
 
-    double coulomb_switch(const PARAM *param,double *delec,const double qel,
-                          const double r2,const double rt);
+    real coulomb_switch(const PARAM *param,real *delec,const real qel,
+                          const real r2,const real rt);
     
-    double coulomb_damp(const PARAM *param,double *delec,const double qel,
-			const double r2,const double rt);
+    real coulomb_damp(const PARAM *param,real *delec,const real qel,
+			const real r2,const real rt);
 
-    double coulomb14_none(const PARAM *param,double *delec,const double qel,
-                          const double r2,const double rt);
+    real coulomb14_none(const PARAM *param,real *delec,const real qel,
+                          const real r2,const real rt);
 
-    double coulomb14_full(const PARAM *param,double *delec,const double qel,
-                          const double r2,const double rt);
+    real coulomb14_full(const PARAM *param,real *delec,const real qel,
+                          const real r2,const real rt);
 
-    double coulomb14_shift1(const PARAM *param,double *delec,const double qel,
-                            const double r2,const double rt);
+    real coulomb14_shift1(const PARAM *param,real *delec,const real qel,
+                            const real r2,const real rt);
 
-    double coulomb14_shift2(const PARAM *param,double *delec,const double qel,
-                            const double r2,const double rt);
+    real coulomb14_shift2(const PARAM *param,real *delec,const real qel,
+                            const real r2,const real rt);
 
-    double coulomb14_switch(const PARAM *param,double *delec,const double qel,
-                            const double r2,const double rt);
+    real coulomb14_switch(const PARAM *param,real *delec,const real qel,
+                            const real r2,const real rt);
     
-    double coulomb14_damp(const PARAM *param,double *delec,const double qel,
-			  const double r2,const double rt);
+    real coulomb14_damp(const PARAM *param,real *delec,const real qel,
+			  const real r2,const real rt);
 
     /** Pointer to the output file. **/
     extern FILE *outFile;

@@ -54,11 +54,11 @@
 /** Pointer to the output file. **/
 extern FILE *outFile;
 
-static double *ddx,*ddy,*ddz;
-static double *xo,*yo,*zo;
-static double *xt,*yt,*zt;
-static double *vxo,*vyo,*vzo;
-static double *vxu,*vyu,*vzu;
+static real *ddx,*ddy,*ddz;
+static real *xo,*yo,*zo;
+static real *xt,*yt,*zt;
+static real *vxo,*vyo,*vzo;
+static real *vxu,*vyu,*vzu;
 
 void integrators_allocate_arrays(CTRL *ctrl,PARAM *param,PARALLEL *parallel)
 {
@@ -69,39 +69,39 @@ void integrators_allocate_arrays(CTRL *ctrl,PARAM *param,PARALLEL *parallel)
     {
         if (ctrl->ens == NVE)
         {
-            xo=(double*)my_malloc(parallel->maxAtProc*sizeof(*xo));
-            yo=(double*)my_malloc(parallel->maxAtProc*sizeof(*yo));
-            zo=(double*)my_malloc(parallel->maxAtProc*sizeof(*zo));
-            vxu=(double*)my_malloc(parallel->maxAtProc*sizeof(*vxu));
-            vyu=(double*)my_malloc(parallel->maxAtProc*sizeof(*vyu));
-            vzu=(double*)my_malloc(parallel->maxAtProc*sizeof(*vzu));
+            xo=(real*)my_malloc(parallel->maxAtProc*sizeof(*xo));
+            yo=(real*)my_malloc(parallel->maxAtProc*sizeof(*yo));
+            zo=(real*)my_malloc(parallel->maxAtProc*sizeof(*zo));
+            vxu=(real*)my_malloc(parallel->maxAtProc*sizeof(*vxu));
+            vyu=(real*)my_malloc(parallel->maxAtProc*sizeof(*vyu));
+            vzu=(real*)my_malloc(parallel->maxAtProc*sizeof(*vzu));
             if(param->nConst>0)
             {
-                ddx=(double*)my_malloc(parallel->maxCtProc*sizeof(*ddx));
-                ddy=(double*)my_malloc(parallel->maxCtProc*sizeof(*ddy));
-                ddz=(double*)my_malloc(parallel->maxCtProc*sizeof(*ddz));
+                ddx=(real*)my_malloc(parallel->maxCtProc*sizeof(*ddx));
+                ddy=(real*)my_malloc(parallel->maxCtProc*sizeof(*ddy));
+                ddz=(real*)my_malloc(parallel->maxCtProc*sizeof(*ddz));
             }
         }
         else
         {
-            xo=(double*)my_malloc(parallel->maxAtProc*sizeof(*xo));
-            yo=(double*)my_malloc(parallel->maxAtProc*sizeof(*yo));
-            zo=(double*)my_malloc(parallel->maxAtProc*sizeof(*zo));
-            vxo=(double*)my_malloc(parallel->maxAtProc*sizeof(*vxo));
-            vyo=(double*)my_malloc(parallel->maxAtProc*sizeof(*vyo));
-            vzo=(double*)my_malloc(parallel->maxAtProc*sizeof(*vzo));
-            vxu=(double*)my_malloc(parallel->maxAtProc*sizeof(*vxu));
-            vyu=(double*)my_malloc(parallel->maxAtProc*sizeof(*vyu));
-            vzu=(double*)my_malloc(parallel->maxAtProc*sizeof(*vzu));
+            xo=(real*)my_malloc(parallel->maxAtProc*sizeof(*xo));
+            yo=(real*)my_malloc(parallel->maxAtProc*sizeof(*yo));
+            zo=(real*)my_malloc(parallel->maxAtProc*sizeof(*zo));
+            vxo=(real*)my_malloc(parallel->maxAtProc*sizeof(*vxo));
+            vyo=(real*)my_malloc(parallel->maxAtProc*sizeof(*vyo));
+            vzo=(real*)my_malloc(parallel->maxAtProc*sizeof(*vzo));
+            vxu=(real*)my_malloc(parallel->maxAtProc*sizeof(*vxu));
+            vyu=(real*)my_malloc(parallel->maxAtProc*sizeof(*vyu));
+            vzu=(real*)my_malloc(parallel->maxAtProc*sizeof(*vzu));
             if(param->nConst>0)
             {
-                ddx=(double*)my_malloc(parallel->maxCtProc*sizeof(*ddx));
-                ddy=(double*)my_malloc(parallel->maxCtProc*sizeof(*ddy));
-                ddz=(double*)my_malloc(parallel->maxCtProc*sizeof(*ddz));
+                ddx=(real*)my_malloc(parallel->maxCtProc*sizeof(*ddx));
+                ddy=(real*)my_malloc(parallel->maxCtProc*sizeof(*ddy));
+                ddz=(real*)my_malloc(parallel->maxCtProc*sizeof(*ddz));
 
-                xt=(double*)my_malloc(parallel->maxAtProc*sizeof(*xt));
-                yt=(double*)my_malloc(parallel->maxAtProc*sizeof(*yt));
-                zt=(double*)my_malloc(parallel->maxAtProc*sizeof(*zt));
+                xt=(real*)my_malloc(parallel->maxAtProc*sizeof(*xt));
+                yt=(real*)my_malloc(parallel->maxAtProc*sizeof(*yt));
+                zt=(real*)my_malloc(parallel->maxAtProc*sizeof(*zt));
             }
         }
     }
@@ -111,24 +111,24 @@ void integrators_allocate_arrays(CTRL *ctrl,PARAM *param,PARALLEL *parallel)
         {
             if(param->nConst>0)
             {
-                ddx=(double*)my_malloc(parallel->maxCtProc*sizeof(*ddx));
-                ddy=(double*)my_malloc(parallel->maxCtProc*sizeof(*ddy));
-                ddz=(double*)my_malloc(parallel->maxCtProc*sizeof(*ddz));
+                ddx=(real*)my_malloc(parallel->maxCtProc*sizeof(*ddx));
+                ddy=(real*)my_malloc(parallel->maxCtProc*sizeof(*ddy));
+                ddz=(real*)my_malloc(parallel->maxCtProc*sizeof(*ddz));
             }
         }
         else
         {
-            xo=(double*)my_malloc(parallel->maxAtProc*sizeof(*xo));
-            yo=(double*)my_malloc(parallel->maxAtProc*sizeof(*yo));
-            zo=(double*)my_malloc(parallel->maxAtProc*sizeof(*zo));
-            vxo=(double*)my_malloc(parallel->maxAtProc*sizeof(*vxo));
-            vyo=(double*)my_malloc(parallel->maxAtProc*sizeof(*vyo));
-            vzo=(double*)my_malloc(parallel->maxAtProc*sizeof(*vzo));
+            xo=(real*)my_malloc(parallel->maxAtProc*sizeof(*xo));
+            yo=(real*)my_malloc(parallel->maxAtProc*sizeof(*yo));
+            zo=(real*)my_malloc(parallel->maxAtProc*sizeof(*zo));
+            vxo=(real*)my_malloc(parallel->maxAtProc*sizeof(*vxo));
+            vyo=(real*)my_malloc(parallel->maxAtProc*sizeof(*vyo));
+            vzo=(real*)my_malloc(parallel->maxAtProc*sizeof(*vzo));
             if(param->nConst>0)
             {
-                ddx=(double*)my_malloc(parallel->maxCtProc*sizeof(*ddx));
-                ddy=(double*)my_malloc(parallel->maxCtProc*sizeof(*ddy));
-                ddz=(double*)my_malloc(parallel->maxCtProc*sizeof(*ddz));
+                ddx=(real*)my_malloc(parallel->maxCtProc*sizeof(*ddx));
+                ddy=(real*)my_malloc(parallel->maxCtProc*sizeof(*ddy));
+                ddz=(real*)my_malloc(parallel->maxCtProc*sizeof(*ddz));
             }
         }
     }
@@ -208,10 +208,10 @@ void integrators_free_arrays(CTRL *ctrl,PARAM *param)
 
 void lf_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,
                   BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
-                  double *x,double *y,double *z,
-                  double *vx,double *vy,double *vz,
-                  double *fx,double *fy,double *fz,
-                  double *mass,double *rmass,int *nAtConst,double dBuffer[])
+                  real *x,real *y,real *z,
+                  real *vx,real *vy,real *vz,
+                  real *fx,real *fy,real *fz,
+                  real *mass,real *rmass,int *nAtConst,real dBuffer[])
 {
 
 #ifdef TIMER
@@ -248,13 +248,13 @@ void lf_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,
 
 void lf_nve(PARAM *param,ENERGY *ener,PBC *box,
             CONSTRAINT constList[],PARALLEL *parallel,
-            double *x,double *y,double *z,
-            double *vx,double *vy,double *vz,
-            double *fx,double *fy,double *fz,
-            double *mass,double *rmass,int *nAtConst,double dBuffer[])
+            real *x,real *y,real *z,
+            real *vx,real *vy,real *vz,
+            real *fx,real *fy,real *fz,
+            real *mass,real *rmass,int *nAtConst,real dBuffer[])
 {
     int i,ia,ib,l;
-    double virshake=0.,stress[6]= {0.},stresk[6]= {0.};
+    real virshake=0.,stress[6]= {0.},stresk[6]= {0.};
 
     if(param->nConst>0)
     {
@@ -433,14 +433,14 @@ void lf_nve(PARAM *param,ENERGY *ener,PBC *box,
 }
 
 void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
-              double *x,double *y,double *z,
-              double *vx,double *vy,double *vz,
-              double *fx,double *fy,double *fz,
-              double *mass,double *rmass,int *nAtConst,double dBuffer[])
+              real *x,real *y,real *z,
+              real *vx,real *vy,real *vz,
+              real *fx,real *fy,real *fz,
+              real *mass,real *rmass,int *nAtConst,real dBuffer[])
 {
     int i,k,l,ia,ib,bercycle;
-    double lambda,rts2;
-    double virshake=0.,virshakt=0.,stress[6]= {0.},strest[6]= {0.},stresk[6]= {0.};
+    real lambda,rts2;
+    real virshake=0.,virshakt=0.,stress[6]= {0.},strest[6]= {0.},stresk[6]= {0.};
 
     l=0;
 #ifdef _OPENMP
@@ -662,15 +662,15 @@ void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 }
 
 void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
-              double *x,double *y,double *z,
-              double *vx,double *vy,double *vz,
-              double *fx,double *fy,double *fz,
-              double *mass,double *rmass,int *nAtConst,double dBuffer[])
+              real *x,real *y,real *z,
+              real *vx,real *vy,real *vz,
+              real *fx,real *fy,real *fz,
+              real *mass,real *rmass,int *nAtConst,real dBuffer[])
 {
     int i,k,l,ia,ib,bercycle;
-    double lambda,gamma,cbrga,pp,rts2;
-    double volume,cell0[9];
-    double virshake=0.,virshakt=0.,stress[6]= {0.},strest[6]= {0.},stresk[6]= {0.};
+    real lambda,gamma,cbrga,pp,rts2;
+    real volume,cell0[9];
+    real virshake=0.,virshakt=0.,stress[6]= {0.},strest[6]= {0.},stresk[6]= {0.};
 
     l=0;
 #ifdef _OPENMP
@@ -922,14 +922,14 @@ void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 }
 
 void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
-              double *x,double *y,double *z,
-              double *vx,double *vy,double *vz,
-              double *fx,double *fy,double *fz,
-              double *mass,double *rmass,int *nAtConst,double dBuffer[])
+              real *x,real *y,real *z,
+              real *vx,real *vy,real *vz,
+              real *fx,real *fy,real *fz,
+              real *mass,real *rmass,int *nAtConst,real dBuffer[])
 {
     int i,k,l,ia,ib,nosecycle;
-    double lambda,lambdb,lambdc,rts2,qmass;
-    double virshake=0.,virshakt=0.,stress[6]= {0.},strest[6]= {0.},stresk[6]= {0.};
+    real lambda,lambdb,lambdc,rts2,qmass;
+    real virshake=0.,virshakt=0.,stress[6]= {0.},strest[6]= {0.},stresk[6]= {0.};
 
     l=0;
 #ifdef _OPENMP
@@ -1164,16 +1164,16 @@ void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 }
 
 void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
-              double *x,double *y,double *z,
-              double *vx,double *vy,double *vz,
-              double *fx,double *fy,double *fz,
-              double *mass,double *rmass,int *nAtConst,double dBuffer[])
+              real *x,real *y,real *z,
+              real *vx,real *vy,real *vz,
+              real *fx,real *fy,real *fz,
+              real *mass,real *rmass,int *nAtConst,real dBuffer[])
 {
     int i,k,l,ia,ib,nosecycle;
-    double lambda,lambdb,lambdc,rts2,qmass;
-    double gamma,gammb,gammc,cbrga,pmass;
-    double volume,masst=0.,cell0[9],com[3]= {0.},vom[3]= {0.};
-    double virshake=0.,virshakt=0.,stress[6]= {0.},strest[6]= {0.},stresk[6]= {0.};
+    real lambda,lambdb,lambdc,rts2,qmass;
+    real gamma,gammb,gammc,cbrga,pmass;
+    real volume,masst=0.,cell0[9],com[3]= {0.},vom[3]= {0.};
+    real virshake=0.,virshakt=0.,stress[6]= {0.},strest[6]= {0.},stresk[6]= {0.};
 
     l=0;
 #ifdef _OPENMP
@@ -1512,10 +1512,10 @@ void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 }
 
 void vv_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,BATH *bath,
-                  CONSTRAINT constList[],PARALLEL *parallel,double *x,double *y,
-                  double *z,double *vx,double *vy,double *vz,
-                  double *fx,double *fy,double *fz,
-                  double *mass,double *rmass,int *nAtConst,double dBuffer[],int stage)
+                  CONSTRAINT constList[],PARALLEL *parallel,real *x,real *y,
+                  real *z,real *vx,real *vy,real *vz,
+                  real *fx,real *fy,real *fz,
+                  real *mass,real *rmass,int *nAtConst,real dBuffer[],int stage)
 {
 
 #ifdef TIMER
@@ -1551,12 +1551,12 @@ void vv_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,BATH *bath,
 }
 
 void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
-            double *x,double *y,double *z,double *vx,double *vy,double *vz,
-            double *fx,double *fy,double *fz,
-            double *mass,double *rmass,int *nAtConst,double dBuffer[],int stage)
+            real *x,real *y,real *z,real *vx,real *vy,real *vz,
+            real *fx,real *fy,real *fz,
+            real *mass,real *rmass,int *nAtConst,real dBuffer[],int stage)
 {
     int i,l,ia,ib;
-    double virshake,stress[6]= {0.},stresk[6]= {0.};
+    real virshake,stress[6]= {0.},stresk[6]= {0.};
     
     virshake=ener->virshake;
 
@@ -1692,13 +1692,13 @@ void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *
 }
 
 void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
-              double *x,double *y,double *z,double *vx,double *vy,double *vz,
-              double *fx,double *fy,double *fz,
-              double *mass,double *rmass,int *nAtConst,double dBuffer[],int stage)
+              real *x,real *y,real *z,real *vx,real *vy,real *vz,
+              real *fx,real *fy,real *fz,
+              real *mass,real *rmass,int *nAtConst,real dBuffer[],int stage)
 {
     int i,l,ia,ib;
-    double lambda;
-    double virshake,stress[6]= {0.},stresk[6]= {0.};
+    real lambda;
+    real virshake,stress[6]= {0.},stresk[6]= {0.};
     
     virshake=ener->virshake;
 
@@ -1855,13 +1855,13 @@ void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 }
 
 void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
-              double *x,double *y,double *z,double *vx,double *vy,double *vz,
-              double *fx,double *fy,double *fz,
-              double *mass,double *rmass,int *nAtConst,double dBuffer[],int stage)
+              real *x,real *y,real *z,real *vx,real *vy,real *vz,
+              real *fx,real *fy,real *fz,
+              real *mass,real *rmass,int *nAtConst,real dBuffer[],int stage)
 {
     int i,l,ia,ib,k,nosecycle;
-    double lambda,gamma,cbrga,volume,pp;
-    double virshake,stress[6]= {0.},stresk[6]= {0.};
+    real lambda,gamma,cbrga,volume,pp;
+    real virshake,stress[6]= {0.},stresk[6]= {0.};
 
     volume=box->vol;
     
@@ -2091,13 +2091,13 @@ void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 }
 
 void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
-              double *x,double *y,double *z,double *vx,double *vy,double *vz,
-              double *fx,double *fy,double *fz,
-              double *mass,double *rmass,int *nAtConst,double dBuffer[],int stage)
+              real *x,real *y,real *z,real *vx,real *vy,real *vz,
+              real *fx,real *fy,real *fz,
+              real *mass,real *rmass,int *nAtConst,real dBuffer[],int stage)
 {
     int i,l,ia,ib;
-    double lambda,qmass;
-    double virshake,stress[6]= {0.},stresk[6]= {0.};
+    real lambda,qmass;
+    real virshake,stress[6]= {0.},stresk[6]= {0.};
     
     virshake=ener->virshake;
 
@@ -2292,23 +2292,23 @@ void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList
 }
 
 void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
-              double *x,double *y,double *z,double *vx,double *vy,double *vz,
-              double *fx,double *fy,double *fz,
-              double *mass,double *rmass,int *nAtConst,double dBuffer[],int stage)
+              real *x,real *y,real *z,real *vx,real *vy,real *vz,
+              real *fx,real *fy,real *fz,
+              real *mass,real *rmass,int *nAtConst,real dBuffer[],int stage)
 {
     int i,l,ia,ib,k,kk,nosecycle,hoovercycle;
-    double hts,chts,cqts;
-    double cons0,lambda,lambda0,qmass;
-    double gamma,gamma0,pmass,cbrga,scale;
-    double volume,volume0,cell0[9],masst=0.,com[3]= {0.},vom[3]= {0.};
-    double virshake,stress[6]= {0.},stresk[6]= {0.};
+    real hts,chts,cqts;
+    real cons0,lambda,lambda0,qmass;
+    real gamma,gamma0,pmass,cbrga,scale;
+    real volume,volume0,cell0[9],masst=0.,com[3]= {0.},vom[3]= {0.};
+    real virshake,stress[6]= {0.},stresk[6]= {0.};
     
     nosecycle=1;
     hoovercycle=5;
 
     hts=0.5*param->timeStep;
-    chts=hts/(double)hoovercycle;
-    cqts=0.25*param->timeStep/(double)hoovercycle;
+    chts=hts/(real)hoovercycle;
+    cqts=0.25*param->timeStep/(real)hoovercycle;
 
     //Store initial box parameters
 

@@ -6,8 +6,8 @@ extern "C" {
 #endif
 
     void init_rand(unsigned int seed);
-    double get_rand();
-    void get_BoxMuller(double *u, double *v);
+    real get_rand();
+    void get_BoxMuller(real *u, real *v);
 
 #ifdef	__cplusplus
 }

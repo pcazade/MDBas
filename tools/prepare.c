@@ -14,11 +14,11 @@ typedef struct
     char label[5],segn[5],resn[5];
     int type,resi,ires,inconst,frozen;
 
-    double x,y,z;
-    double vx,vy,vz;
-    double fx,fy,fz;
+    real x,y,z;
+    real vx,vy,vz;
+    real fx,fy,fz;
 
-    double m,rm,q;
+    real m,rm,q;
 } ATOM;
 
 typedef struct
@@ -27,8 +27,8 @@ typedef struct
     int *typesNum;
     int nTypes,nBondTypes,nAngTypes,nUbTypes,nDiheTypes,nImprTypes,nNonBonded;
     int **bondTypes,**angTypes,**ubTypes,*nDiheTypesParm,**diheTypes,**imprTypes;
-    double **bondTypesParm,**angTypesParm,**ubTypesParm;
-    double **diheTypesParm,**imprTypesParm,**nonBondedTypesParm;
+    real **bondTypesParm,**angTypesParm,**ubTypesParm;
+    real **diheTypesParm,**imprTypesParm,**nonBondedTypesParm;
 } INPUTS;
 
 typedef struct
@@ -44,34 +44,34 @@ typedef struct
 {
     int type;
     int a,b;
-    double k,r0,beta;
+    real k,r0,beta;
 } BOND;
 
 typedef struct
 {
     int type;
     int a,b,c;
-    double k,theta0;
+    real k,theta0;
 } ANGLE;
 
 typedef struct
 {
     int type,order;
     int a,b,c,d;
-    double *k,*phi0,*mult;
+    real *k,*phi0,*mult;
 } DIHE;
 
 typedef struct
 {
     int type;
-    double eps,sig,bet;
-    double eps14,sig14,bet14;
+    real eps,sig,bet;
+    real eps14,sig14,bet14;
 } VDW;
 
 typedef struct
 {
     int a,b;
-    double r0;
+    real r0;
 } CONSTRAINT;
 
 /** Formats defintition */
@@ -169,7 +169,7 @@ void const_SELE(PARAM *param,BOND **bond,CONSTRAINT **constList)
     int i,j,k;
     int ia,ib;
     int keep=1,provide=0;
-    double rc;
+    real rc;
 
     printf("How many constraint bonds?\n");
     scanf("%d",&(param->nConst));
@@ -838,46 +838,46 @@ void read_PAR(INPUTS *inp)
 //       Bond types arrays allocation
 
     inp->bondTypes=(int**)malloc(inp->nBondTypes*sizeof(*(inp->bondTypes)));
-    inp->bondTypesParm=(double**)malloc(inp->nBondTypes*sizeof(*(inp->bondTypesParm)));
+    inp->bondTypesParm=(real**)malloc(inp->nBondTypes*sizeof(*(inp->bondTypesParm)));
 
     for(i=0; i<inp->nBondTypes; i++)
     {
         inp->bondTypes[i]=(int*)malloc(2*sizeof(**(inp->bondTypes)));
-        inp->bondTypesParm[i]=(double*)malloc(2*sizeof(**(inp->bondTypesParm)));
+        inp->bondTypesParm[i]=(real*)malloc(2*sizeof(**(inp->bondTypesParm)));
     }
 
 //       Angle types arrays allocation
 
     inp->angTypes=(int**)malloc(inp->nAngTypes*sizeof(*(inp->angTypes)));
-    inp->angTypesParm=(double**)malloc(inp->nAngTypes*sizeof(*(inp->angTypesParm)));
+    inp->angTypesParm=(real**)malloc(inp->nAngTypes*sizeof(*(inp->angTypesParm)));
 
     for(i=0; i<inp->nAngTypes; i++)
     {
         inp->angTypes[i]=(int*)malloc(3*sizeof(**(inp->angTypes)));
-        inp->angTypesParm[i]=(double*)malloc(2*sizeof(**(inp->angTypesParm)));
+        inp->angTypesParm[i]=(real*)malloc(2*sizeof(**(inp->angTypesParm)));
     }
 
 //       Uray-Bradley types arrays allocation
 
     inp->ubTypes=(int**)malloc(inp->nUbTypes*sizeof(*(inp->ubTypes)));
-    inp->ubTypesParm=(double**)malloc(inp->nUbTypes*sizeof(*(inp->ubTypesParm)));
+    inp->ubTypesParm=(real**)malloc(inp->nUbTypes*sizeof(*(inp->ubTypesParm)));
 
     for(i=0; i<inp->nUbTypes; i++)
     {
         inp->ubTypes[i]=(int*)malloc(3*sizeof(**(inp->ubTypes)));
-        inp->ubTypesParm[i]=(double*)malloc(2*sizeof(**(inp->ubTypesParm)));
+        inp->ubTypesParm[i]=(real*)malloc(2*sizeof(**(inp->ubTypesParm)));
     }
 
 //       Dihedral types arrays allocation
 
     inp->diheTypes=(int**)malloc(inp->nDiheTypes*sizeof(*(inp->diheTypes)));
-    inp->diheTypesParm=(double**)malloc(inp->nDiheTypes*sizeof(*(inp->diheTypesParm)));
+    inp->diheTypesParm=(real**)malloc(inp->nDiheTypes*sizeof(*(inp->diheTypesParm)));
     inp->nDiheTypesParm=(int*)malloc(inp->nDiheTypes*sizeof(*(inp->nDiheTypesParm)));
 
     for(i=0; i<inp->nDiheTypes; i++)
     {
         inp->diheTypes[i]=(int*)malloc(4*sizeof(**(inp->diheTypes)));
-        inp->diheTypesParm[i]=(double*)malloc(3*sizeof(**(inp->diheTypesParm)));
+        inp->diheTypesParm[i]=(real*)malloc(3*sizeof(**(inp->diheTypesParm)));
     }
 
     for(i=0; i<inp->nDiheTypes; i++)
@@ -886,20 +886,20 @@ void read_PAR(INPUTS *inp)
 //       Improper types arrays allocation
 
     inp->imprTypes=(int**)malloc(inp->nImprTypes*sizeof(*(inp->imprTypes)));
-    inp->imprTypesParm=(double**)malloc(inp->nImprTypes*sizeof(*(inp->imprTypesParm)));
+    inp->imprTypesParm=(real**)malloc(inp->nImprTypes*sizeof(*(inp->imprTypesParm)));
 
     for(i=0; i<inp->nImprTypes; i++)
     {
         inp->imprTypes[i]=(int*)malloc(4*sizeof(**(inp->imprTypes)));
-        inp->imprTypesParm[i]=(double*)malloc(3*sizeof(**(inp->imprTypesParm)));
+        inp->imprTypesParm[i]=(real*)malloc(3*sizeof(**(inp->imprTypesParm)));
     }
 
 //       Non-bonding types arrays allocation
 
-    inp->nonBondedTypesParm=(double**)malloc(inp->nTypes*sizeof(*(inp->nonBondedTypesParm)));
+    inp->nonBondedTypesParm=(real**)malloc(inp->nTypes*sizeof(*(inp->nonBondedTypesParm)));
 
     for(i=0; i<inp->nTypes; i++)
-        inp->nonBondedTypesParm[i]=(double*)malloc(6*sizeof(**(inp->nonBondedTypesParm)));
+        inp->nonBondedTypesParm[i]=(real*)malloc(6*sizeof(**(inp->nonBondedTypesParm)));
 
     for(i=0; i<inp->nTypes; i++)
     {
@@ -1263,7 +1263,7 @@ void read_PAR(INPUTS *inp)
                 else
                 {
                     inp->nDiheTypesParm[itype]++;
-                    inp->diheTypesParm[itype]=(double*)realloc(inp->diheTypesParm[itype],
+                    inp->diheTypesParm[itype]=(real*)realloc(inp->diheTypesParm[itype],
                                               inp->nDiheTypesParm[itype]*3*sizeof(*(inp->diheTypesParm)));
 
                     index=0+3*(inp->nDiheTypesParm[itype]-1);
@@ -1456,7 +1456,7 @@ void read_CONF(PARAM *param,ATOM atom[])
     FILE *confFile=NULL;
     char ren[5],atl[5],sen[5];
     int i,atn,res,ire,natomCheck;
-    double wei,xx,yy,zz;
+    real wei,xx,yy,zz;
 
     confFile=fopen("CONF","r");
 
@@ -1774,9 +1774,9 @@ void setup(INPUTS *inp,PARAM *param,ATOM atom[],BOND bond[],
 
         dihe[i].order=inp->nDiheTypesParm[itype];
 
-        dihe[i].k=(double*)malloc(inp->nDiheTypesParm[itype]*sizeof(double));
-        dihe[i].mult=(double*)malloc(inp->nDiheTypesParm[itype]*sizeof(double));
-        dihe[i].phi0=(double*)malloc(inp->nDiheTypesParm[itype]*sizeof(double));
+        dihe[i].k=(real*)malloc(inp->nDiheTypesParm[itype]*sizeof(real));
+        dihe[i].mult=(real*)malloc(inp->nDiheTypesParm[itype]*sizeof(real));
+        dihe[i].phi0=(real*)malloc(inp->nDiheTypesParm[itype]*sizeof(real));
 
         for(j=0; j<dihe[i].order; j++)
         {
@@ -1975,9 +1975,9 @@ void setup(INPUTS *inp,PARAM *param,ATOM atom[],BOND bond[],
 
         impr[i].order=1;
 
-        impr[i].k=(double*)malloc(sizeof(double));
-        impr[i].mult=(double*)malloc(sizeof(double));
-        impr[i].phi0=(double*)malloc(sizeof(double));
+        impr[i].k=(real*)malloc(sizeof(real));
+        impr[i].mult=(real*)malloc(sizeof(real));
+        impr[i].phi0=(real*)malloc(sizeof(real));
 
         impr[i].k[0]=inp->imprTypesParm[itype][0];
         impr[i].mult[0]=inp->imprTypesParm[itype][1];

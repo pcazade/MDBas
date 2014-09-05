@@ -774,14 +774,14 @@ void read_SIMU(IO *inout,CTRL *ctrl,PARAM *param,BATH *bath,NEIGH *neigh,EWALD *
 
 }
 
-void read_CONF(IO *inout,PARAM *param,ATOM **atom,double **x,double **y, double **z)
+void read_CONF(IO *inout,PARAM *param,ATOM **atom,real **x,real **y, real **z)
 {
 
     char buff1[1024]="", *buff2=NULL;
 
     char ren[5]="",atl[5]="",sen[5]="";
     int i,j,atn,res,ire;
-    double wei,xx,yy,zz;
+    real wei,xx,yy,zz;
 
     inout->confFile=fopen(inout->confName,"r");
 
@@ -803,9 +803,9 @@ void read_CONF(IO *inout,PARAM *param,ATOM **atom,double **x,double **y, double 
 
     *atom=(ATOM*)my_malloc(param->nAtom*sizeof(ATOM));
 
-    *x=(double*)my_malloc(param->nAtom*sizeof(double));
-    *y=(double*)my_malloc(param->nAtom*sizeof(double));
-    *z=(double*)my_malloc(param->nAtom*sizeof(double));
+    *x=(real*)my_malloc(param->nAtom*sizeof(real));
+    *y=(real*)my_malloc(param->nAtom*sizeof(real));
+    *z=(real*)my_malloc(param->nAtom*sizeof(real));
 
     for(i=0; i<param->nAtom; i++)
     {
@@ -846,8 +846,8 @@ void read_CONF(IO *inout,PARAM *param,ATOM **atom,double **x,double **y, double 
 }
 
 void read_rest(IO *inout,PARAM *param,ENERGY *ener,BATH *bath,ATOM **atom,
-               double **x,double **y, double **z,double **vx,double **vy,
-               double **vz,double **fx,double **fy, double **fz)
+               real **x,real **y, real **z,real **vx,real **vy,
+               real **vz,real **fx,real **fy, real **fz)
 {
 
     size_t ret;
@@ -864,55 +864,55 @@ void read_rest(IO *inout,PARAM *param,ENERGY *ener,BATH *bath,ATOM **atom,
 
     *atom=(ATOM*)my_malloc(param->nAtom*sizeof(ATOM));
 
-    *x=(double*)my_malloc(param->nAtom*sizeof(double));
-    *y=(double*)my_malloc(param->nAtom*sizeof(double));
-    *z=(double*)my_malloc(param->nAtom*sizeof(double));
+    *x=(real*)my_malloc(param->nAtom*sizeof(real));
+    *y=(real*)my_malloc(param->nAtom*sizeof(real));
+    *z=(real*)my_malloc(param->nAtom*sizeof(real));
 
-    *vx=(double*)my_malloc(param->nAtom*sizeof(double));
-    *vy=(double*)my_malloc(param->nAtom*sizeof(double));
-    *vz=(double*)my_malloc(param->nAtom*sizeof(double));
+    *vx=(real*)my_malloc(param->nAtom*sizeof(real));
+    *vy=(real*)my_malloc(param->nAtom*sizeof(real));
+    *vz=(real*)my_malloc(param->nAtom*sizeof(real));
 
-    *fx=(double*)my_malloc(param->nAtom*sizeof(double));
-    *fy=(double*)my_malloc(param->nAtom*sizeof(double));
-    *fz=(double*)my_malloc(param->nAtom*sizeof(double));
+    *fx=(real*)my_malloc(param->nAtom*sizeof(real));
+    *fy=(real*)my_malloc(param->nAtom*sizeof(real));
+    *fz=(real*)my_malloc(param->nAtom*sizeof(real));
 
     ret=fread(*atom,sizeof(ATOM),param->nAtom,inout->restFile);
     if(ret!=(size_t)param->nAtom)
         my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 
-    ret=fread(*x,sizeof(double),param->nAtom,inout->restFile);
+    ret=fread(*x,sizeof(real),param->nAtom,inout->restFile);
     if(ret!=(size_t)param->nAtom)
         my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 
-    ret=fread(*y,sizeof(double),param->nAtom,inout->restFile);
+    ret=fread(*y,sizeof(real),param->nAtom,inout->restFile);
     if(ret!=(size_t)param->nAtom)
         my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 
-    ret=fread(*z,sizeof(double),param->nAtom,inout->restFile);
+    ret=fread(*z,sizeof(real),param->nAtom,inout->restFile);
     if(ret!=(size_t)param->nAtom)
         my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 
-    ret=fread(*vx,sizeof(double),param->nAtom,inout->restFile);
+    ret=fread(*vx,sizeof(real),param->nAtom,inout->restFile);
     if(ret!=(size_t)param->nAtom)
         my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 
-    ret=fread(*vy,sizeof(double),param->nAtom,inout->restFile);
+    ret=fread(*vy,sizeof(real),param->nAtom,inout->restFile);
     if(ret!=(size_t)param->nAtom)
         my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 
-    ret=fread(*vz,sizeof(double),param->nAtom,inout->restFile);
+    ret=fread(*vz,sizeof(real),param->nAtom,inout->restFile);
     if(ret!=(size_t)param->nAtom)
         my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 
-    ret=fread(*fx,sizeof(double),param->nAtom,inout->restFile);
+    ret=fread(*fx,sizeof(real),param->nAtom,inout->restFile);
     if(ret!=(size_t)param->nAtom)
         my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 
-    ret=fread(*fy,sizeof(double),param->nAtom,inout->restFile);
+    ret=fread(*fy,sizeof(real),param->nAtom,inout->restFile);
     if(ret!=(size_t)param->nAtom)
         my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 
-    ret=fread(*fz,sizeof(double),param->nAtom,inout->restFile);
+    ret=fread(*fz,sizeof(real),param->nAtom,inout->restFile);
     if(ret!=(size_t)param->nAtom)
         my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 
@@ -920,11 +920,11 @@ void read_rest(IO *inout,PARAM *param,ENERGY *ener,BATH *bath,ATOM **atom,
     if(ret!=1)
         my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 
-    ret=fread(&(bath->chiT),sizeof(double),1,inout->restFile);
+    ret=fread(&(bath->chiT),sizeof(real),1,inout->restFile);
     if(ret!=1)
         my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 
-    ret=fread(&(bath->chiP),sizeof(double),1,inout->restFile);
+    ret=fread(&(bath->chiP),sizeof(real),1,inout->restFile);
     if(ret!=1)
         my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 
@@ -933,8 +933,8 @@ void read_rest(IO *inout,PARAM *param,ENERGY *ener,BATH *bath,ATOM **atom,
 }
 
 void read_FORF(IO *inout,CTRL *ctrl,PARAM *param,ATOM atom[],CONSTRAINT **constList,BOND **bond,
-               ANGLE **angle,DIHE **dihe,DIHE **impr,BOND **ub,double *eps,double *sig,
-               double *eps14, double *sig14,double *mass,double *q,double *alPol,int *frozen,int *nAtConst)
+               ANGLE **angle,DIHE **dihe,DIHE **impr,BOND **ub,real *eps,real *sig,
+               real *eps14, real *sig14,real *mass,real *q,real *alPol,int *frozen,int *nAtConst)
 {
 
     char buff1[1024]="", *buff2=NULL, buff3[1024]="", *buff4=NULL;
@@ -1229,7 +1229,7 @@ void read_FORF(IO *inout,CTRL *ctrl,PARAM *param,ATOM atom[],CONSTRAINT **constL
                 my_error(CONF_ATNUM_ERROR,__FILE__,__LINE__,2,&(param->nAtom),&nAtomCheck);
 
             int type;
-            double bet;
+            real bet;
 
             k=0;
             while(k<param->nAtom)
@@ -1272,11 +1272,11 @@ void read_FORF(IO *inout,CTRL *ctrl,PARAM *param,ATOM atom[],CONSTRAINT **constL
     fclose(inout->forfFile);
 }
 
-void write_CONF(IO *inout,PARAM *param,ATOM atom[],double *x,double *y, double *z)
+void write_CONF(IO *inout,PARAM *param,ATOM atom[],real *x,real *y, real *z)
 {
 
     int i;
-    double wei=0.;
+    real wei=0.;
 
     inout->rconFile=fopen(inout->rconName,"w");
 
@@ -1304,19 +1304,19 @@ void write_CONF(IO *inout,PARAM *param,ATOM atom[],double *x,double *y, double *
 void write_prop(IO *inout,PARAM *param,ENERGY *ener,PBC *box)
 {
 
-    double buffer[29]= {0.};
-    double temp,press;
+    real buffer[29]= {0.};
+    real temp,press;
 
     inout->propFile=fopen(inout->propName,"ab");
 
-    temp=2.*ener->kin/((double)param->nDegFree*rboltzui);
+    temp=2.*ener->kin/((real)param->nDegFree*rboltzui);
     if(box->type>0)
         press=(2.*ener->kin-ener->virtot)/(3.*box->vol*bartoiu);
     else
         press=0.;
 
-    buffer[0]=(double)param->step;
-    buffer[1]=(double)param->step*param->timeStep;
+    buffer[0]=(real)param->step;
+    buffer[1]=(real)param->step*param->timeStep;
     buffer[2]=temp;
     buffer[3]=press;
     buffer[4]=box->vol;
@@ -1341,15 +1341,15 @@ void write_prop(IO *inout,PARAM *param,ENERGY *ener,PBC *box)
 
     box_to_lattice(box,&(buffer[23]));
 
-    fwrite(buffer,sizeof(double),29,inout->propFile);
+    fwrite(buffer,sizeof(real),29,inout->propFile);
 
     fclose(inout->propFile);
 
 }
 
 void write_rest(IO *inout,PARAM *param,ENERGY *ener,BATH *bath,ATOM atom[],
-                double *x,double *y, double *z,double *vx,double *vy,double *vz,
-                double *fx,double *fy, double *fz)
+                real *x,real *y, real *z,real *vx,real *vy,real *vz,
+                real *fx,real *fy, real *fz)
 {
 
     size_t ret;
@@ -1368,39 +1368,39 @@ void write_rest(IO *inout,PARAM *param,ENERGY *ener,BATH *bath,ATOM atom[],
     if(ret!=(size_t)param->nAtom)
         my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 
-    ret=fwrite(x,sizeof(double),param->nAtom,inout->restFile);
+    ret=fwrite(x,sizeof(real),param->nAtom,inout->restFile);
     if(ret!=(size_t)param->nAtom)
         my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 
-    ret=fwrite(y,sizeof(double),param->nAtom,inout->restFile);
+    ret=fwrite(y,sizeof(real),param->nAtom,inout->restFile);
     if(ret!=(size_t)param->nAtom)
         my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 
-    ret=fwrite(z,sizeof(double),param->nAtom,inout->restFile);
+    ret=fwrite(z,sizeof(real),param->nAtom,inout->restFile);
     if(ret!=(size_t)param->nAtom)
         my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 
-    ret=fwrite(vx,sizeof(double),param->nAtom,inout->restFile);
+    ret=fwrite(vx,sizeof(real),param->nAtom,inout->restFile);
     if(ret!=(size_t)param->nAtom)
         my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 
-    ret=fwrite(vy,sizeof(double),param->nAtom,inout->restFile);
+    ret=fwrite(vy,sizeof(real),param->nAtom,inout->restFile);
     if(ret!=(size_t)param->nAtom)
         my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 
-    ret=fwrite(vz,sizeof(double),param->nAtom,inout->restFile);
+    ret=fwrite(vz,sizeof(real),param->nAtom,inout->restFile);
     if(ret!=(size_t)param->nAtom)
         my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 
-    ret=fwrite(fx,sizeof(double),param->nAtom,inout->restFile);
+    ret=fwrite(fx,sizeof(real),param->nAtom,inout->restFile);
     if(ret!=(size_t)param->nAtom)
         my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 
-    ret=fwrite(fy,sizeof(double),param->nAtom,inout->restFile);
+    ret=fwrite(fy,sizeof(real),param->nAtom,inout->restFile);
     if(ret!=(size_t)param->nAtom)
         my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 
-    ret=fwrite(fz,sizeof(double),param->nAtom,inout->restFile);
+    ret=fwrite(fz,sizeof(real),param->nAtom,inout->restFile);
     if(ret!=(size_t)param->nAtom)
         my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 
@@ -1408,11 +1408,11 @@ void write_rest(IO *inout,PARAM *param,ENERGY *ener,BATH *bath,ATOM atom[],
     if(ret!=1)
         my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 
-    ret=fwrite(&(bath->chiT),sizeof(double),1,inout->restFile);
+    ret=fwrite(&(bath->chiT),sizeof(real),1,inout->restFile);
     if(ret!=1)
         my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 
-    ret=fwrite(&(bath->chiP),sizeof(double),1,inout->restFile);
+    ret=fwrite(&(bath->chiP),sizeof(real),1,inout->restFile);
     if(ret!=1)
         my_error(UNKNOWN_GENERAL_ERROR,__FILE__,__LINE__,0);
 
@@ -1511,7 +1511,7 @@ void write_DCD_header(IO *inout,CTRL *ctrl,PARAM *param,PBC *box,int frozen[])
     fclose(inout->trajFile);
 }
 
-void write_DCD_traj(IO *inout,PARAM *param,PBC *box,ATOM *atom,double x[],double y[], double z[],int frozen[])
+void write_DCD_traj(IO *inout,PARAM *param,PBC *box,ATOM *atom,real x[],real y[], real z[],int frozen[])
 {
     traj_rebuild(param,box,atom,x,y,z);
   
@@ -1522,12 +1522,12 @@ void write_DCD_traj(IO *inout,PARAM *param,PBC *box,ATOM *atom,double x[],double
     // if some PBC write a part of the matrix
     if (box->type != NOBOX)
     {
-        double box_matrix[6];
+        real box_matrix[6];
         box_to_crystal(box,box_matrix);
 
-        size = 6*sizeof(double);
+        size = 6*sizeof(real);
         fwrite(&size,sizeof(unsigned int),1,inout->trajFile);
-        fwrite(box_matrix,sizeof(double),6,inout->trajFile);
+        fwrite(box_matrix,sizeof(real),6,inout->trajFile);
         fwrite(&size,sizeof(unsigned int),1,inout->trajFile);
     }
 

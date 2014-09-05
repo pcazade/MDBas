@@ -38,39 +38,41 @@
 #include <cufft.h>
 #include <cuComplex.h>
 
+#include "global.h"
+
 # ifdef DOUBLE_CUDA
 
-__host__ __device__ __inline__ cuDoubleComplex cudaAdd(cuDoubleComplex za,cuDoubleComplex zb)
+__host__ __device__ __inline__ cplx cudaAdd(cplx za,cplx zb)
 {
   return cuCadd(za,zb);
 }
 
-__host__ __device__ __inline__ cuDoubleComplex cudaSub(cuDoubleComplex za,cuDoubleComplex zb)
+__host__ __device__ __inline__ cplx cudaSub(cplx za,cplx zb)
 {
   return cuCsub(za,zb);
 }
 
-__host__ __device__ __inline__ cuDoubleComplex cudaMul(cuDoubleComplex za,cuDoubleComplex zb)
+__host__ __device__ __inline__ cplx cudaMul(cplx za,cplx zb)
 {
   return cuCmul(za,zb);
 }
 
-__host__ __device__ __inline__ cuDoubleComplex cudaDiv(cuDoubleComplex za,cuDoubleComplex zb)
+__host__ __device__ __inline__ cplx cudaDiv(cplx za,cplx zb)
 {
   return cuCdiv(za,zb);
 }
 
-__host__ __device__ __inline__ cuDoubleComplex cudaConj(cuDoubleComplex z)
+__host__ __device__ __inline__ cplx cudaConj(cplx z)
 {
   return cuConj(z);
 }
 
-__host__ __device__ __inline__ cuDoubleComplex cudaExpC(cuDoubleComplex z)
+__host__ __device__ __inline__ cplx cudaExpC(cplx z)
 {
 
-  cuDoubleComplex res;
+  cplx res;
 
-  double t = exp(z.x);
+  real t = exp(z.x);
 
   res.x=cos(z.y);
   res.y=sin(z.y);
@@ -82,10 +84,10 @@ __host__ __device__ __inline__ cuDoubleComplex cudaExpC(cuDoubleComplex z)
 
 }
 
-__host__ __device__ __inline__ cuDoubleComplex cudaExp(double z)
+__host__ __device__ __inline__ cplx cudaExp(real z)
 {
 
-  cuDoubleComplex res;
+  cplx res;
 
   res.x=exp(z);
   res.y=0.0;
@@ -94,10 +96,10 @@ __host__ __device__ __inline__ cuDoubleComplex cudaExp(double z)
 
 }
 
-__host__ __device__ __inline__ cuDoubleComplex cudaExpI(double z)
+__host__ __device__ __inline__ cplx cudaExpI(real z)
 {
 
-  cuDoubleComplex res;
+  cplx res;
 
   res.x=cos(z);
   res.y=sin(z);
@@ -106,37 +108,59 @@ __host__ __device__ __inline__ cuDoubleComplex cudaExpI(double z)
 
 }
 
+__host__ __device__ __inline__ real cudaRe(cplx z)
+{
+  return z.x;
+}
+
+__host__ __device__ __inline__ real cudaIm(cplx z)
+{
+  return z.y;
+}
+
+__host__ __device__ __inline__ real cudaComp(real z)
+{
+  
+  cplx res;
+  
+  res.x=z;
+  res.y=0.0;
+  
+  return res;
+  
+}
+
 #else
 
-__host__ __device__ __inline__ cuComplex cudaAdd(cuComplex za,cuComplex zb)
+__host__ __device__ __inline__ cplx cudaAdd(cplx za,cplx zb)
 {
   return cuCaddf(za,zb);
 }
 
-__host__ __device__ __inline__ cuComplex cudaSub(cuComplex za,cuComplex zb)
+__host__ __device__ __inline__ cplx cudaSub(cplx za,cplx zb)
 {
   return cuCsubf(za,zb);
 }
 
-__host__ __device__ __inline__ cuComplex cudaMul(cuComplex za,cuComplex zb)
+__host__ __device__ __inline__ cplx cudaMul(cplx za,cplx zb)
 {
   return cuCmulf(za,zb);
 }
 
-__host__ __device__ __inline__ cuComplex cudaDiv(cuComplex za,cuComplex zb)
+__host__ __device__ __inline__ cplx cudaDiv(cplx za,cplx zb)
 {
   return cuCdivf(za,zb);
 }
 
-__host__ __device__ __inline__ cuComplex cudaConj(cuComplex z)
+__host__ __device__ __inline__ cplx cudaConj(cplx z)
 {
   return cuConjf(z);
 }
 
-__host__ __device__ __inline__ cuComplex cudaExpC(cuComplex z)
+__host__ __device__ __inline__ cplx cudaExpC(cplx z)
 {
 
-  cuComplex res;
+  cplx res;
 
   float t = expf(z.x);
 
@@ -150,10 +174,10 @@ __host__ __device__ __inline__ cuComplex cudaExpC(cuComplex z)
 
 }
 
-__host__ __device__ __inline__ cuComplex cudaExp(float z)
+__host__ __device__ __inline__ cplx cudaExp(float z)
 {
 
-  cuComplex res;
+  cplx res;
 
   res.x=expf(z);
   res.y=0.f;
@@ -162,16 +186,38 @@ __host__ __device__ __inline__ cuComplex cudaExp(float z)
 
 }
 
-__host__ __device__ __inline__ cuComplex cudaExpI(float z)
+__host__ __device__ __inline__ cplx cudaExpI(float z)
 {
 
-  cuComplex res;
+  cplx res;
 
   res.x=cosf(z);
   res.y=sinf(z);
 
   return res;
 
+}
+
+__host__ __device__ __inline__ real cudaRe(cplx z)
+{
+  return z.x;
+}
+
+__host__ __device__ __inline__ real cudaIm(cplx z)
+{
+  return z.y;
+}
+
+__host__ __device__ __inline__ real cudaComp(real z)
+{
+  
+  cplx res;
+  
+  res.x=z;
+  res.y=0.0;
+  
+  return res;
+  
 }
 
 #endif

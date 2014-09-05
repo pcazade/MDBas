@@ -5,24 +5,24 @@
 extern "C" {
 #endif
 
-    double vdw_none(const PARAM *param,double *dvdw,const double veps,
-                    const double vsig,const double r2, const double rt);
+    real vdw_none(const PARAM *param,real *dvdw,const real veps,
+                    const real vsig,const real r2, const real rt);
 
-    void vdw_full(const PARAM *param,PARALLEL *parallel, ENERGY *ener, const PBC *box,double *x,
-                  double *y,double *z,double *fx, double *fy, double *fz,double *eps,double *sig,
+    void vdw_full(const PARAM *param,PARALLEL *parallel, ENERGY *ener, const PBC *box,real *x,
+                  real *y,real *z,real *fx, real *fy, real *fz,real *eps,real *sig,
                   int **exclList,int *exclPair);
 
-    double vdw_switch(const PARAM *param,double *dvdw,const double veps,
-                      const double vsig,const double r2, const double rt);
+    real vdw_switch(const PARAM *param,real *dvdw,const real veps,
+                      const real vsig,const real r2, const real rt);
 
-    double vdw14_none(const PARAM *param,double *dvdw,const double veps,
-                      const double vsig,const double r2, const double rt);
+    real vdw14_none(const PARAM *param,real *dvdw,const real veps,
+                      const real vsig,const real r2, const real rt);
 
-    double vdw14_full(const PARAM *param,double *dvdw,const double veps,
-                      const double vsig,const double r2, const double rt);
+    real vdw14_full(const PARAM *param,real *dvdw,const real veps,
+                      const real vsig,const real r2, const real rt);
 
-    double vdw14_switch(const PARAM *param,double *dvdw,const double veps,
-                        const double vsig,const double r2, const double rt);
+    real vdw14_switch(const PARAM *param,real *dvdw,const real veps,
+                        const real vsig,const real r2, const real rt);
 
 #ifdef	__cplusplus
 }

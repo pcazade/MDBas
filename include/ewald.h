@@ -9,21 +9,21 @@ extern "C" {
 
     void ewald_free(EWALD *ewald);
 
-    double ewald_rec(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const double x[],
-                     const double y[],const double z[],double fx[],double fy[],double fz[],
-                     const double q[],double stress[6],double *virEwaldRec,double dBuffer[]);
+    real ewald_rec(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const real x[],
+                     const real y[],const real z[],real fx[],real fy[],real fz[],
+                     const real q[],real stress[6],real *virEwaldRec,real dBuffer[]);
 
-    double ewald_dir(EWALD *ewald,double *dEwaldDir,const double qel,
-                     const double r,const double rt);
+    real ewald_dir(EWALD *ewald,real *dEwaldDir,const real qel,
+                     const real r,const real rt);
 
-    double ewald_corr(EWALD *ewald,double *dEwaldCorr,const double qel,
-                      const double r,const double rt);
+    real ewald_corr(EWALD *ewald,real *dEwaldCorr,const real qel,
+                      const real r,const real rt);
 
-    double ewald_dir14(PARAM *param,EWALD *ewald,double *dEwaldDir,const double qel,
-                       const double r,const double rt);
+    real ewald_dir14(PARAM *param,EWALD *ewald,real *dEwaldDir,const real qel,
+                       const real r,const real rt);
 
-    double ewald_corr14(PARAM *param,EWALD *ewald,double *dEwaldCorr,
-                        const double qel,const double r,const double rt);
+    real ewald_corr14(PARAM *param,EWALD *ewald,real *dEwaldCorr,
+                        const real qel,const real r,const real rt);
 
 #ifdef	__cplusplus
 }

@@ -47,24 +47,24 @@
 #include "timing.h"
 #endif
 
-static double *xt,*yt,*zt;
-static double *rt2;
-static double *dtx,*dty,*dtz;
+static real *xt,*yt,*zt;
+static real *rt2;
+static real *dtx,*dty,*dtz;
 
 void shake_allocate_arrays(const PARAM *param,const PARALLEL *parallel)
 {
     
     xt=yt=zt=rt2=dtx=dty=dtz=NULL;
 
-    xt=(double*)my_malloc(param->nAtom*sizeof(*xt));
-    yt=(double*)my_malloc(param->nAtom*sizeof(*yt));
-    zt=(double*)my_malloc(param->nAtom*sizeof(*zt));
+    xt=(real*)my_malloc(param->nAtom*sizeof(*xt));
+    yt=(real*)my_malloc(param->nAtom*sizeof(*yt));
+    zt=(real*)my_malloc(param->nAtom*sizeof(*zt));
 
-    rt2=(double*)my_malloc(parallel->maxCtProc*sizeof(*rt2));
+    rt2=(real*)my_malloc(parallel->maxCtProc*sizeof(*rt2));
 
-    dtx=(double*)my_malloc(parallel->maxCtProc*sizeof(*dtx));
-    dty=(double*)my_malloc(parallel->maxCtProc*sizeof(*dty));
-    dtz=(double*)my_malloc(parallel->maxCtProc*sizeof(*dtz));
+    dtx=(real*)my_malloc(parallel->maxCtProc*sizeof(*dtx));
+    dty=(real*)my_malloc(parallel->maxCtProc*sizeof(*dty));
+    dtz=(real*)my_malloc(parallel->maxCtProc*sizeof(*dtz));
 }
 
 void shake_free_arrays()
@@ -79,13 +79,13 @@ void shake_free_arrays()
 }
 
 void lf_shake(PARAM *param,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
-              double x[],double y[],double z[],
-              double ddx[],double ddy[],double ddz[],double rmass[],
-              int *nAtConst,double stress[6],double *virshake,double dBuffer[])
+              real x[],real y[],real z[],
+              real ddx[],real ddy[],real ddz[],real rmass[],
+              int *nAtConst,real stress[6],real *virshake,real dBuffer[])
 {
     int i,l,ia,ib,icycle,converged;
-    double ts2,maxdist,dist;
-    double lambda,lambdai,lambdaj,t2rmi,t2rmj;
+    real ts2,maxdist,dist;
+    real lambda,lambdai,lambdaj,t2rmi,t2rmj;
 
 #ifdef TIMER
     update_timer_begin(TIMER_SHAKE,__func__);
@@ -231,14 +231,14 @@ void lf_shake(PARAM *param,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
 
 
 void vv_shake_r(PARAM *param,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
-                double x[],double y[],double z[],
-                double vx[],double vy[],double vz[],
-                double ddx[],double ddy[],double ddz[],double rmass[],
-                int *nAtConst,double stress[6],double *virshake,double dBuffer[])
+                real x[],real y[],real z[],
+                real vx[],real vy[],real vz[],
+                real ddx[],real ddy[],real ddz[],real rmass[],
+                int *nAtConst,real stress[6],real *virshake,real dBuffer[])
 {
     int i,l,ia,ib,icycle,converged;
-    double maxdist,dist;
-    double lambda,lambdai,lambdaj,trmi,trmj;
+    real maxdist,dist;
+    real lambda,lambdai,lambdaj,trmi,trmj;
 
 #ifdef TIMER
     update_timer_begin(TIMER_SHAKE,__func__);
@@ -388,13 +388,13 @@ void vv_shake_r(PARAM *param,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
 }
 
 void vv_shake_v(PARAM *param,CONSTRAINT constList[],PARALLEL *parallel,
-                double vx[],double vy[],double vz[],double ddx[],
-                double ddy[],double ddz[],double rmass[],int *nAtConst,
-                double dBuffer[])
+                real vx[],real vy[],real vz[],real ddx[],
+                real ddy[],real ddz[],real rmass[],int *nAtConst,
+                real dBuffer[])
 {
     int i,l,ia,ib,icycle,converged;
-    double maxdist,tolvel;
-    double lambda,lambdai,lambdaj,trmi,trmj;
+    real maxdist,tolvel;
+    real lambda,lambdai,lambdaj,trmi,trmj;
 
 #ifdef TIMER
     update_timer_begin(TIMER_SHAKE,__func__);

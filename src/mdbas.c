@@ -115,15 +115,15 @@ int main(int argc, char* argv[])
   
   PARALLEL parallel;
   
-  double *x,*y,*z;
-  double *vx,*vy,*vz;
-  double *fx,*fy,*fz;
-  double *q,*mass,*rmass;
-  double *eps,*sig,*eps14,*sig14;
+  real *x,*y,*z;
+  real *vx,*vy,*vz;
+  real *fx,*fy,*fz;
+  real *q,*mass,*rmass;
+  real *eps,*sig,*eps14,*sig14;
   
-  double alPol;
+  real alPol;
   
-  double *dBuffer=NULL;
+  real *dBuffer=NULL;
   
   int *frozen,*nAtConst;
   int **neighList,*neighPair,*neighList14;
@@ -150,7 +150,7 @@ int main(int argc, char* argv[])
   }
   
   int i,nPrint=0;
-  double temp,press;
+  real temp,press;
   
   #ifdef _OPENMP
   int num_threads=1;
@@ -228,7 +228,7 @@ int main(int argc, char* argv[])
     
     if( (param.step%ctrl.printOut==0) && (parallel.idProc==0) )
     {
-      temp=2.*ener.kin/((double)param.nDegFree*rboltzui);
+      temp=2.*ener.kin/((real)param.nDegFree*rboltzui);
       if(box.type>0)
 	press=(2.*ener.kin-ener.virtot)/(3.*box.vol*bartoiu);
       else
@@ -354,7 +354,7 @@ int main(int argc, char* argv[])
       
       if( (param.step%ctrl.printOut==0) && (parallel.idProc==0) )
       {
-	temp=2.*ener.kin/((double)param.nDegFree*rboltzui);
+	temp=2.*ener.kin/((real)param.nDegFree*rboltzui);
 	if(box.type>0)
 	  press=(2.*ener.kin-ener.virtot)/(3.*box.vol*bartoiu);
 	else
@@ -442,7 +442,7 @@ int main(int argc, char* argv[])
   struct rusage infos_usage;
   getrusage(RUSAGE_SELF,&infos_usage);
   /** when using omp this time is not correct **/
-//  fprintf(outFile,"Execution time in Seconds : %lf\n",(double)(infos_usage.ru_utime.tv_sec+infos_usage.ru_utime.tv_usec/1000000.0));
+//  fprintf(outFile,"Execution time in Seconds : %lf\n",(real)(infos_usage.ru_utime.tv_sec+infos_usage.ru_utime.tv_usec/1000000.0));
   if(parallel.idProc==0)
     fprintf(outFile,"Max amount of physical memory used (kBytes) : %ld\n",infos_usage.ru_maxrss);
 #endif

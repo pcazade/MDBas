@@ -136,12 +136,12 @@ void init_energy_ptrs(CTRL *ctrl)
 void energy(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,EWALD *ewald,POLAR *polar,
 	    PBC *box,NEIGH *neigh,
             BOND bond[],BOND ub[],ANGLE angle[],DIHE dihe[],DIHE impr[],
-            const double x[],const double y[], const double z[],
-            double vx[],double vy[], double vz[],double fx[],double fy[],
-            double fz[],const double q[],const double eps[],const double sig[],
-            const double eps14[],const double sig14[],const double alPol[],const int frozen[],
+            const real x[],const real y[], const real z[],
+            real vx[],real vy[], real vz[],real fx[],real fy[],
+            real fz[],const real q[],const real eps[],const real sig[],
+            const real eps14[],const real sig14[],const real alPol[],const int frozen[],
             int **neighList,const int neighPair[],const int neighList14[],
-            int **exclList,const int exclPair[],double dBuffer[])
+            int **exclList,const int exclPair[],real dBuffer[])
 {
 
     int i;
@@ -289,7 +289,7 @@ void energy(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,EWALD *ewald
 		 ener->virpol;
 
 #ifdef DEBUG
-    double virCheck=0.;
+    real virCheck=0.;
     if(parallel->idProc==0)
     {
       for(i=0;i<param->nAtom;i++)
@@ -317,17 +317,17 @@ void energy(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,EWALD *ewald
  *
  * \brief Energy function collecting all terms of non-bonded energies.
  */
-void nonbond_energy(PARAM *param,PARALLEL *parallel,ENERGY *ener,PBC *box,const double x[],const double y[],
-                    const double z[],double fx[],double fy[],double fz[],const double q[],
-                    const double eps[],const double sig[],int **neighList,
+void nonbond_energy(PARAM *param,PARALLEL *parallel,ENERGY *ener,PBC *box,const real x[],const real y[],
+                    const real z[],real fx[],real fy[],real fz[],const real q[],
+                    const real eps[],const real sig[],int **neighList,
                     const int neighPair[])
 {
 
     int i,j,k,l;
-    double elec=0.,evdw=0.,delec=0.,dvdw=0.,virelec=0.,virvdw=0.;
-    double r,r2,rt,fxj,fyj,fzj,fxi,fyi,fzi;
-    double qel,veps,vsig;
-    double delta[3]/*,stress[6]={0.}*/;
+    real elec=0.,evdw=0.,delec=0.,dvdw=0.,virelec=0.,virvdw=0.;
+    real r,r2,rt,fxj,fyj,fzj,fxi,fyi,fzi;
+    real qel,veps,vsig;
+    real delta[3]/*,stress[6]={0.}*/;
 
 #ifdef TIMER
     update_timer_begin(TIMER_ENERGY_NB,__func__);
@@ -460,16 +460,16 @@ void nonbond_energy(PARAM *param,PARALLEL *parallel,ENERGY *ener,PBC *box,const 
  * \brief Energy function collecting all terms of 1-4 non-bonded energies.
  */
 void nonbond14_energy(PARAM *param,PARALLEL *parallel,ENERGY *ener,PBC *box,NEIGH *neigh,
-                      const double x[],const double y[],const double z[],double fx[],double fy[],
-                      double fz[],const double q[],const double eps[],const double sig[],
+                      const real x[],const real y[],const real z[],real fx[],real fy[],
+                      real fz[],const real q[],const real eps[],const real sig[],
                       const int neighList14[])
 {
 
     int i,j,k,l;
-    double elec=0.,evdw=0.,delec=0.,dvdw=0.,virelec=0.,virvdw=0.;
-    double r,r2,rt,fxj,fyj,fzj;
-    double qel,veps,vsig;
-    double delta[3]/*,stress[6]={0.}*/;
+    real elec=0.,evdw=0.,delec=0.,dvdw=0.,virelec=0.,virvdw=0.;
+    real r,r2,rt,fxj,fyj,fzj;
+    real qel,veps,vsig;
+    real delta[3]/*,stress[6]={0.}*/;
 
 #ifdef TIMER
     update_timer_begin(TIMER_ENERGY_NB14,__func__);
@@ -555,20 +555,20 @@ void nonbond14_energy(PARAM *param,PARALLEL *parallel,ENERGY *ener,PBC *box,NEIG
  *
  * \brief Energy function collecting all terms of non-bonded energies.
  */
-void ewald_energy(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,EWALD *ewald,PBC *box,const double x[],
-                  const double y[],const double z[],double fx[],double fy[],
-                  double fz[],const double q[],const double eps[],const double sig[],
+void ewald_energy(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,EWALD *ewald,PBC *box,const real x[],
+                  const real y[],const real z[],real fx[],real fy[],
+                  real fz[],const real q[],const real eps[],const real sig[],
                   int **neighList,const int neighPair[],int *exclList[],
-                  const int exclPair[],double dBuffer[])
+                  const int exclPair[],real dBuffer[])
 {
 
     int i,j,k,l;
-    double eEwaldRec=0.,virEwaldRec=0.,eEwaldDir=0.,dEwaldDir=0.,virEwaldDir=0.;
-    double eEwaldCorr=0.,dEwaldCorr=0.,virEwaldCorr=0.;
-    double evdw=0.,dvdw=0.,virvdw=0.;
-    double r,r2,rt,fxj,fyj,fzj,fxi,fyi,fzi;
-    double qel,veps,vsig;
-    double delta[3],stress1[6]= {0.};
+    real eEwaldRec=0.,virEwaldRec=0.,eEwaldDir=0.,dEwaldDir=0.,virEwaldDir=0.;
+    real eEwaldCorr=0.,dEwaldCorr=0.,virEwaldCorr=0.;
+    real evdw=0.,dvdw=0.,virvdw=0.;
+    real r,r2,rt,fxj,fyj,fzj,fxi,fyi,fzi;
+    real qel,veps,vsig;
+    real delta[3],stress1[6]= {0.};
 
 #ifdef TIMER
     update_timer_begin(TIMER_ENERGY_NB,__func__);
@@ -762,19 +762,19 @@ void ewald_energy(CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,EWALD 
  *
  * \brief Energy function collecting all terms of 1-4 non-bonded energies.
  */
-void ewald14_energy(PARAM *param,PARALLEL *parallel,ENERGY *ener,EWALD *ewald,PBC *box,NEIGH *neigh,const double x[],
-                    const double y[],const double z[],double fx[],double fy[],
-                    double fz[],const double q[],const double eps[],const double sig[],
+void ewald14_energy(PARAM *param,PARALLEL *parallel,ENERGY *ener,EWALD *ewald,PBC *box,NEIGH *neigh,const real x[],
+                    const real y[],const real z[],real fx[],real fy[],
+                    real fz[],const real q[],const real eps[],const real sig[],
                     const int neighList14[])
 {
 
     int i,j,k,l;
-    double eEwaldDir=0.,dEwaldDir=0.,virEwaldDir=0.;
-    double eEwaldCorr=0.,dEwaldCorr=0.,virEwaldCorr=0.;
-    double evdw=0.,dvdw=0.,virvdw=0.;
-    double r,r2,rt,fxj,fyj,fzj;
-    double qel,veps,vsig;
-    double delta[3]/*,stress[6]={0.}*/;
+    real eEwaldDir=0.,dEwaldDir=0.,virEwaldDir=0.;
+    real eEwaldCorr=0.,dEwaldCorr=0.,virEwaldCorr=0.;
+    real evdw=0.,dvdw=0.,virvdw=0.;
+    real r,r2,rt,fxj,fyj,fzj;
+    real qel,veps,vsig;
+    real delta[3]/*,stress[6]={0.}*/;
 
 #ifdef TIMER
     update_timer_begin(TIMER_ENERGY_NB14,__func__);

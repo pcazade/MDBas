@@ -47,8 +47,8 @@
  *
  * \return On return 0.0 as no energy evaluated.
  */
-double vdw_none(const PARAM *param,double *dvdw,const double veps,
-                const double vsig,const double r2, const double rt)
+real vdw_none(const PARAM *param,real *dvdw,const real veps,
+                const real vsig,const real r2, const real rt)
 {
     *dvdw=0.;
     return 0.;
@@ -63,15 +63,15 @@ double vdw_none(const PARAM *param,double *dvdw,const double veps,
  *
  * \brief Function called for a full evaluation of the Van der Waals energy and force.
  */
-void vdw_full(const PARAM *param,PARALLEL *parallel, ENERGY *ener, const PBC *box,double *x,
-              double *y,double *z,double *fx, double *fy, double *fz,double *eps,double *sig,
+void vdw_full(const PARAM *param,PARALLEL *parallel, ENERGY *ener, const PBC *box,real *x,
+              real *y,real *z,real *fx, real *fy, real *fz,real *eps,real *sig,
               int **exclList,int *exclPair)
 {
 
     int i,j,k,exclude;;
-    double evdw=0.,pvdw,dvdw;
-    double r,r2,rt,fxj,fyj,fzj,fxi,fyi,fzi;
-    double delta[3];
+    real evdw=0.,pvdw,dvdw;
+    real r,r2,rt,fxj,fyj,fzj,fxi,fyi,fzi;
+    real delta[3];
 
     for(i=0; i<param->nAtom-1; i++)
     {
@@ -162,11 +162,11 @@ void vdw_full(const PARAM *param,PARALLEL *parallel, ENERGY *ener, const PBC *bo
  * \f$ dswitchFunc(r)=-12*r*(rc^2-r^2)*(ro^2-r^2)/(rc^2-ro^2)^3 \f$
  *
  */
-double vdw_switch(const PARAM *param,double *dvdw,const double veps,
-                  const double vsig,const double r2, const double rt)
+real vdw_switch(const PARAM *param,real *dvdw,const real veps,
+                  const real vsig,const real r2, const real rt)
 {
-    double evdw=0.,pvdw,dpvdw,switch1,switchFunc,dswitchFunc;
-    double vsig6,vsig12;
+    real evdw=0.,pvdw,dpvdw,switch1,switchFunc,dswitchFunc;
+    real vsig6,vsig12;
 
     vsig6=vsig*rt;
     vsig6=X6(vsig6);
@@ -220,8 +220,8 @@ double vdw_switch(const PARAM *param,double *dvdw,const double veps,
  *
  * \return On return 0.0 as no energy evaluated.
  */
-double vdw14_none(const PARAM *param,double *dvdw,const double veps,
-                  const double vsig,const double r2, const double rt)
+real vdw14_none(const PARAM *param,real *dvdw,const real veps,
+                  const real vsig,const real r2, const real rt)
 {
     *dvdw=0;
     return 0.;
@@ -240,12 +240,12 @@ double vdw14_none(const PARAM *param,double *dvdw,const double veps,
  *
  * \return On return the electrostatic energy.
  */
-double vdw14_full(const PARAM *param,double *dvdw,const double veps,
-                  const double vsig,const double r2, const double rt)
+real vdw14_full(const PARAM *param,real *dvdw,const real veps,
+                  const real vsig,const real r2, const real rt)
 {
 
-    double evdw=0.;
-    double vsig6,vsig12;
+    real evdw=0.;
+    real vsig6,vsig12;
 
     vsig6=vsig*rt;
     vsig6=X6(vsig6);
@@ -287,11 +287,11 @@ double vdw14_full(const PARAM *param,double *dvdw,const double veps,
  * \f$ dswitchFunc(r)=-12*r*(rc^2-r^2)*(ro^2-r**2)/(rc^2-ro^2)^3 \f$
  *
  */
-double vdw14_switch(const PARAM *param,double *dvdw,const double veps,
-                    const double vsig,const double r2, const double rt)
+real vdw14_switch(const PARAM *param,real *dvdw,const real veps,
+                    const real vsig,const real r2, const real rt)
 {
-    double evdw=0.,pvdw,dpvdw,switch1,switchFunc,dswitchFunc;
-    double vsig6,vsig12;
+    real evdw=0.,pvdw,dpvdw,switch1,switchFunc,dswitchFunc;
+    real vsig6,vsig12;
 
     vsig6=vsig*rt;
     vsig6=X6(vsig6);

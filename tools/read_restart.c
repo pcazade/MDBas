@@ -4,37 +4,37 @@
 typedef struct
 {
     int step,nSteps;
-    double timeStep;
+    real timeStep;
 
     int nAtom,nDegFree;
 
     int nBond,nAngle,nDihedral,nImproper,nUb;
 
     int nConst,maxCycle;
-    double tolShake;
+    real tolShake;
 
-    double chargeConst,cutOff,cutOn,delr,scal14;
+    real chargeConst,cutOff,cutOn,delr,scal14;
 
-    double temp0,press0,kinTemp0;
+    real temp0,press0,kinTemp0;
 
-    double tolMinim,maxminsiz,maxminst;
+    real tolMinim,maxminsiz,maxminst;
 } PARAM;
 
 typedef struct
 {
-    double tot,pot,kin;
-    double elec,vdw;
-    double bond,ang,ub,dihe,impr;
-    double conint,consv;
-    double virelec,virvdw,virbond,virub;
-    double virshake,virpot,virtot;
+    real tot,pot,kin;
+    real elec,vdw;
+    real bond,ang,ub,dihe,impr;
+    real conint,consv;
+    real virelec,virvdw,virbond,virub;
+    real virshake,virpot,virtot;
 } ENERGY;
 
 typedef struct
 {
-    double tauT,chiT;
+    real tauT,chiT;
 
-    double tauP,chiP,compress;
+    real tauP,chiP,compress;
 } BATH;
 
 typedef struct
@@ -42,11 +42,11 @@ typedef struct
     char label[5],segn[5],resn[5];
     int type,resi,ires,inconst;
 
-    double x,y,z;
-    double vx,vy,vz;
-    double fx,fy,fz;
+    real x,y,z;
+    real vx,vy,vz;
+    real fx,fy,fz;
 
-    double m,q;
+    real m,q;
 } ATOM;
 
 #define _FORMATN1_ "%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\t%#13.5le\n\n"
@@ -69,7 +69,7 @@ int main(int argc, char* argv[])
     ATOM *atom=NULL;
 
     size_t ret;
-    double wei;
+    real wei;
     int i;
 
     char label1[14][7]= { {"Etot"} , {"Ekin"}  , {"Epot"} , {"Ecoul"} , {"Evdw"} ,
@@ -85,7 +85,7 @@ int main(int argc, char* argv[])
     if(ret!=1)
         printf("Problem while reading the file.\n");
 
-    ret=fread(&(param.nAtom),sizeof(double),1,restFile);
+    ret=fread(&(param.nAtom),sizeof(real),1,restFile);
     if(ret!=1)
         printf("Problem while reading the file.\n");
 
@@ -99,11 +99,11 @@ int main(int argc, char* argv[])
     if(ret!=1)
         printf("Problem while reading the file.\n");
 
-    ret=fread(&(bath.chiT),sizeof(double),1,restFile);
+    ret=fread(&(bath.chiT),sizeof(real),1,restFile);
     if(ret!=1)
         printf("Problem while reading the file.\n");
 
-    ret=fread(&(bath.chiP),sizeof(double),1,restFile);
+    ret=fread(&(bath.chiP),sizeof(real),1,restFile);
     if(ret!=1)
         printf("Problem while reading the file.\n");
 

@@ -61,9 +61,9 @@
  * \return The distance in Angstroems between two atoms.
  */
 
-double dist(const PBC *box, double delta[3])
+real dist(const PBC *box, real delta[3])
 {
-    double r2,xt,yt,zt;
+    real r2,xt,yt,zt;
 
     switch(box->type)
     {
@@ -105,9 +105,9 @@ double dist(const PBC *box, double delta[3])
 
 }
 
-double dist2(const PBC *box, double *dx, double *dy,double *dz)
+real dist2(const PBC *box, real *dx, real *dy,real *dz)
 {
-    double r2,xt,yt,zt;
+    real r2,xt,yt,zt;
 
     switch(box->type)
     {
@@ -154,8 +154,8 @@ double dist2(const PBC *box, double *dx, double *dy,double *dz)
  * \brief Set velocities and forces of frozen atoms to zero.
  * \remarks Called by energy if frozen atoms are used.
  */
-void freeze_atoms(const PARAM *param, double *vx, double *vy,double *vz,
-                  double *fx,double *fy,double *fz,const int *frozen)
+void freeze_atoms(const PARAM *param, real *vx, real *vy,real *vz,
+                  real *fx,real *fy,real *fz,const int *frozen)
 {
     int i;
 
@@ -185,11 +185,11 @@ void freeze_atoms(const PARAM *param, double *vx, double *vy,double *vz,
  *
  * \brief Applies Periodic Boundaries Conditions to atom[], according to the PBC type.
  */
-void image_update(const PARALLEL *parallel,const PBC *box,double x[],double y[], double z[])
+void image_update(const PARALLEL *parallel,const PBC *box,real x[],real y[], real z[])
 {
 
     int i;
-    double xt,yt,zt;
+    real xt,yt,zt;
 
     switch(box->type)
     {
@@ -251,11 +251,11 @@ void image_update(const PARALLEL *parallel,const PBC *box,double x[],double y[],
  *
  * \brief Applies Periodic Boundaries Conditions to d[], according to the PBC type.
  */
-void image_array(const PBC *box, double dx[],double dy[],double dz[], const int size_array)
+void image_array(const PBC *box, real dx[],real dy[],real dz[], const int size_array)
 {
 
     int i;
-    double xt,yt,zt;
+    real xt,yt,zt;
 
     switch(box->type)
     {
@@ -314,7 +314,7 @@ void image_array(const PBC *box, double dx[],double dy[],double dz[], const int 
  *
  * \brief Computes norms, Wigner-Seitz cell, determinant, volume for a given box.
  */
-void scale_box(PBC *box, const double cell0[9], const double scale)
+void scale_box(PBC *box, const real cell0[9], const real scale)
 {
 
     box->a1=scale*cell0[0];
@@ -399,7 +399,7 @@ void scale_box(PBC *box, const double cell0[9], const double scale)
  *
  * \brief Computes norms, Wigner-Seitz cell, determinant, volume for a given box.
  */
-void vv_scale_box(PBC *box, const double scale)
+void vv_scale_box(PBC *box, const real scale)
 {
 
     box->a1*=scale;
@@ -479,11 +479,11 @@ void vv_scale_box(PBC *box, const double scale)
 
 }
 
-void traj_rebuild(const PARAM *param,const PBC *box,const ATOM *atom,double x[],double y[], double z[])
+void traj_rebuild(const PARAM *param,const PBC *box,const ATOM *atom,real x[],real y[], real z[])
 {
 
     int i,j,k;
-    double dx,dy,dz;
+    real dx,dy,dz;
     
     int nResidue=atom[param->nAtom-1].ires;
     
@@ -513,9 +513,9 @@ void traj_rebuild(const PARAM *param,const PBC *box,const ATOM *atom,double x[],
     }
 }
 
-void box_to_lattice(const PBC *box, double lattice[6])
+void box_to_lattice(const PBC *box, real lattice[6])
 {
-    double cost;
+    real cost;
 
     lattice[0]=box->a;
     lattice[1]=box->b;
@@ -532,7 +532,7 @@ void box_to_lattice(const PBC *box, double lattice[6])
 
 }
 
-void box_to_crystal(const PBC *box,double crystal[6])
+void box_to_crystal(const PBC *box,real crystal[6])
 {
 
     /** crystal is the lower triangle of the symetric matrix of the box vectors
@@ -559,11 +559,11 @@ void box_to_crystal(const PBC *box,double crystal[6])
  *
  * \return On return, the kinetic energy : \f$ 1/2*m*v^2 \f$
  */
-double getKin(const PARALLEL *parallel,const double vx[],const double vy[],
-               const double vz[],const double mass[],double *dBuffer)
+real getKin(const PARALLEL *parallel,const real vx[],const real vy[],
+               const real vz[],const real mass[],real *dBuffer)
 {
     int i;
-    double ekin;
+    real ekin;
 
     ekin=0.;
     for(i=parallel->fAtProc; i<parallel->lAtProc; i++)
@@ -584,9 +584,9 @@ double getKin(const PARALLEL *parallel,const double vx[],const double vy[],
  *
  * \brief Adds to the stress tensor the kinetic energy.
  */
-void getKinStress(const PARALLEL *parallel,const double vx[],const double vy[],
-                    const double vz[],const double mass[],double stress[6],
-                    double dBuffer[])
+void getKinStress(const PARALLEL *parallel,const real vx[],const real vy[],
+                    const real vz[],const real mass[],real stress[6],
+                    real dBuffer[])
 {
 
     for(int i=0; i<6; i++)
@@ -615,13 +615,13 @@ void getKinStress(const PARALLEL *parallel,const double vx[],const double vy[],
  */
 void getKin0(PARAM *param, const PBC *box)
 {
-    double degf;
+    real degf;
 
     getDegFree(param,box);
 
     //   Energy in internal units 10 J/mol. rboltzui=R/10.
 
-    degf=(double)param->nDegFree;
+    degf=(real)param->nDegFree;
     param->kinTemp0=0.5*param->temp0*degf*rboltzui;
 }
 
@@ -646,11 +646,11 @@ void getDegFree(PARAM *param, const PBC *box)
 
 }
 
-void getCom(const PARALLEL *parallel,const double mass[],
-	    const double x[],const double y[],const double z[],
-	    double com[3],double dBuffer[])
+void getCom(const PARALLEL *parallel,const real mass[],
+	    const real x[],const real y[],const real z[],
+	    real com[3],real dBuffer[])
 {
-  double totMass;
+  real totMass;
   
   totMass=0.;
   
@@ -675,11 +675,11 @@ void getCom(const PARALLEL *parallel,const double mass[],
   com[2]/=totMass;
 }
 
-void getVom(const PARALLEL *parallel,const double mass[],
-	    const double vx[],const double vy[],const double vz[],
-	    double vom[3],double dBuffer[])
+void getVom(const PARALLEL *parallel,const real mass[],
+	    const real vx[],const real vy[],const real vz[],
+	    real vom[3],real dBuffer[])
 {
-  double totMass;
+  real totMass;
   
   totMass=0.;
   
@@ -720,13 +720,13 @@ void nocase(char *str)
 }
 
 /**
- * \param x Any double precision number.
+ * \param x Any real precision number.
  *
  * \brief Rounds its argument to the nearest whole number.
  *
  * \return x with the fractional portion of its magnitude eliminated by rounding to the nearest whole number and with its sign preserved, casted to int.
  */
-int nint(const double x)
+int nint(const real x)
 {
     return ( (x)>=0.?(int)((x)+0.5):(int)((x)-0.5) );
 }

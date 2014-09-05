@@ -54,23 +54,23 @@ extern FILE *outFile;
 
 int *counter;
 
-static double *xh,*yh,*zh;
+static real *xh,*yh,*zh;
 
 void allocate_heuristic(PARALLEL *parallel)
 {
-  xh=(double*)my_malloc(parallel->maxAtProc*sizeof(*xh));
-  yh=(double*)my_malloc(parallel->maxAtProc*sizeof(*yh));
-  zh=(double*)my_malloc(parallel->maxAtProc*sizeof(*zh));
+  xh=(real*)my_malloc(parallel->maxAtProc*sizeof(*xh));
+  yh=(real*)my_malloc(parallel->maxAtProc*sizeof(*yh));
+  zh=(real*)my_malloc(parallel->maxAtProc*sizeof(*zh));
 }
 
 void makelist(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,
 	      CONSTRAINT constList[],BOND bond[],ANGLE angle[],DIHE dihe[],DIHE impr[],
-	      double x[], double y[],double z[],double vx[], double vy[],double vz[],
+	      real x[], real y[],real z[],real vx[], real vy[],real vz[],
 	      int frozen[],int ***neighList,int **neighPair,int **neighList14,
 	      int ***exclList,int **exclPair,int iBuffer[])
 {
   int nlcx,nlcy,nlcz;
-  double cutnb;
+  real cutnb;
   
   if(ctrl->newjob==1)
   {
@@ -81,9 +81,9 @@ void makelist(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,
     
     ctrl->keyLink=1;
     
-    nlcx = (int) (box->pa*(double)neigh->linkRatio/cutnb);
-    nlcy = (int) (box->pb*(double)neigh->linkRatio/cutnb);
-    nlcz = (int) (box->pc*(double)neigh->linkRatio/cutnb);
+    nlcx = (int) (box->pa*(real)neigh->linkRatio/cutnb);
+    nlcy = (int) (box->pb*(real)neigh->linkRatio/cutnb);
+    nlcz = (int) (box->pc*(real)neigh->linkRatio/cutnb);
     
     if( (nlcx<3) || (nlcy<3) || (nlcz<3) )
       ctrl->keyLink=0;
@@ -174,10 +174,10 @@ void makelist(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,
 }
 
 void heuristic_update(CTRL *ctrl,PARAM *param,PARALLEL *parallel,NEIGH *neigh,
-		      double vx[],double vy[],double vz[],int iBuffer[])
+		      real vx[],real vy[],real vz[],int iBuffer[])
 {
   int ii;
-  double r2;
+  real r2;
   
   neigh->listUpdate=0;
   
@@ -206,8 +206,8 @@ void heuristic_update(CTRL *ctrl,PARAM *param,PARALLEL *parallel,NEIGH *neigh,
       ii++;
     }
     
-    double r2max=X2(param->delr/2.0);
-    double ts2=X2(param->timeStep);
+    real r2max=X2(param->delr/2.0);
+    real ts2=X2(param->timeStep);
     
     int heurTest=0;
     
@@ -995,13 +995,13 @@ void exclude_list(CTRL *ctrl,PARAM *param,PARALLEL *parallel,NEIGH *neigh,CONSTR
 
 }
 
-void init_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
+void init_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,real x[],real y[],real z[],
 		      int frozen[],int ***neighList,int **neighPair,int **exclList,
 		      int exclPair[])
 {
   int i,ii,j,m,latm;
   int exclude;
-  double r2,cutnb2,delta[3];
+  real r2,cutnb2,delta[3];
   
   cutnb2=param->cutOff+param->delr;
   cutnb2=X2(cutnb2);
@@ -1094,13 +1094,13 @@ void init_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,doub
   
 }
 
-void verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
+void verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,real x[],real y[],real z[],
 		 int frozen[],int ***neighList,int neighPair[],int **exclList,
 		 int exclPair[])
 {
   int i,ii,j,l,m,latm;
   int exclude;
-  double r2,cutnb2,delta[3];
+  real r2,cutnb2,delta[3];
   
   cutnb2=param->cutOff+param->delr;
   cutnb2=X2(cutnb2);
@@ -1179,7 +1179,7 @@ void verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,double x[
 
 }
 
-void init_link_cell_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
+void init_link_cell_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,real x[],real y[],real z[],
 				int frozen[],int ***neighList,int **neighPair,int **exclList,
 				int exclPair[])
 {
@@ -1246,16 +1246,16 @@ void init_link_cell_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *
   int cellCheck,enoughLinkCells,nlcx,nlcy,nlcz;
   int i,ii,ih,j,k,l,kk,ll,icell,exclude;
   int ix,iy,iz,jx,jy,jz;
-  double r2,cutnb,cutnb2,dnlcx,dnlcy,dnlcz;
-  double cx,cy,cz,xt,yt,zt,xd,yd,zd,*xu,*yu,*zu;
+  real r2,cutnb,cutnb2,dnlcx,dnlcy,dnlcz;
+  real cx,cy,cz,xt,yt,zt,xd,yd,zd,*xu,*yu,*zu;
   
 #ifdef TIMER
   update_timer_begin(TIMER_LNKCEL_BUILD,__func__);
 #endif
   
-  xu=(double*)my_malloc(param->nAtom*sizeof(*xu));
-  yu=(double*)my_malloc(param->nAtom*sizeof(*yu));
-  zu=(double*)my_malloc(param->nAtom*sizeof(*zu));
+  xu=(real*)my_malloc(param->nAtom*sizeof(*xu));
+  yu=(real*)my_malloc(param->nAtom*sizeof(*yu));
+  zu=(real*)my_malloc(param->nAtom*sizeof(*zu));
   
   cutnb=param->cutOff+param->delr;
   cutnb2=X2(cutnb);
@@ -1275,13 +1275,13 @@ void init_link_cell_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *
   else
     my_error(LNKCELL_CUTOFF_ERROR,__FILE__,__LINE__,0);
 
-  nlcx=(int)(box->pa*(double)neigh->linkRatio/cutnb);
-  nlcy=(int)(box->pb*(double)neigh->linkRatio/cutnb);
-  nlcz=(int)(box->pc*(double)neigh->linkRatio/cutnb);
+  nlcx=(int)(box->pa*(real)neigh->linkRatio/cutnb);
+  nlcy=(int)(box->pb*(real)neigh->linkRatio/cutnb);
+  nlcz=(int)(box->pc*(real)neigh->linkRatio/cutnb);
   
-  dnlcx=(double)nlcx;
-  dnlcy=(double)nlcy;
-  dnlcz=(double)nlcz;
+  dnlcx=(real)nlcx;
+  dnlcy=(real)nlcy;
+  dnlcz=(real)nlcz;
   
   enoughLinkCells=1;
   if(nlcx<2*neigh->linkRatio+1)
@@ -1507,7 +1507,7 @@ void init_link_cell_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *
       neigh->sizeList=(*neighPair)[i];
   }
   
-  neigh->sizeList=(int)((double)neigh->sizeList*(1.+2.*TOLLIST))+1;
+  neigh->sizeList=(int)((real)neigh->sizeList*(1.+2.*TOLLIST))+1;
   
   *neighList=(int**)my_malloc(parallel->maxAtProc*sizeof(**neighList));
   for(i=0;i<parallel->maxAtProc;i++)
@@ -1528,7 +1528,7 @@ void init_link_cell_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *
   
 }
 
-void link_cell_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
+void link_cell_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,real x[],real y[],real z[],
 			   int frozen[],int ***neighList,int neighPair[],int **exclList,
 			   int exclPair[])
 {
@@ -1596,16 +1596,16 @@ void link_cell_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh
   int i,j,k,l,ll,kk,ilist,icell,exclude;
   int ih,ii;
   int ix,iy,iz,jx,jy,jz;
-  double r2,cutnb,cutnb2,dnlcx,dnlcy,dnlcz;
-  double cx,cy,cz,xt,yt,zt,xd,yd,zd,*xu,*yu,*zu;
+  real r2,cutnb,cutnb2,dnlcx,dnlcy,dnlcz;
+  real cx,cy,cz,xt,yt,zt,xd,yd,zd,*xu,*yu,*zu;
   
 #ifdef TIMER
   update_timer_begin(TIMER_LNKCEL_UPDATE,__func__);
 #endif
   
-  xu=(double*)my_malloc(param->nAtom*sizeof(*xu));
-  yu=(double*)my_malloc(param->nAtom*sizeof(*yu));
-  zu=(double*)my_malloc(param->nAtom*sizeof(*zu));
+  xu=(real*)my_malloc(param->nAtom*sizeof(*xu));
+  yu=(real*)my_malloc(param->nAtom*sizeof(*yu));
+  zu=(real*)my_malloc(param->nAtom*sizeof(*zu));
   
   cutnb=param->cutOff+param->delr;
   cutnb2=X2(cutnb);
@@ -1625,13 +1625,13 @@ void link_cell_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh
   else
      my_error(LNKCELL_CUTOFF_ERROR,__FILE__,__LINE__,0);
 
-  nlcx=(int)(box->pa*(double)neigh->linkRatio/cutnb);
-  nlcy=(int)(box->pb*(double)neigh->linkRatio/cutnb);
-  nlcz=(int)(box->pc*(double)neigh->linkRatio/cutnb);
+  nlcx=(int)(box->pa*(real)neigh->linkRatio/cutnb);
+  nlcy=(int)(box->pb*(real)neigh->linkRatio/cutnb);
+  nlcz=(int)(box->pc*(real)neigh->linkRatio/cutnb);
   
-  dnlcx=(double)nlcx;
-  dnlcy=(double)nlcy;
-  dnlcz=(double)nlcz;
+  dnlcx=(real)nlcx;
+  dnlcy=(real)nlcy;
+  dnlcz=(real)nlcz;
   
   enoughLinkCells=1;
   if(nlcx<2*neigh->linkRatio+1)
@@ -1878,7 +1878,7 @@ void link_cell_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh
 
 }
 
-// void fast_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
+// void fast_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,real x[],real y[],real z[],
 // 		      int frozen[],int ***neighList,int **neighPair,
 // 		      int **exclList,int exclPair[])
 // {
@@ -1895,32 +1895,32 @@ void link_cell_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh
 //   int t1ny,t2ny,t1nz,t2nz;
 //   int exclude,offset,iorder;
 //   
-//   double r2,rlcx,rlcy,rlcz,rlcx2,rlcy2,rlcz2,cutnb,cutnb2;
-//   double dnlcx,dnlcy,dnlcz;
+//   real r2,rlcx,rlcy,rlcz,rlcx2,rlcy2,rlcz2,cutnb,cutnb2;
+//   real dnlcx,dnlcy,dnlcz;
 //   
 //   int ix,iy,iz;
 //   
-//   double delta[3];
+//   real delta[3];
 //   
 //   int *ptrmask=NULL,*ptrcell=NULL,*cell=NULL,*tempcell=NULL;
-//   double *xu=NULL,*yu=NULL,*zu=NULL;
+//   real *xu=NULL,*yu=NULL,*zu=NULL;
 //   
-//   xu=(double*)my_malloc(param->nAtom*sizeof(*xu));
-//   yu=(double*)my_malloc(param->nAtom*sizeof(*yu));
-//   zu=(double*)my_malloc(param->nAtom*sizeof(*zu));;
+//   xu=(real*)my_malloc(param->nAtom*sizeof(*xu));
+//   yu=(real*)my_malloc(param->nAtom*sizeof(*yu));
+//   zu=(real*)my_malloc(param->nAtom*sizeof(*zu));;
 //   
 //   cutnb=param->cutOff+param->delr;
 //   cutnb2=X2(cutnb);
 //   
-//   nlcx=(int)(box->pa*(double)neigh->linkRatio/cutnb);
-//   nlcy=(int)(box->pb*(double)neigh->linkRatio/cutnb);
-//   nlcz=(int)(box->pc*(double)neigh->linkRatio/cutnb);
+//   nlcx=(int)(box->pa*(real)neigh->linkRatio/cutnb);
+//   nlcy=(int)(box->pb*(real)neigh->linkRatio/cutnb);
+//   nlcz=(int)(box->pc*(real)neigh->linkRatio/cutnb);
 //   
 //   neigh->nCells=nlcx*nlcy*nlcz;
 //   
-//   dnlcx=(double)nlcx;
-//   dnlcy=(double)nlcy;
-//   dnlcz=(double)nlcz;
+//   dnlcx=(real)nlcx;
+//   dnlcy=(real)nlcy;
+//   dnlcz=(real)nlcz;
 //   
 //   rlcx=box->pa*dnlcx;
 //   rlcy=box->pb*dnlcy;
@@ -1954,23 +1954,23 @@ void link_cell_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh
 //     dmy=(int)( ( dm % ( nlcx * nlcy ) ) / nlcx ) ;
 //     dmx= dm % nlcx ;
 //     
-//     dnx=abs(dmx-nlcx*nint((double)dmx/(double)nlcx));
+//     dnx=abs(dmx-nlcx*nint((real)dmx/(real)nlcx));
 //     
 //     if( ( dmx==0 ) || ( ( dmy==nlcy-1 ) && ( dmz==nlcz-1 ) ) )
-//       dny=dmy-nlcy*nint((double)dmy/(double)nlcy);
+//       dny=dmy-nlcy*nint((real)dmy/(real)nlcy);
 //     else
 //     {
-//       t1ny=abs( dmy-nlcy*nint((double)dmy/(double)nlcy)) ;
-//       t2ny=abs( (dmy+1)-nlcy*nint((double)(dmy+1)/(double)nlcy) );
+//       t1ny=abs( dmy-nlcy*nint((real)dmy/(real)nlcy)) ;
+//       t2ny=abs( (dmy+1)-nlcy*nint((real)(dmy+1)/(real)nlcy) );
 //       dny=MIN(t1ny,t2ny);
 //     }
 //     
 //     if( ( dmz==nlcz-1 ) || ( ( dmx==0 ) && ( dmy==0 ) ) )
-//       dnz=dmz-nlcz*nint((double)dmz/(double)nlcz);
+//       dnz=dmz-nlcz*nint((real)dmz/(real)nlcz);
 //     else
 //     {
-//       t1nz=abs( dmz-nlcz*nint((double)dmz/(double)nlcz) );
-//       t2nz=abs( (dmz+1)-nlcz*nint((double)(dmz+1)/(double)nlcz) );
+//       t1nz=abs( dmz-nlcz*nint((real)dmz/(real)nlcz) );
+//       t2nz=abs( (dmz+1)-nlcz*nint((real)(dmz+1)/(real)nlcz) );
 //       dnz=MIN(t1nz,t2nz);
 //     }
 //     

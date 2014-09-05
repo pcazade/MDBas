@@ -13,72 +13,72 @@ extern "C" {
 
     void lf_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,
                       BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
-                      double *x,double *y,double *z,
-                      double *vx,double *vy,double *vz,
-                      double *fx,double *fy,double *fz,
-                      double *mass,double *rmass,int *nAtConst,double dBuffer[]);
+                      real *x,real *y,real *z,
+                      real *vx,real *vy,real *vz,
+                      real *fx,real *fy,real *fz,
+                      real *mass,real *rmass,int *nAtConst,real dBuffer[]);
 
     void lf_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
-                double *x,double *y,double *z,
-                double *vx,double *vy,double *vz,
-                double *fx,double *fy,double *fz,
-                double *mass,double *rmass,int *nAtConst,double dBuffer[]);
+                real *x,real *y,real *z,
+                real *vx,real *vy,real *vz,
+                real *fx,real *fy,real *fz,
+                real *mass,real *rmass,int *nAtConst,real dBuffer[]);
 
     void lf_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
-                  double *x,double *y,double *z,
-                  double *vx,double *vy,double *vz,
-                  double *fx,double *fy,double *fz,
-                  double *mass,double *rmass,int *nAtConst,double dBuffer[]);
+                  real *x,real *y,real *z,
+                  real *vx,real *vy,real *vz,
+                  real *fx,real *fy,real *fz,
+                  real *mass,real *rmass,int *nAtConst,real dBuffer[]);
 
     void lf_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
-                  double *x,double *y,double *z,
-                  double *vx,double *vy,double *vz,
-                  double *fx,double *fy,double *fz,
-                  double *mass,double *rmass,int *nAtConst,double dBuffer[]);
+                  real *x,real *y,real *z,
+                  real *vx,real *vy,real *vz,
+                  real *fx,real *fy,real *fz,
+                  real *mass,real *rmass,int *nAtConst,real dBuffer[]);
 
     void lf_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
-                  double *x,double *y,double *z,
-                  double *vx,double *vy,double *vz,
-                  double *fx,double *fy,double *fz,
-                  double *mass,double *rmass,int *nAtConst,double dBuffer[]);
+                  real *x,real *y,real *z,
+                  real *vx,real *vy,real *vz,
+                  real *fx,real *fy,real *fz,
+                  real *mass,real *rmass,int *nAtConst,real dBuffer[]);
 
     void lf_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
-                  double *x,double *y,double *z,
-                  double *vx,double *vy,double *vz,
-                  double *fx,double *fy,double *fz,
-                  double *mass,double *rmass,int *nAtConst,double dBuffer[]);
+                  real *x,real *y,real *z,
+                  real *vx,real *vy,real *vz,
+                  real *fx,real *fy,real *fz,
+                  real *mass,real *rmass,int *nAtConst,real dBuffer[]);
 
 
     void vv_integrate(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,BATH *bath,
-                      CONSTRAINT constList[],PARALLEL *parallel,double *x,double *y,
-                      double *z,double *vx,double *vy,double *vz,
-                      double *fx,double *fy,double *fz,
-                      double *mass,double *rmass,int *nAtConst,double dBuffer[],int stage);
+                      CONSTRAINT constList[],PARALLEL *parallel,real *x,real *y,
+                      real *z,real *vx,real *vy,real *vz,
+                      real *fx,real *fy,real *fz,
+                      real *mass,real *rmass,int *nAtConst,real dBuffer[],int stage);
 
     void vv_nve(PARAM *param,ENERGY *ener,PBC *box,CONSTRAINT constList[],PARALLEL *parallel,
-                double *x,double *y,double *z,double *vx,double *vy,double *vz,
-                double *fx,double *fy,double *fz,
-                double *mass,double *rmass,int *nAtConst,double dBuffer[],int stage);
+                real *x,real *y,real *z,real *vx,real *vy,real *vz,
+                real *fx,real *fy,real *fz,
+                real *mass,real *rmass,int *nAtConst,real dBuffer[],int stage);
 
     void vv_nvt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
-                  double *x,double *y,double *z,double *vx,double *vy,double *vz,
-                  double *fx,double *fy,double *fz,
-                  double *mass,double *rmass,int *nAtConst,double dBuffer[],int stage);
+                  real *x,real *y,real *z,real *vx,real *vy,real *vz,
+                  real *fx,real *fy,real *fz,
+                  real *mass,real *rmass,int *nAtConst,real dBuffer[],int stage);
 
     void vv_npt_b(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
-                  double *x,double *y,double *z,double *vx,double *vy,double *vz,
-                  double *fx,double *fy,double *fz,
-                  double *mass,double *rmass,int *nAtConst,double dBuffer[],int stage);
+                  real *x,real *y,real *z,real *vx,real *vy,real *vz,
+                  real *fx,real *fy,real *fz,
+                  real *mass,real *rmass,int *nAtConst,real dBuffer[],int stage);
 
     void vv_nvt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
-                  double *x,double *y,double *z,double *vx,double *vy,double *vz,
-                  double *fx,double *fy,double *fz,
-                  double *mass,double *rmass,int *nAtConst,double dBuffer[],int stage);
+                  real *x,real *y,real *z,real *vx,real *vy,real *vz,
+                  real *fx,real *fy,real *fz,
+                  real *mass,real *rmass,int *nAtConst,real dBuffer[],int stage);
 
     void vv_npt_h(PARAM *param,ENERGY *ener,PBC *box,BATH *bath,CONSTRAINT constList[],PARALLEL *parallel,
-                  double *x,double *y,double *z,double *vx,double *vy,double *vz,
-                  double *fx,double *fy,double *fz,
-                  double *mass,double *rmass,int *nAtConst,double dBuffer[],int stage);
+                  real *x,real *y,real *z,real *vx,real *vy,real *vz,
+                  real *fx,real *fy,real *fz,
+                  real *mass,real *rmass,int *nAtConst,real dBuffer[],int stage);
 
 #ifdef	__cplusplus
 }

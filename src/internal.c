@@ -39,13 +39,13 @@
 #endif
 
 void bond_energy(const PARALLEL *parallel,ENERGY *ener,const PBC *box,
-                 const BOND bond[],const double *x,const double *y,const double *z,
-                 double *fx,double *fy,double *fz)
+                 const BOND bond[],const real *x,const real *y,const real *z,
+                 real *fx,real *fy,real *fz)
 {
     int i,j,ll;
-    double morsea,morseb;
-    double r,tfx,tfy,tfz,dbond,virbond=0.;
-    double delta[3]/*,stress[6]={0.}*/;
+    real morsea,morseb;
+    real r,tfx,tfy,tfz,dbond,virbond=0.;
+    real delta[3]/*,stress[6]={0.}*/;
 
 #ifdef TIMER
     update_timer_begin(TIMER_ENERGY_BOND,__func__);
@@ -126,12 +126,12 @@ void bond_energy(const PARALLEL *parallel,ENERGY *ener,const PBC *box,
 }
 
 void ub_energy(const PARALLEL *parallel,ENERGY *ener,const PBC *box,
-               const BOND ub[],const double *x,const double *y,const double *z,
-               double *fx,double *fy,double *fz)
+               const BOND ub[],const real *x,const real *y,const real *z,
+               real *fx,real *fy,real *fz)
 {
     int i,j,ll;
-    double r,tfx,tfy,tfz,dub,virub=0.;
-    double delta[3]/*,stress[6]={0.}*/;
+    real r,tfx,tfy,tfz,dub,virub=0.;
+    real delta[3]/*,stress[6]={0.}*/;
 
 #ifdef TIMER
     update_timer_begin(TIMER_ENERGY_UB,__func__);
@@ -193,13 +193,13 @@ void ub_energy(const PARALLEL *parallel,ENERGY *ener,const PBC *box,
 }
 
 void angle_energy(const PARALLEL *parallel,ENERGY *ener,const PBC *box,
-                  const ANGLE angle[],const double *x,const double *y,const double *z,
-                  double *fx,double *fy,double *fz)
+                  const ANGLE angle[],const real *x,const real *y,const real *z,
+                  real *fx,real *fy,real *fz)
 {
     int i,j,k,ll;
-    double dangle,rab,rbc,rabt,rbct,cost,sint,theta;
-    double dab[3],dbc[3]/*,stress[6]*/;
-    double fxa,fya,fza,fxc,fyc,fzc;
+    real dangle,rab,rbc,rabt,rbct,cost,sint,theta;
+    real dab[3],dbc[3]/*,stress[6]*/;
+    real fxa,fya,fza,fxc,fyc,fzc;
 
 #ifdef TIMER
     update_timer_begin(TIMER_ENERGY_ANGL,__func__);
@@ -279,15 +279,15 @@ void angle_energy(const PARALLEL *parallel,ENERGY *ener,const PBC *box,
 }
 
 void dihedral_energy(const PARALLEL *parallel,ENERGY *ener,const PBC *box,
-                     const DIHE dihe[],const double *x,const double *y,const double *z,
-                     double *fx,double *fy,double *fz)
+                     const DIHE dihe[],const real *x,const real *y,const real *z,
+                     real *fx,real *fy,real *fz)
 {
     int i,j,k,l,ll;
-    double edihe=0.,ddihe=0.;
-    double cosp,sinp,phi;
-    double rbc,rpb,rpc,r2pb,r2pc,pbpc;
-    double dab[3],dbc[3],dcd[3],pb[3],pc[3]/*,stress[6]={0.}*/;
-    double fax,fay,faz,fbx,fby,fbz,fcx,fcy,fcz,fdx,fdy,fdz;
+    real edihe=0.,ddihe=0.;
+    real cosp,sinp,phi;
+    real rbc,rpb,rpc,r2pb,r2pc,pbpc;
+    real dab[3],dbc[3],dcd[3],pb[3],pc[3]/*,stress[6]={0.}*/;
+    real fax,fay,faz,fbx,fby,fbz,fcx,fcy,fcz,fdx,fdy,fdz;
 
 #ifdef TIMER
     update_timer_begin(TIMER_ENERGY_DIHE,__func__);
@@ -451,15 +451,15 @@ void dihedral_energy(const PARALLEL *parallel,ENERGY *ener,const PBC *box,
 }
 
 void improper_energy(const PARALLEL *parallel,ENERGY *ener,const PBC *box,
-                     const DIHE impr[],const double *x,const double *y,const double *z,
-                     double *fx,double *fy,double *fz)
+                     const DIHE impr[],const real *x,const real *y,const real *z,
+                     real *fx,real *fy,real *fz)
 {
     int i,j,k,l,ll;
-    double edihe=0.,ddihe=0.;
-    double cosp,sinp,phi;
-    double rbc,rpb,rpc,r2pb,r2pc,pbpc;
-    double dab[3],dbc[3],dcd[3],pb[3],pc[3]/*,stress[6]={0.}*/;
-    double fax,fay,faz,fbx,fby,fbz,fcx,fcy,fcz,fdx,fdy,fdz;
+    real edihe=0.,ddihe=0.;
+    real cosp,sinp,phi;
+    real rbc,rpb,rpc,r2pb,r2pc,pbpc;
+    real dab[3],dbc[3],dcd[3],pb[3],pc[3]/*,stress[6]={0.}*/;
+    real fax,fay,faz,fbx,fby,fbz,fcx,fcy,fcz,fdx,fdy,fdz;
 
 #ifdef TIMER
     update_timer_begin(TIMER_ENERGY_UB,__func__);

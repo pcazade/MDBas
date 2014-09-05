@@ -160,10 +160,10 @@ void print_timers()
 
     while(ptr->next != NULL)
     {
-        fprintf(outFile,"Time for timer\t%30s\t:\t%lf\tseconds\n",ptr->function_name,(double)ptr->total_time_nsec/1e9);
+        fprintf(outFile,"Time for timer\t%30s\t:\t%lf\tseconds\n",ptr->function_name,(real)ptr->total_time_nsec/1e9);
         ptr = ptr->next;
     }
-    fprintf(outFile,"Time for timer\t%30s\t:\t%lf\tseconds\n",ptr->function_name,(double)ptr->total_time_nsec/1e9);
+    fprintf(outFile,"Time for timer\t%30s\t:\t%lf\tseconds\n",ptr->function_name,(real)ptr->total_time_nsec/1e9);
 }
 
 #endif

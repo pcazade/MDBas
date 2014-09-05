@@ -38,8 +38,8 @@
  *
  * \return On return 0.0 as no energy evaluated.
  */
-double coulomb_none(const PARAM *param,double *delec,const double qel,
-                    const double r2,const double rt)
+real coulomb_none(const PARAM *param,real *delec,const real qel,
+                    const real r2,const real rt)
 {
     *delec=0.;
     return 0.;
@@ -54,15 +54,15 @@ double coulomb_none(const PARAM *param,double *delec,const double qel,
  *
  * \brief Function called for a full evaluation of the electrostatic energy and force.
  */
-void coulomb_full(ENERGY *ener,PARAM *param,PARALLEL *parallel,PBC *box,double *x,double *y,
-                  double *z,double *fx, double *fy, double *fz,double *q,
+void coulomb_full(ENERGY *ener,PARAM *param,PARALLEL *parallel,PBC *box,real *x,real *y,
+                  real *z,real *fx, real *fy, real *fz,real *q,
                   int **exclList,int *exclPair)
 {
 
     int i,j,k,exclude;
-    double elec=0.,pelec,delec;
-    double r,r2,rt,fxi,fyi,fzi,fxj,fyj,fzj;
-    double delta[3];
+    real elec=0.,pelec,delec;
+    real r,r2,rt,fxi,fyi,fzi,fxj,fyj,fzj;
+    real delta[3];
 
     for(i=parallel->idProc; i<param->nAtom-1; i+=parallel->nProc)
     {
@@ -156,10 +156,10 @@ void coulomb_full(ENERGY *ener,PARAM *param,PARALLEL *parallel,PBC *box,double *
  * \f$ dshiftFunc(r)=-2/rc+2r/rc^2 \f$
  *
  */
-double coulomb_shift1(const PARAM *param,double *delec,const double qel,
-                      const double r2,const double rt)
+real coulomb_shift1(const PARAM *param,real *delec,const real qel,
+                      const real r2,const real rt)
 {
-    double elec=0.,pelec,shift1,shift2,shiftFunc,dshiftFunc;
+    real elec=0.,pelec,shift1,shift2,shiftFunc,dshiftFunc;
 
     shift1=rt*r2*param->rcutOff;
     shift2=r2*param->rcutOff2;
@@ -205,10 +205,10 @@ double coulomb_shift1(const PARAM *param,double *delec,const double qel,
  * \f$ dshiftFunc(r)=-4r/rc^2+4r^3/rc^4 \f$
  *
  */
-double coulomb_shift2(const PARAM *param,double *delec,const double qel,
-                      const double r2,const double rt)
+real coulomb_shift2(const PARAM *param,real *delec,const real qel,
+                      const real r2,const real rt)
 {
-    double elec=0.,pelec,shift1,shift2,shiftFunc,dshiftFunc;
+    real elec=0.,pelec,shift1,shift2,shiftFunc,dshiftFunc;
 
     shift1=r2*param->rcutOff2;
     shift2=X2(shift1);
@@ -254,10 +254,10 @@ double coulomb_shift2(const PARAM *param,double *delec,const double qel,
  * \f$ dswitchFunc(r)=-12*r*(rc^2-r^2)*(ro^2-r^2)/(rc^2-ro^2)^3 \f$
  *
  */
-double coulomb_switch(const PARAM *param,double *delec,const double qel,
-                      const double r2,const double rt)
+real coulomb_switch(const PARAM *param,real *delec,const real qel,
+                      const real r2,const real rt)
 {
-    double elec=0.,pelec,switch1,switchFunc,dswitchFunc;
+    real elec=0.,pelec,switch1,switchFunc,dswitchFunc;
 
     if(r2<=param->cutOn2)
     {
@@ -284,10 +284,10 @@ double coulomb_switch(const PARAM *param,double *delec,const double qel,
     return elec;
 }
 
-double coulomb_damp(const PARAM *param,double *delec,const double qel,
-                      const double r2,const double rt)
+real coulomb_damp(const PARAM *param,real *delec,const real qel,
+                      const real r2,const real rt)
 {
-    double elec=0.,pelec,drRC,r;
+    real elec=0.,pelec,drRC,r;
     
     r=r2*rt;
     drRC=r-param->cutOff;
@@ -311,8 +311,8 @@ double coulomb_damp(const PARAM *param,double *delec,const double qel,
  *
  * \return On return 0.0 as no energy evaluated.
  */
-double coulomb14_none(const PARAM *param,double *delec,const double qel,
-                      const double r2,const double rt)
+real coulomb14_none(const PARAM *param,real *delec,const real qel,
+                      const real r2,const real rt)
 {
     *delec=0.;
     return 0.;
@@ -332,11 +332,11 @@ double coulomb14_none(const PARAM *param,double *delec,const double qel,
  *
  * \return On return the electrostatic energy.
  */
-double coulomb14_full(const PARAM *param,double *delec,const double qel,
-                      const double r2,const double rt)
+real coulomb14_full(const PARAM *param,real *delec,const real qel,
+                      const real r2,const real rt)
 {
 
-    double elec=0.;
+    real elec=0.;
 
     elec=param->scal14*param->chargeConst*qel*rt;
     *delec=-elec*rt;
@@ -373,10 +373,10 @@ double coulomb14_full(const PARAM *param,double *delec,const double qel,
  * \f$ dshiftFunc(r)=-2/rc+2r/rc^2 \f$
  *
  */
-double coulomb14_shift1(const PARAM *param,double *delec,const double qel,
-                        const double r2,const double rt)
+real coulomb14_shift1(const PARAM *param,real *delec,const real qel,
+                        const real r2,const real rt)
 {
-    double elec=0.,pelec,shift1,shift2,shiftFunc,dshiftFunc;
+    real elec=0.,pelec,shift1,shift2,shiftFunc,dshiftFunc;
 
     if(r2<=param->cutOff2)
     {
@@ -425,10 +425,10 @@ double coulomb14_shift1(const PARAM *param,double *delec,const double qel,
  * \f$ dshiftFunc(r)=-4r/rc^2+4r^3/rc^4 \f$
  *
  */
-double coulomb14_shift2(const PARAM *param,double *delec,const double qel,
-                        const double r2,const double rt)
+real coulomb14_shift2(const PARAM *param,real *delec,const real qel,
+                        const real r2,const real rt)
 {
-    double elec=0.,pelec,shift1,shift2,shiftFunc,dshiftFunc;
+    real elec=0.,pelec,shift1,shift2,shiftFunc,dshiftFunc;
 
     if(r2<=param->cutOff2)
     {
@@ -477,10 +477,10 @@ double coulomb14_shift2(const PARAM *param,double *delec,const double qel,
  * \f$ dswitchFunc(r)=-12*r*(rc^2-r^2)*(ro^2-r^2)/(rc^2-ro^2)^3 \f$
  *
  */
-double coulomb14_switch(const PARAM *param,double *delec,const double qel,
-                        const double r2,const double rt)
+real coulomb14_switch(const PARAM *param,real *delec,const real qel,
+                        const real r2,const real rt)
 {
-    double elec=0.,pelec,switch1,switchFunc,dswitchFunc;
+    real elec=0.,pelec,switch1,switchFunc,dswitchFunc;
 
     if(r2<=param->cutOn2)
     {
@@ -506,10 +506,10 @@ double coulomb14_switch(const PARAM *param,double *delec,const double qel,
     return elec;
 }
 
-double coulomb14_damp(const PARAM *param,double *delec,const double qel,
-                      const double r2,const double rt)
+real coulomb14_damp(const PARAM *param,real *delec,const real qel,
+                      const real r2,const real rt)
 {
-    double elec=0.,pelec,drRC,r;
+    real elec=0.,pelec,drRC,r;
     
     r=r2*rt;
     drRC=r-param->cutOff;

@@ -5,49 +5,49 @@
 extern "C" {
 #endif
 
-    double dist(const PBC *box, double delta[3]);
+    real dist(const PBC *box, real delta[3]);
 
-    double dist2(const PBC *box, double *dx, double *dy,double *dz);
+    real dist2(const PBC *box, real *dx, real *dy,real *dz);
 
-    void freeze_atoms(const PARAM *param, double *vx, double *vy,double *vz,
-                      double *fx,double *fy,double *fz,const int *frozen);
+    void freeze_atoms(const PARAM *param, real *vx, real *vy,real *vz,
+                      real *fx,real *fy,real *fz,const int *frozen);
 
-    void image_update(const PARALLEL *parallel, const PBC *box,double x[],double y[],double z[]);
+    void image_update(const PARALLEL *parallel, const PBC *box,real x[],real y[],real z[]);
 
-    void image_array(const PBC *box, double dx[],double dy[],double dz[],const int size_array);
+    void image_array(const PBC *box, real dx[],real dy[],real dz[],const int size_array);
 
-    void traj_rebuild(const PARAM *param,const PBC *box,const ATOM *atom,double x[],double y[], double z[]);
+    void traj_rebuild(const PARAM *param,const PBC *box,const ATOM *atom,real x[],real y[], real z[]);
     
-    void scale_box(PBC *box, const double cell0[9], const double scale);
+    void scale_box(PBC *box, const real cell0[9], const real scale);
 
-    void vv_scale_box(PBC *box, const double scale);
+    void vv_scale_box(PBC *box, const real scale);
 
-    void box_to_lattice(const PBC *box,double lattice[6]);
+    void box_to_lattice(const PBC *box,real lattice[6]);
 
-    void box_to_crystal(const PBC *box,double crystal[6]);
+    void box_to_crystal(const PBC *box,real crystal[6]);
 
-    double getKin(const PARALLEL *parallel, const double vx[],const double vy[],
-                   const double vz[],const double mass[],double dBuffer[]);
+    real getKin(const PARALLEL *parallel, const real vx[],const real vy[],
+                   const real vz[],const real mass[],real dBuffer[]);
 
-    void getKinStress(const PARALLEL *parallel,const double vx[],const double vy[],
-                        const double vz[],const double mass[],double stress[6],
-                        double dBuffer[]);
+    void getKinStress(const PARALLEL *parallel,const real vx[],const real vy[],
+                        const real vz[],const real mass[],real stress[6],
+                        real dBuffer[]);
 
     void getKin0(PARAM *param, const PBC *box);
 
     void getDegFree(PARAM *param, const PBC *box);
     
-    void getCom(const PARALLEL *parallel,const double mass[],
-	    const double x[],const double y[],const double z[],
-	    double com[3],double dBuffer[]);
+    void getCom(const PARALLEL *parallel,const real mass[],
+	    const real x[],const real y[],const real z[],
+	    real com[3],real dBuffer[]);
     
-    void getVom(const PARALLEL *parallel,const double mass[],
-	    const double vx[],const double vy[],const double vz[],
-	    double vom[3],double dBuffer[]);
+    void getVom(const PARALLEL *parallel,const real mass[],
+	    const real vx[],const real vy[],const real vz[],
+	    real vom[3],real dBuffer[]);
 
     void nocase(char *str);
 
-    int nint(const double x);
+    int nint(const real x);
 
 #ifdef	__cplusplus
 }

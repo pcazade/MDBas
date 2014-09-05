@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-    int lattice_to_cryst(double lattice[6], double matrix[9]);
+    int lattice_to_cryst(real lattice[6], real matrix[9]);
 
 #ifdef __cplusplus
 }

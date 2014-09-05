@@ -38,14 +38,14 @@ void init_rand(unsigned int seed)
     dsfmt_init_gen_rand(&dsfmt,seed);
 }
 
-double get_rand()
+real get_rand()
 {
     return dsfmt_genrand_open_open(&dsfmt);
 }
 
-void get_BoxMuller(double *u, double *v)
+void get_BoxMuller(real *u, real *v)
 {
-    double a,b,s;
+    real a,b,s;
 
     do
     {

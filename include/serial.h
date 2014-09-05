@@ -36,38 +36,38 @@ int num_proc();
 void barrier_para();
 
 
-void sum_double_para(double *buf1,double *buf2,int size);
+void sum_double_para(real *buf1,real *buf2,int size);
 
 
 void sum_int_para(int *buf1,int *buf2,int size);
 
 
-void update_double_para(PARAM *param,PARALLEL *parallel,double *buf1,double *buf2);
+void update_double_para(PARAM *param,PARALLEL *parallel,real *buf1,real *buf2);
 
 
 void test_para(int *buf1);
 
 
-void parallel_allocate_buffers(PARAM *param,PARALLEL *parallel,double **dBuffer,
+void parallel_allocate_buffers(PARAM *param,PARALLEL *parallel,real **dBuffer,
 			       int **iBuffer);
 
 
-void parallel_reallocate_buffers(PARALLEL *parallel,EWALD *ewald,double **dBuffer);
+void parallel_reallocate_buffers(PARALLEL *parallel,EWALD *ewald,real **dBuffer);
 
 
 void bcast_int_para(int *buf1,int size,int iNode);
 
 
-void bcast_double_para(double *buf1,int size,int iNode);
+void bcast_double_para(real *buf1,int size,int iNode);
 
 
 void setup_para(CTRL *ctrl,PARAM *param,PARALLEL *parallel,
 		BATH *bath,NEIGH *neigh,EWALD *ewald,PBC *box,CONSTRAINT **constList,
-		BOND **bond,ANGLE **angle,DIHE **dihe,DIHE **impr,BOND **ub,double **x,
-		double **y, double **z,double **vx,double **vy,double **vz,double **fx,
-		double **fy, double **fz,double **mass,double **rmass,double **q,
-		double **eps,double **sig,double **eps14,double **sig14,int **frozen,
-		int **nAtConst,double **dBuffer,int **iBuffer);
+		BOND **bond,ANGLE **angle,DIHE **dihe,DIHE **impr,BOND **ub,real **x,
+		real **y, real **z,real **vx,real **vy,real **vz,real **fx,
+		real **fy, real **fz,real **mass,real **rmass,real **q,
+		real **eps,real **sig,real **eps14,real **sig14,int **frozen,
+		int **nAtConst,real **dBuffer,int **iBuffer);
 
 void close_para();
 

@@ -33,15 +33,15 @@
 
 void numforce(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,NEIGH *neigh,
               BOND bond[],BOND ub[],ANGLE angle[],DIHE dihe[],DIHE impr[],
-              DELTA nForce[],double x[],double y[],double z[],int npoints,double h)
+              DELTA nForce[],real x[],real y[],real z[],int npoints,real h)
 {
     int i;
-    double coord;
+    real coord;
 
     if(npoints==2)
     {
 
-        double a,b;
+        real a,b;
 
         for(i=0; i<param->nAtom; i++)
         {
@@ -96,7 +96,7 @@ void numforce(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,NEIGH *neigh,
     else if(npoints==4)
     {
 
-        double a,b,c,d;
+        real a,b,c,d;
 
         for(i=0; i<param->nAtom; i++)
         {
@@ -176,7 +176,7 @@ void numforce(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,NEIGH *neigh,
     else if(npoints==6)
     {
 
-        double a,b,c,d,e,f;
+        real a,b,c,d,e,f;
 
         for(i=0; i<param->nAtom; i++)
         {

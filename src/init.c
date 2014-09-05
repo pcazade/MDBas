@@ -56,12 +56,12 @@ extern FILE *outFile;
 
 void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARALLEL *parallel,ENERGY *ener,
 		 BATH *bath,NEIGH *neigh,EWALD *ewald,POLAR *polar,PBC *box,ATOM **atom,CONSTRAINT **constList,
-		 BOND **bond,ANGLE **angle,DIHE **dihe,DIHE **impr,BOND **ub,double **x,
-		 double **y, double **z,double **vx,double **vy,double **vz,double **fx,
-		 double **fy, double **fz,double **mass,double **rmass,double **q,
-		 double **eps,double **sig,double **eps14,double **sig14,double **alPol,int **frozen,
+		 BOND **bond,ANGLE **angle,DIHE **dihe,DIHE **impr,BOND **ub,real **x,
+		 real **y, real **z,real **vx,real **vy,real **vz,real **fx,
+		 real **fy, real **fz,real **mass,real **rmass,real **q,
+		 real **eps,real **sig,real **eps14,real **sig14,real **alPol,int **frozen,
 		 int **nAtConst,int ***neighList,int **neighPair,int **neighList14,
-		 int ***exclList,int **exclPair,double **dBuffer,int **iBuffer)
+		 int ***exclList,int **exclPair,real **dBuffer,int **iBuffer)
 {
   
   /** Initialization of the simulation starts here. */
@@ -112,22 +112,22 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
       read_rest(inout,param,ener,bath,atom,x,y,z,vx,vy,vz,fx,fy,fz);
       fprintf(outFile,"%s file read\n",inout->restName);
       
-      *q=(double*)my_malloc(param->nAtom*sizeof(double));
+      *q=(real*)my_malloc(param->nAtom*sizeof(real));
       
-      *mass=(double*)my_malloc(param->nAtom*sizeof(double));
-      *rmass=(double*)my_malloc(param->nAtom*sizeof(double));
+      *mass=(real*)my_malloc(param->nAtom*sizeof(real));
+      *rmass=(real*)my_malloc(param->nAtom*sizeof(real));
       
       *frozen=(int*)my_malloc(param->nAtom*sizeof(int));
       
       *nAtConst=(int*)my_malloc(param->nAtom*sizeof(int));
       
-      *eps=(double*)my_malloc(param->nAtom*sizeof(double));
-      *sig=(double*)my_malloc(param->nAtom*sizeof(double));
-      *eps14=(double*)my_malloc(param->nAtom*sizeof(double));
-      *sig14=(double*)my_malloc(param->nAtom*sizeof(double));
+      *eps=(real*)my_malloc(param->nAtom*sizeof(real));
+      *sig=(real*)my_malloc(param->nAtom*sizeof(real));
+      *eps14=(real*)my_malloc(param->nAtom*sizeof(real));
+      *sig14=(real*)my_malloc(param->nAtom*sizeof(real));
       
       if(ctrl->keyPol)
-	*alPol=(double*)my_malloc(param->nAtom*sizeof(double));
+	*alPol=(real*)my_malloc(param->nAtom*sizeof(real));
       
     }
     else
@@ -136,30 +136,30 @@ void init_system(int *argc, char ***argv,IO *inout,CTRL *ctrl,PARAM *param,PARAL
       read_CONF(inout,param,atom,x,y,z);
       fprintf(outFile,"%s file read\n",inout->confName);
       
-      *vx=(double*)my_calloc(param->nAtom,sizeof(double));
-      *vy=(double*)my_calloc(param->nAtom,sizeof(double));
-      *vz=(double*)my_calloc(param->nAtom,sizeof(double));
+      *vx=(real*)my_calloc(param->nAtom,sizeof(real));
+      *vy=(real*)my_calloc(param->nAtom,sizeof(real));
+      *vz=(real*)my_calloc(param->nAtom,sizeof(real));
       
-      *fx=(double*)my_calloc(param->nAtom,sizeof(double));
-      *fy=(double*)my_calloc(param->nAtom,sizeof(double));
-      *fz=(double*)my_calloc(param->nAtom,sizeof(double));
+      *fx=(real*)my_calloc(param->nAtom,sizeof(real));
+      *fy=(real*)my_calloc(param->nAtom,sizeof(real));
+      *fz=(real*)my_calloc(param->nAtom,sizeof(real));
       
-      *q=(double*)my_malloc(param->nAtom*sizeof(double));
+      *q=(real*)my_malloc(param->nAtom*sizeof(real));
       
-      *mass=(double*)my_malloc(param->nAtom*sizeof(double));
-      *rmass=(double*)my_malloc(param->nAtom*sizeof(double));
+      *mass=(real*)my_malloc(param->nAtom*sizeof(real));
+      *rmass=(real*)my_malloc(param->nAtom*sizeof(real));
       
       *frozen=(int*)my_malloc(param->nAtom*sizeof(int));
       
       *nAtConst=(int*)my_malloc(param->nAtom*sizeof(int));
       
-      *eps=(double*)my_malloc(param->nAtom*sizeof(double));
-      *sig=(double*)my_malloc(param->nAtom*sizeof(double));
-      *eps14=(double*)my_malloc(param->nAtom*sizeof(double));
-      *sig14=(double*)my_malloc(param->nAtom*sizeof(double));
+      *eps=(real*)my_malloc(param->nAtom*sizeof(real));
+      *sig=(real*)my_malloc(param->nAtom*sizeof(real));
+      *eps14=(real*)my_malloc(param->nAtom*sizeof(real));
+      *sig14=(real*)my_malloc(param->nAtom*sizeof(real));
       
       if(ctrl->keyPol)
-	*alPol=(double*)my_malloc(param->nAtom*sizeof(double));
+	*alPol=(real*)my_malloc(param->nAtom*sizeof(real));
             
     }
     
@@ -421,7 +421,7 @@ void init_variables(CTRL *ctrl,PARAM *param,PARALLEL *parallel,BATH *bath,NEIGH 
 
 void setup(CTRL *ctrl,PARAM *param,ATOM atom[],CONSTRAINT **constList,
 	   BOND **bond,ANGLE **angle,DIHE **dihe,DIHE **impr,BOND **ub,
-	   double mass[],double rmass[],int frozen[],int nAtConst[])
+	   real mass[],real rmass[],int frozen[],int nAtConst[])
 {
   int i,j,k,ia,ib,ic,id,iend;
   int constBond1,constBond2,constBond3;
@@ -799,13 +799,13 @@ void setup(CTRL *ctrl,PARAM *param,ATOM atom[],CONSTRAINT **constList,
  * \remarks If constraints are used, init_constvel is internally called.
  */
 void init_vel(PARAM *param,PARALLEL *parallel,PBC *box,CONSTRAINT constList[],
-	      double x[],double y[],double z[],double vx[],double vy[],
-	      double vz[],double mass[],double rmass[],int frozen[],
-	      int nAtConst[], double dBuffer[])
+	      real x[],real y[],real z[],real vx[],real vy[],
+	      real vz[],real mass[],real rmass[],int frozen[],
+	      int nAtConst[], real dBuffer[])
 {
   int i,natoms;
-  double cmvx=0.,cmvy=0.,cmvz=0.,cmm=0.,initKin=0.;
-  double factor;  
+  real cmvx=0.,cmvy=0.,cmvz=0.,cmm=0.,initKin=0.;
+  real factor;  
   
   natoms=2*(param->nAtom/2);
   
@@ -820,7 +820,7 @@ void init_vel(PARAM *param,PARALLEL *parallel,PBC *box,CONSTRAINT constList[],
   
   if(natoms!=param->nAtom)
   {
-    double v;
+    real v;
     get_BoxMuller(&(vx[natoms]),&v);
     get_BoxMuller(&(vy[natoms]),&v);
     get_BoxMuller(&(vz[natoms]),&v);
@@ -896,22 +896,22 @@ void init_vel(PARAM *param,PARALLEL *parallel,PBC *box,CONSTRAINT constList[],
  * \brief Initialise velocity of atoms according to a random normal distribution.
  * \remarks Called by init_vel if constraints are used.
  */
-void init_constvel(PARAM *param,PBC *box,CONSTRAINT constList[],double x[],
-		   double y[],double z[],double vx[],double vy[],double vz[],
-		   double mass[],int nAtConst[])
+void init_constvel(PARAM *param,PBC *box,CONSTRAINT constList[],real x[],
+		   real y[],real z[],real vx[],real vy[],real vz[],
+		   real mass[],int nAtConst[])
 {
   int i,ia,ib,icycle,converged;
-  double *vxu=NULL,*vyu=NULL,*vzu=NULL;
-  double rt,maxdv,dv,w1,w2,nia,nib;
-  double *dtx=NULL,*dty=NULL,*dtz=NULL;
+  real *vxu=NULL,*vyu=NULL,*vzu=NULL;
+  real rt,maxdv,dv,w1,w2,nia,nib;
+  real *dtx=NULL,*dty=NULL,*dtz=NULL;
   
-  vxu=(double*)my_malloc(param->nAtom*sizeof(*vxu));
-  vyu=(double*)my_malloc(param->nAtom*sizeof(*vyu));
-  vzu=(double*)my_malloc(param->nAtom*sizeof(*vzu));
+  vxu=(real*)my_malloc(param->nAtom*sizeof(*vxu));
+  vyu=(real*)my_malloc(param->nAtom*sizeof(*vyu));
+  vzu=(real*)my_malloc(param->nAtom*sizeof(*vzu));
   
-  dtx=(double*)my_malloc(param->nConst*sizeof(*dtx));
-  dty=(double*)my_malloc(param->nConst*sizeof(*dty));
-  dtz=(double*)my_malloc(param->nConst*sizeof(*dtz));
+  dtx=(real*)my_malloc(param->nConst*sizeof(*dtx));
+  dty=(real*)my_malloc(param->nConst*sizeof(*dty));
+  dtz=(real*)my_malloc(param->nConst*sizeof(*dtz));
   
   for(i=0;i<param->nConst;i++)
   {
@@ -978,8 +978,8 @@ void init_constvel(PARAM *param,PBC *box,CONSTRAINT constList[],double x[],
 	ia=constList[i].a;
 	ib=constList[i].b;
 	
-	nia=(double)nAtConst[ia];
-	nib=(double)nAtConst[ib];
+	nia=(real)nAtConst[ia];
+	nib=(real)nAtConst[ib];
 	
 	vx[ia]+=vxu[ia]/nia;
 	vy[ia]+=vyu[ia]/nia;
@@ -1084,11 +1084,11 @@ void init_box(PBC *box)
 
 void free_all(CTRL *ctrl,PARAM *param, PARALLEL *parallel,EWALD *ewald,POLAR *polar,ATOM **atom,
 	      CONSTRAINT **constList,BOND **bond,ANGLE **angle,DIHE **dihe,DIHE **impr,
-	      BOND **ub,double **x,double **y, double **z,double **vx,double **vy,
-	      double **vz,double **fx,double **fy, double **fz,double **mass,double **rmass,
-	      double **q,double **eps,double **sig,double **eps14,double **sig14,double **alPol,int **frozen,
+	      BOND **ub,real **x,real **y, real **z,real **vx,real **vy,
+	      real **vz,real **fx,real **fy, real **fz,real **mass,real **rmass,
+	      real **q,real **eps,real **sig,real **eps14,real **sig14,real **alPol,int **frozen,
 	      int **nAtConst,int ***neighList,int **neighPair,int **neighList14,
-	      int ***exclList,int **exclPair,double **dBuffer,int **iBuffer)
+	      int ***exclList,int **exclPair,real **dBuffer,int **iBuffer)
 {
   
   integrators_free_arrays(ctrl,param);

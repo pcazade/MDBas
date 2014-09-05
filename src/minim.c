@@ -45,15 +45,15 @@ void minimise(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,NEIGH *neigh,
 
 void steepestDescent(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,NEIGH *neigh,
                      ATOM atom[],BOND bond[],BOND ub[],ANGLE angle[],DIHE dihe[],
-                     DIHE impr[],double x[],double y[],double z[],double fx[],
-                     double fy[],double fz[])
+                     DIHE impr[],real x[],real y[],real z[],real fx[],
+                     real fy[],real fz[])
 {
-    double step = 1.0e-7 ;
-    double prec = 1.0e-3 ;
+    real step = 1.0e-7 ;
+    real prec = 1.0e-3 ;
     int maxSteps = 10000 ;
 
-    double diff;
-    double eprev = 0. , enow = 0. ;
+    real diff;
+    real eprev = 0. , enow = 0. ;
 
     int i, currSt=0 ;
 

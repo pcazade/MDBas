@@ -100,7 +100,7 @@ MainWindow::MainWindow()
 
 void MainWindow::computeMatrix()
 {
-    double lattice[6]= {0.0} , matrix[9]= {0.0};
+    real lattice[6]= {0.0} , matrix[9]= {0.0};
     int errorCode=0;
 
     lattice[0] = this->a->text().toDouble();

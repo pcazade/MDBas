@@ -9,23 +9,23 @@
 #define PI (3.14159265358979)
 #define X2(x) ((x)*(x))
 
-extern void dsyev_(char *jobz, char *uplo, int *n, double *A, int *lda, double *W, double *WORK, int *lwork, int *info);
+extern void dsyev_(char *jobz, char *uplo, int *n, real *A, int *lda, real *W, real *WORK, int *lwork, int *info);
 
-int lattice_to_cryst(double lattice[6], double matrix[9])
+int lattice_to_cryst(real lattice[6], real matrix[9])
 {
 
-    double a,b,c,alpha,beta,gamma,aldeg,bedeg,gadeg;
-    double egvec[9],hth[9],crystal[6];
+    real a,b,c,alpha,beta,gamma,aldeg,bedeg,gadeg;
+    real egvec[9],hth[9],crystal[6];
 
     char jobz = 'V',uplo='L';
     int n = 3 ;
     int lda = n;
-    double *W = malloc(n*sizeof(double));
-    double *WORK = NULL;
+    real *W = malloc(n*sizeof(real));
+    real *WORK = NULL;
     int lwork = -1;
     int info=-42;
 
-    double siz = 0.0;
+    real siz = 0.0;
 
     a=lattice[0];
     b=lattice[1];
@@ -76,7 +76,7 @@ int lattice_to_cryst(double lattice[6], double matrix[9])
         hth[3]=hth[1];
     }
 
-    memcpy(egvec,hth,9*sizeof(double));
+    memcpy(egvec,hth,9*sizeof(real));
 
 
     /*
@@ -99,7 +99,7 @@ int lattice_to_cryst(double lattice[6], double matrix[9])
     dsyev_(&jobz, &uplo, &n, egvec, &lda, W, &siz, &lwork, &info);
 
     if(info==0)
-        WORK = (double*)malloc((size_t)siz*sizeof(double));
+        WORK = (real*)malloc((size_t)siz*sizeof(real));
     else
         return info;
 

@@ -33,36 +33,36 @@
 #include "serial.h"
 #endif
 
-extern void dtptri_(char* UPLO,char* DIAG,int* N,double *AP,int *INFO);
+extern void dtptri_(char* UPLO,char* DIAG,int* N,real *AP,int *INFO);
 
 static int *polList,*polMap;
 
-static double *elFieldX,*elFieldY,*elFieldZ;
-static double *elFieldIndX,*elFieldIndY,*elFieldIndZ;
-static double *muIndX,*muIndY,*muIndZ;
-static double *muOldX,*muOldY,*muOldZ;
-static double *polTensor;
+static real *elFieldX,*elFieldY,*elFieldZ;
+static real *elFieldIndX,*elFieldIndY,*elFieldIndZ;
+static real *muIndX,*muIndY,*muIndZ;
+static real *muOldX,*muOldY,*muOldZ;
+static real *polTensor;
 
-void init_polar(CTRL *ctrl,PARAM *param,POLAR *polar,const double alPol[])
+void init_polar(CTRL *ctrl,PARAM *param,POLAR *polar,const real alPol[])
 {
   
   int i,ii;
   
-  elFieldX=(double*)my_malloc(param->nAtom*sizeof(*elFieldX));
-  elFieldY=(double*)my_malloc(param->nAtom*sizeof(*elFieldY));
-  elFieldZ=(double*)my_malloc(param->nAtom*sizeof(*elFieldZ));
+  elFieldX=(real*)my_malloc(param->nAtom*sizeof(*elFieldX));
+  elFieldY=(real*)my_malloc(param->nAtom*sizeof(*elFieldY));
+  elFieldZ=(real*)my_malloc(param->nAtom*sizeof(*elFieldZ));
   
-  elFieldIndX=(double*)my_malloc(param->nAtom*sizeof(*elFieldIndX));
-  elFieldIndY=(double*)my_malloc(param->nAtom*sizeof(*elFieldIndY));
-  elFieldIndZ=(double*)my_malloc(param->nAtom*sizeof(*elFieldIndZ));
+  elFieldIndX=(real*)my_malloc(param->nAtom*sizeof(*elFieldIndX));
+  elFieldIndY=(real*)my_malloc(param->nAtom*sizeof(*elFieldIndY));
+  elFieldIndZ=(real*)my_malloc(param->nAtom*sizeof(*elFieldIndZ));
   
-  muIndX=(double*)my_malloc(param->nAtom*sizeof(*muIndX));
-  muIndY=(double*)my_malloc(param->nAtom*sizeof(*muIndY));
-  muIndZ=(double*)my_malloc(param->nAtom*sizeof(*muIndZ));
+  muIndX=(real*)my_malloc(param->nAtom*sizeof(*muIndX));
+  muIndY=(real*)my_malloc(param->nAtom*sizeof(*muIndY));
+  muIndZ=(real*)my_malloc(param->nAtom*sizeof(*muIndZ));
   
-  muOldX=(double*)my_malloc(param->nAtom*sizeof(*muOldX));
-  muOldY=(double*)my_malloc(param->nAtom*sizeof(*muOldY));
-  muOldZ=(double*)my_malloc(param->nAtom*sizeof(*muOldZ));
+  muOldX=(real*)my_malloc(param->nAtom*sizeof(*muOldX));
+  muOldY=(real*)my_malloc(param->nAtom*sizeof(*muOldY));
+  muOldZ=(real*)my_malloc(param->nAtom*sizeof(*muOldZ));
   
   polList=(int*)my_malloc(param->nAtom*sizeof(*polList));
   polMap=(int*)my_malloc(param->nAtom*sizeof(*polMap));
@@ -97,7 +97,7 @@ void init_polar(CTRL *ctrl,PARAM *param,POLAR *polar,const double alPol[])
     
     polar->nPolTensor=polar->nAtPol*(polar->nAtPol+1)/2;
     
-    polTensor=(double*)my_malloc(polar->nPolTensor*sizeof(*polTensor));
+    polTensor=(real*)my_malloc(polar->nPolTensor*sizeof(*polTensor));
     
   } // end if(ctrl->keyPolInv)
   
@@ -131,16 +131,16 @@ void free_polar(CTRL *ctrl)
 }
 
 void static_field(PARAM *param,PARALLEL *parallel,PBC *box,
-		  const double x[],const double y[],const double z[],
-		  const double q[],int **neighList,const int neighPair[],
-		  double dBuffer[])
+		  const real x[],const real y[],const real z[],
+		  const real q[],int **neighList,const int neighPair[],
+		  real dBuffer[])
 {
   
   int i,j,k,l;
-  double qri,qrj;
-  double efxi,efyi,efzi;
-  double r2,rt,rt2,rt3;
-  double delta[3];
+  real qri,qrj;
+  real efxi,efyi,efzi;
+  real r2,rt,rt2,rt3;
+  real delta[3];
   
   for(i=0;i<param->nAtom;i++)
   {
@@ -205,18 +205,18 @@ void static_field(PARAM *param,PARALLEL *parallel,PBC *box,
 }
 
 void polar_ener_iter(PARAM *param,PARALLEL *parallel,ENERGY *ener,PBC *box, POLAR *polar,
-		     const double x[],const double y[],const double z[],double fx[],
-		     double fy[],double fz[],const double q[],const double alPol[],
-		     int **neighList,const int neighPair[],double dBuffer[])
+		     const real x[],const real y[],const real z[],real fx[],
+		     real fy[],real fz[],const real q[],const real alPol[],
+		     int **neighList,const int neighPair[],real dBuffer[])
 {
   int i,j,k,l;
   int icycle;
-  double epol,virpol;
-  double muVar,converged;
-  double efxi,efyi,efzi;
-  double r2,rt,rt2,rt3,rt5;
-  double tm1,tm2,tm3,tm4,tm5,tm6;
-  double delta[3];
+  real epol,virpol;
+  real muVar,converged;
+  real efxi,efyi,efzi;
+  real r2,rt,rt2,rt3,rt5;
+  real tm1,tm2,tm3,tm4,tm5,tm6;
+  real delta[3];
   
   static_field(param,parallel,box,x,y,z,q,neighList,neighPair,dBuffer);
   
@@ -390,9 +390,9 @@ void polar_ener_iter(PARAM *param,PARALLEL *parallel,ENERGY *ener,PBC *box, POLA
 }
 
 void polar_ener_inv(PARAM *param,PARALLEL *parallel,ENERGY *ener,PBC *box, POLAR *polar,
-		    const double x[],const double y[],const double z[],double fx[],
-		    double fy[],double fz[],const double q[],const double alPol[],
-		    int **neighList,const int neighPair[],double dBuffer[])
+		    const real x[],const real y[],const real z[],real fx[],
+		    real fy[],real fz[],const real q[],const real alPol[],
+		    int **neighList,const int neighPair[],real dBuffer[])
 {
   char UPLO='U',DIAG='N';
   
@@ -402,10 +402,10 @@ void polar_ener_inv(PARAM *param,PARALLEL *parallel,ENERGY *ener,PBC *box, POLAR
   int m1,m2,m3;
   int ierr;
   
-  double alPolInv,epol,virpol;
-  double r2,rt,rt2,rt3,rt5;
-  double tm1,tm2,tm3,tm4,tm5,tm6;
-  double delta[3];
+  real alPolInv,epol,virpol;
+  real r2,rt,rt2,rt3,rt5;
+  real tm1,tm2,tm3,tm4,tm5,tm6;
+  real delta[3];
   
   static_field(param,parallel,box,x,y,z,q,neighList,neighPair,dBuffer);
   
@@ -650,22 +650,22 @@ void polar_ener_inv(PARAM *param,PARALLEL *parallel,ENERGY *ener,PBC *box, POLAR
   
 }
 
-void polar_forces(PARAM *param,PARALLEL *parallel,PBC *box,const double x[],
-		  const double y[],const double z[],double fx[],double fy[],
-		  double fz[],const double q[],double *virpol,int **neighList,
+void polar_forces(PARAM *param,PARALLEL *parallel,PBC *box,const real x[],
+		  const real y[],const real z[],real fx[],real fy[],
+		  real fz[],const real q[],real *virpol,int **neighList,
 		  const int neighPair[])
 {
   int i,j,k,l;
   
-  double qi,qj;
-  double fxi,fyi,fzi;
-  double r2,rt,rt2,rt3,rt5;
-  double tm1,tm2,tm3,tm4,tm5,tm6;
-  double tmxi,tmyi,tmzi,tmxj,tmyj,tmzj;
-  double mrt2,mrt5,mufi,mufj,mufij;
-  double muftx,mufty,muftz;
-  double fpolx,fpoly,fpolz;
-  double delta[3];
+  real qi,qj;
+  real fxi,fyi,fzi;
+  real r2,rt,rt2,rt3,rt5;
+  real tm1,tm2,tm3,tm4,tm5,tm6;
+  real tmxi,tmyi,tmzi,tmxj,tmyj,tmzj;
+  real mrt2,mrt5,mufi,mufj,mufij;
+  real muftx,mufty,muftz;
+  real fpolx,fpoly,fpolz;
+  real delta[3];
   
   *virpol=0.;
 

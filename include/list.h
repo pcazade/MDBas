@@ -9,34 +9,34 @@ extern "C" {
 
     void makelist(CTRL *ctrl,PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,
                   CONSTRAINT constList[],BOND bond[],ANGLE angle[],DIHE dihe[],DIHE impr[],
-		  double x[], double y[],double z[],double vx[], double vy[],double vz[],
+		  real x[], real y[],real z[],real vx[], real vy[],real vz[],
 		  int frozen[],int ***neighList,int **neighPair,int **neighList14,
                   int ***exclList,int **exclPair,int iBuffer[]);
     
     void heuristic_update(CTRL *ctrl,PARAM *param,PARALLEL *parallel,NEIGH *neigh,
-		      double vx[],double vy[],double vz[],int iBuffer[]);
+		      real vx[],real vy[],real vz[],int iBuffer[]);
 
     void exclude_list(CTRL *ctrl,PARAM *param,PARALLEL *parallel,NEIGH *neigh,CONSTRAINT constList[],
                       BOND bond[],ANGLE angle[],DIHE dihe[],DIHE impr[],
                       int **neighList14,int ***exclList,int **exclPair);
 
-    void init_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
+    void init_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,real x[],real y[],real z[],
                           int frozen[],int ***neighList,int **neighPair,int **exclList,
                           int exclPair[]);
 
-    void verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
+    void verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,real x[],real y[],real z[],
                      int frozen[],int ***neighList,int neighPair[],int **exclList,
                      int exclPair[]);
 
-    void init_link_cell_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
+    void init_link_cell_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,real x[],real y[],real z[],
                                     int frozen[],int ***neighList,int **neighPair,int **exclList,
                                     int exclPair[]);
 
-    void link_cell_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
+    void link_cell_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,real x[],real y[],real z[],
                                int frozen[],int ***neighList,int neighPair[],int **exclList,
                                int exclPair[]);
 
-// void fast_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,double x[],double y[],double z[],
+// void fast_verlet_list(PARAM *param,PARALLEL *parallel,PBC *box,NEIGH *neigh,real x[],real y[],real z[],
 // 		      int frozen[],int **neighList,int **neighPair,
 // 		      int **exclList,int exclPair[]);
 

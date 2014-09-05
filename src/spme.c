@@ -21,17 +21,13 @@
 #include <stdlib.h>
 #include <float.h>
 #include <math.h>
-
-#include <cuda.h>
-#include <cuda_runtime.h>
-#include <cufft.h>
-#include <cuComplex.h>
+#include <complex.h>
+#include <fftw3.h>
 
 #include "global.h"
 #include "utils.h"
 #include "memory.h"
 #include "spme.h"
-#include "cuda_utils.h"
 
 #ifdef USING_MPI
 #include "parallel.h"
@@ -39,33 +35,32 @@
 #include "serial.h"
 #endif
 
-# ifdef DOUBLE_CUDA
-typedef cuDoubleComplex cplx;
-typedef double real;
-#else
-typedef cuComplex cplx;
-typedef float real;
-#endif
+typedef real complex cplx;
 
 static int newJob;
 
-static double eEwaldself,systq;
+static real eEwaldself,systq;
 
-static double *sx,*sy,*sz;
+static real *sx,*sy,*sz;
 
-static double *bsp,*qsp;
-static double **bsp1,**bsp2,**bsp3;
-static double **bsd1,**bsd2,**bsd3;
+static real *bsp,*qsp;
+static real **bsp1,**bsp2,**bsp3;
+static real **bsd1,**bsd2,**bsd3;
 
 static cplx *bspc1,*bspc2,*bspc3;
 static cplx *epl1,*epl2,*epl3;
 
+#ifdef FFTW
 static fftw_complex *ftqsp;
 static fftw_plan fft3d1;
 static fftw_plan fft3d2;
+#else
+static cplx *ftqsp;
+#endif
 
 void init_spme(CTRL *ctrl,PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box)
 {
+
     int i,m1maxp2,m2maxp2,m3maxp2;
 
     newJob=1;
@@ -142,7 +137,12 @@ void init_spme(CTRL *ctrl,PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box)
     ewald->mmax=ewald->m1max*ewald->m2max*ewald->m3max;
 
     qsp=(real*)my_malloc(ewald->mmax*sizeof(*qsp));
-    ftqsp=(cplx*)cudaMalloc(ewald->mmax*sizeof(*ftqsp));
+
+#ifdef FFTW
+    ftqsp=(fftw_complex*)fftw_malloc(ewald->mmax*sizeof(*ftqsp));
+#else
+    ftqsp=(cplx*)my_malloc(ewald->mmax*sizeof(*ftqsp));
+#endif
 
 }
 
@@ -209,24 +209,24 @@ void epl_cplx(EWALD *ewald)
 
     for(i=1; i<=hm1max; i++)
     {
-        epl1[i]=cudaExpI(TWOPI*(real)i/(real)ewald->m1max);
-        epl1[ewald->m1max-i]=cudaConj(epl1[i]);
+        epl1[i]=cexp(I*TWOPI*(real)i/(real)ewald->m1max);
+        epl1[ewald->m1max-i]=conj(epl1[i]);
     }
 
     epl2[0]=1.0+I*0.0;
 
     for(i=1; i<=hm2max; i++)
     {
-        epl2[i]=cudaExpI(TWOPI*(real)i/(real)ewald->m2max);
-        epl2[ewald->m2max-i]=cudaConj(epl2[i]);
+        epl2[i]=cexp(I*TWOPI*(real)i/(real)ewald->m2max);
+        epl2[ewald->m2max-i]=conj(epl2[i]);
     }
 
     epl3[0]=1.0+I*0.0;
 
     for(i=1; i<=hm3max; i++)
     {
-        epl3[i]=cudaExpI(TWOPI*(real)i/(real)ewald->m3max);
-        epl3[ewald->m3max-i]=cudaConj(epl3[i]);
+        epl3[i]=cexp(I*TWOPI*(real)i/(real)ewald->m3max);
+        epl3[ewald->m3max-i]=conj(epl3[i]);
     }
 
 }
@@ -254,12 +254,11 @@ void bspcoef(EWALD *ewald)
     for(i=0; i<ewald->m1max; i++)
     {
 
-        coeff.x=0.0;
-	coeff.y=0.0;
+        coeff=0.+I*0.0;
 
         for(k=0; k<ewald->nbsp-1; k++)
         {
-            coeff=cudaAdd(coeff,cudaMul(bsp[k+1],epl1[( (i*k) % ewald->m1max )]);
+            coeff+=bsp[k+1]*epl1[( (i*k) % ewald->m1max )];
         }
 
         bspc1[i]=epl1[( ( i* (ewald->nbsp-1) ) % ewald->m1max )]/coeff;
@@ -300,7 +299,7 @@ void bspgen(PARALLEL *parallel,EWALD *ewald)
 {
 
     int i,j,k;
-    double tsx,tsy,tsz;
+    real tsx,tsy,tsz;
 
     for(i=0; i<parallel->nAtProc; i++)
     {
@@ -384,9 +383,9 @@ void bspgen(PARALLEL *parallel,EWALD *ewald)
 
 }
 
-double spme_energy(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const double x[],
-                   const double y[],const double z[],double fx[],double fy[],double fz[],
-                   const double q[],double stress[6],double *virEwaldRec,double dBuffer[])
+real spme_energy(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const real x[],
+                   const real y[],const real z[],real fx[],real fy[],real fz[],
+                   const real q[],real stress[6],real *virEwaldRec,real dBuffer[])
 {
 
     int i,ii,j,jj,k,kk,l,ll;
@@ -395,14 +394,14 @@ double spme_energy(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const d
 
     cplx cam,etmp;
 
-    double vam,qtmp,fact1;
-    double tt,bm1,bm2,bm3;
-    double rm,rrm,rmx,rmy,rmz;
-    double rm1x,rm1y,rm1z,rm2x,rm2y,rm2z;
-    double recCutOff,recCutOff2,rAlpha2,rVol;
-    double eEwaldRec,eNonNeutral;
-    double fbx,fby,fbz;
-    double fm[3];
+    real vam,qtmp,fact1;
+    real tt,bm1,bm2,bm3;
+    real rm,rrm,rmx,rmy,rmz;
+    real rm1x,rm1y,rm1z,rm2x,rm2y,rm2z;
+    real recCutOff,recCutOff2,rAlpha2,rVol;
+    real eEwaldRec,eNonNeutral;
+    real fbx,fby,fbz;
+    real fm[3];
 
     if(newJob)
     {
@@ -421,7 +420,7 @@ double spme_energy(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const d
         {
             dBuffer[0]=systq;
             dBuffer[1]=eEwaldself;
-            sum_real_para(dBuffer,&(dBuffer[3]),2);
+            sum_double_para(dBuffer,&(dBuffer[3]),2);
             systq=dBuffer[0];
             eEwaldself=dBuffer[1];
         }
@@ -535,7 +534,7 @@ double spme_energy(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const d
     }
 
     if(parallel->nProc>1)
-        sum_real_para(qsp,dBuffer,ewald->mmax);
+        sum_double_para(qsp,dBuffer,ewald->mmax);
 
     for(m3=0; m3<ewald->mmax; m3++)
     {
@@ -708,7 +707,7 @@ double spme_energy(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const d
     }
 
     if(parallel->nProc>1)
-        sum_real_para(fm,dBuffer,3);
+        sum_double_para(fm,dBuffer,3);
 
     fm[0]/=(real)param->nAtom;
     fm[1]/=(real)param->nAtom;

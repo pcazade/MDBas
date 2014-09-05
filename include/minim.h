@@ -11,8 +11,8 @@ extern "C" {
 
     void steepestDescent(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,NEIGH *neigh,
                          ATOM atom[],BOND bond[],BOND ub[],ANGLE angle[],DIHE dihe[],
-                         DIHE impr[],double x[],double y[],double z[],double fx[],
-                         double fy[],double fz[]);
+                         DIHE impr[],real x[],real y[],real z[],real fx[],
+                         real fy[],real fz[]);
 
     void conjugateGradients(CTRL *ctrl,PARAM *param,ENERGY *ener,PBC *box,NEIGH *neigh,
                             ATOM atom[],BOND bond[],BOND ub[],ANGLE angle[],DIHE dihe[],

@@ -53,8 +53,7 @@ static cplx *bspc1,*bspc2,*bspc3;
 static cplx *epl1,*epl2,*epl3;
 
 static cufftComplex *d_ftqsp;
-static cufftHandle d_fft3d1;
-static cufftHandle d_fft3d2;
+static cufftHandle d_fft3d;
 
 void init_spme(CTRL *ctrl,PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box)
 {
@@ -134,7 +133,7 @@ void init_spme(CTRL *ctrl,PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box)
     ewald->mmax=ewald->m1max*ewald->m2max*ewald->m3max;
 
     qsp=(real*)my_malloc(ewald->mmax*sizeof(*qsp));
-    ftqsp=(cplx*)cudaMalloc(ewald->mmax*sizeof(*ftqsp));
+    d_ftqsp=(cplx*)cudaMalloc(ewald->mmax*sizeof(*d_ftqsp));
 
 }
 
@@ -177,14 +176,8 @@ void spme_free(PARALLEL *parallel)
 
     free(qsp);
 
-#ifdef FFTW
     cudaFree(d_ftqsp);
-
-    cufftDestroy(d_fft3d1);
-    cufftDestroy(d_fft3d2);
-#else
-    free(ftqsp);
-#endif
+    cufftDestroy(d_fft3d);
 
 }
 
@@ -376,6 +369,16 @@ void bspgen(PARALLEL *parallel,EWALD *ewald)
 
 }
 
+__global__ void mesh(real d_sx[],real d_x[],real d_y[],real d_z[],
+		     real u1,real u2,real u3,int fAtProc,int lAtProc,int mmax)
+{
+  int ll=blockIdx.x * blockDim.x + threadIdx.x;
+  int i=ll+fAtProc;
+  
+  if(i<lAtProc)
+    d_sx[ll]=(real)mmax*(d_x[i]*u1+d_y[i]*u2+d_z[i]*u3+0.5);
+}
+
 real spme_energy(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const real x[],
                    const real y[],const real z[],real fx[],real fy[],real fz[],
                    const real q[],real stress[6],real *virEwaldRec,real dBuffer[])
@@ -395,6 +398,11 @@ real spme_energy(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const rea
     real eEwaldRec,eNonNeutral;
     real fbx,fby,fbz;
     real fm[3];
+    
+    real d_x,d_y,d_z;
+    
+    dim3 threadsPerBlock(nThrdsX,nThrdsY);
+    dim3 nAtBlocks(parallel->nAtProc/threadsPerBlock.x,parallel->nAtProc/threadsPerBlock.y);
 
     if(newJob)
     {
@@ -426,8 +434,11 @@ real spme_energy(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const rea
 //     Calculate the coefficient of the B-spline
         bspcoef(ewald);
 	
-	cufftPlan3d(&d_fft3d1,ewald->m1max,ewald->m2max,ewald->m3max,CUFFT_C2C);
-	cufftPlan3d(&d_fft3d2,ewald->m1max,ewald->m2max,ewald->m3max,CUFFT_C2C);
+# ifdef DOUBLE_CUDA
+	cufftPlan3d(&d_fft3d,ewald->m1max,ewald->m2max,ewald->m3max,CUFFT_Z2Z);
+#else
+	cufftPlan3d(&d_fft3d,ewald->m1max,ewald->m2max,ewald->m3max,CUFFT_C2C);
+#endif
 
     } //   End if(newJob)
 
@@ -453,16 +464,24 @@ real spme_energy(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const rea
     recCutOff=fmin( recCutOff , (real)ewald->m3max*box->w );
     recCutOff=recCutOff*1.05*TWOPI;
     recCutOff2=X2(recCutOff);
-
+    
+//  Memory allocation on the GPU
+    
+    cudaMalloc((void**) &d_x,param->nAtom*sizeof(real));
+    cudaMalloc((void**) &d_y,param->nAtom*sizeof(real));
+    cudaMalloc((void**) &d_z,param->nAtom*sizeof(real));
+    
+// Copy arrays from host to device
+  
+    cudaMemcpy(d_x,x,param->nAtom*sizeof(real),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_y,y,param->nAtom*sizeof(real),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_z,z,param->nAtom*sizeof(real),cudaMemcpyHostToDevice);
+    
 //   Address atoms to the cells of the mesh [0...mimax]
-    ll=0;
-    for(i=parallel->fAtProc; i<parallel->lAtProc; i++)
-    {
-        sx[ll]=(real)ewald->m1max*(x[i]*box->u1+y[i]*box->u2+z[i]*box->u3+0.5);
-        sy[ll]=(real)ewald->m2max*(x[i]*box->v1+y[i]*box->v2+z[i]*box->v3+0.5);
-        sz[ll]=(real)ewald->m3max*(x[i]*box->w1+y[i]*box->w2+z[i]*box->w3+0.5);
-        ll++;
-    }
+    
+    mesh<<<(parallel->nAtProc/nThrds),nThrds>>>(d_sx,d_x,d_y,d_z,box->u1,box->u2,box->u3,parallel->fAtProc,parallel->lAtProc,ewald->m1max);
+    mesh<<<(parallel->nAtProc/nThrds),nThrds>>>(d_sy,d_x,d_y,d_z,box->v1,box->v2,box->v3,parallel->fAtProc,parallel->lAtProc,ewald->m2max);
+    mesh<<<(parallel->nAtProc/nThrds),nThrds>>>(d_sz,d_x,d_y,d_z,box->w1,box->w2,box->w3,parallel->fAtProc,parallel->lAtProc,ewald->m3max);
 
 //   Construct the B-splines
     bspgen(parallel,ewald);
@@ -519,19 +538,15 @@ real spme_energy(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const rea
     }
 
     if(parallel->nProc>1)
-        sum_real_para(qsp,dBuffer,ewald->mmax);
+        sum_double_para(qsp,dBuffer,ewald->mmax);
 
     for(m3=0; m3<ewald->mmax; m3++)
     {
-        ftqsp[m3]=qsp[m3]+I*0.0;
+        d_ftqsp[m3]=cudaComp(qsp[m3]);
     }
 
 //   Perform the Fourier Transform of Q(k1,k2,k3)
-#ifdef FFTW
-    fftw_execute(fft3d1);
-#else
-
-#endif
+    cufftExecC2C(d_fft3d,d_ftqsp,d_ftqsp,CUFFT_INVERSE);
 
     for(i=0; i<ewald->m1max; i++)
     {

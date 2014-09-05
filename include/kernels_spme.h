@@ -14,12 +14,9 @@ extern "C" {
     void bspcoef(EWALD *ewald);
 
     void bspgen(PARALLEL *parallel,EWALD *ewald);
-
-// real spme_energy(PARAM *param,EWALD *ewald,PBC *box,const real x[],const real y[],const real z[],
-// 	           real fx[],real fy[],real fz[],const real q[],real stress[6],real *virEwaldRec);
-
-// real spme_energy(PARAM *param,EWALD *ewald,PBC *box,real x[],real y[],real z[],
-// 	           real fx[],real fy[],real fz[],real q[],real stress[6],real *virEwaldRec);
+    
+    __global__ void mesh(real d_sx[],real d_x[],real d_y[],real d_z[],
+			 real u1,real u2,real u3,int fAtProc,int lAtProc,int mmax);
 
     real spme_energy(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const real x[],
                        const real y[],const real z[],real fx[],real fy[],real fz[],

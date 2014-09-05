@@ -31,16 +31,16 @@
 #include "serial.h"
 #endif
 
-static double **cm1,**sm1,**cm2,**sm2,**cm3,**sm3;
-static double *cm,*sm,*cms,*sms;
+static real **cm1,**sm1,**cm2,**sm2,**cm3,**sm3;
+static real *cm,*sm,*cms,*sms;
 
 void init_ewald(CTRL *ctrl,PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box)
 {
 
     int i,m1,m2,m3,m2min,m3min;
-    double rm,rmx,rmy,rmz;
-    double rm1x,rm1y,rm1z,rm2x,rm2y,rm2z;
-    double recCutOff,recCutOff2;
+    real rm,rmx,rmy,rmz;
+    real rm1x,rm1y,rm1z,rm2x,rm2y,rm2z;
+    real recCutOff,recCutOff2;
 
     ewald->prec=fmin( fabs( ewald->prec ) , 0.5 );
     ewald->tol=sqrt( fabs( log( ewald->prec * param->cutOff ) ) );
@@ -57,8 +57,8 @@ void init_ewald(CTRL *ctrl,PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box
         ewald->m3max=nint(0.25+box->pc*ewald->alpha*ewald->tol1/PI);
     }
 
-    recCutOff=fmin( ( (double)ewald->m1max*box->u ) , ( (double)ewald->m2max*box->v ) );
-    recCutOff=fmin( recCutOff , (double)ewald->m3max*box->w );
+    recCutOff=fmin( ( (real)ewald->m1max*box->u ) , ( (real)ewald->m2max*box->v ) );
+    recCutOff=fmin( recCutOff , (real)ewald->m3max*box->w );
     recCutOff=recCutOff*1.05*TWOPI;
     recCutOff2=X2(recCutOff);
 
@@ -69,24 +69,24 @@ void init_ewald(CTRL *ctrl,PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box
     for(m1=0; m1<=ewald->m1max; m1++)
     {
 
-        rm1x=TWOPI*box->u1*(double)m1;
-        rm1y=TWOPI*box->u2*(double)m1;
-        rm1z=TWOPI*box->u3*(double)m1;
+        rm1x=TWOPI*box->u1*(real)m1;
+        rm1y=TWOPI*box->u2*(real)m1;
+        rm1z=TWOPI*box->u3*(real)m1;
 
         for(m2=m2min; m2<=ewald->m2max; m2++)
         {
 
-            rm2x=rm1x+(TWOPI*box->v1*(double)m2);
-            rm2y=rm1y+(TWOPI*box->v2*(double)m2);
-            rm2z=rm1z+(TWOPI*box->v3*(double)m2);
+            rm2x=rm1x+(TWOPI*box->v1*(real)m2);
+            rm2y=rm1y+(TWOPI*box->v2*(real)m2);
+            rm2z=rm1z+(TWOPI*box->v3*(real)m2);
 
 
             for(m3=m3min; m3<=ewald->m3max; m3++)
             {
 
-                rmx=rm2x+(TWOPI*box->w1*(double)m3);
-                rmy=rm2y+(TWOPI*box->w2*(double)m3);
-                rmz=rm2z+(TWOPI*box->w3*(double)m3);
+                rmx=rm2x+(TWOPI*box->w1*(real)m3);
+                rmy=rm2y+(TWOPI*box->w2*(real)m3);
+                rmz=rm2z+(TWOPI*box->w3*(real)m3);
 
                 rm=X2(rmx)+X2(rmy)+X2(rmz);
 
@@ -98,29 +98,29 @@ void init_ewald(CTRL *ctrl,PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box
         m2min=-ewald->m2max;
     }
 
-    cm=(double*)my_malloc(parallel->maxAtProc*sizeof(*cm));
-    sm=(double*)my_malloc(parallel->maxAtProc*sizeof(*sm));
+    cm=(real*)my_malloc(parallel->maxAtProc*sizeof(*cm));
+    sm=(real*)my_malloc(parallel->maxAtProc*sizeof(*sm));
 
-    cms=(double*)my_malloc(parallel->maxAtProc*sizeof(*cms));
-    sms=(double*)my_malloc(parallel->maxAtProc*sizeof(*sms));
+    cms=(real*)my_malloc(parallel->maxAtProc*sizeof(*cms));
+    sms=(real*)my_malloc(parallel->maxAtProc*sizeof(*sms));
 
-    cm1=(double**)my_malloc(ewald->mmax*sizeof(*cm1));
-    cm2=(double**)my_malloc(ewald->mmax*sizeof(*cm2));
-    cm3=(double**)my_malloc(ewald->mmax*sizeof(*cm3));
+    cm1=(real**)my_malloc(ewald->mmax*sizeof(*cm1));
+    cm2=(real**)my_malloc(ewald->mmax*sizeof(*cm2));
+    cm3=(real**)my_malloc(ewald->mmax*sizeof(*cm3));
 
-    sm1=(double**)my_malloc(ewald->mmax*sizeof(*sm1));
-    sm2=(double**)my_malloc(ewald->mmax*sizeof(*sm2));
-    sm3=(double**)my_malloc(ewald->mmax*sizeof(*sm3));
+    sm1=(real**)my_malloc(ewald->mmax*sizeof(*sm1));
+    sm2=(real**)my_malloc(ewald->mmax*sizeof(*sm2));
+    sm3=(real**)my_malloc(ewald->mmax*sizeof(*sm3));
 
     for(i=0; i<ewald->mmax; i++)
     {
-        cm1[i]=(double*)my_malloc(parallel->maxAtProc*sizeof(**cm1));
-        cm2[i]=(double*)my_malloc(parallel->maxAtProc*sizeof(**cm2));
-        cm3[i]=(double*)my_malloc(parallel->maxAtProc*sizeof(**cm3));
+        cm1[i]=(real*)my_malloc(parallel->maxAtProc*sizeof(**cm1));
+        cm2[i]=(real*)my_malloc(parallel->maxAtProc*sizeof(**cm2));
+        cm3[i]=(real*)my_malloc(parallel->maxAtProc*sizeof(**cm3));
 
-        sm1[i]=(double*)my_malloc(parallel->maxAtProc*sizeof(**sm1));
-        sm2[i]=(double*)my_malloc(parallel->maxAtProc*sizeof(**sm2));
-        sm3[i]=(double*)my_malloc(parallel->maxAtProc*sizeof(**sm3));
+        sm1[i]=(real*)my_malloc(parallel->maxAtProc*sizeof(**sm1));
+        sm2[i]=(real*)my_malloc(parallel->maxAtProc*sizeof(**sm2));
+        sm3[i]=(real*)my_malloc(parallel->maxAtProc*sizeof(**sm3));
     }
 
 }
@@ -155,25 +155,25 @@ void ewald_free(EWALD *ewald)
     free(sm3);
 }
 
-double ewald_rec(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const double x[],
-                 const double y[],const double z[],double fx[],double fy[],double fz[],
-                 const double q[],double stress[6],double *virEwaldRec,double dBuffer[])
+real ewald_rec(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const real x[],
+                 const real y[],const real z[],real fx[],real fy[],real fz[],
+                 const real q[],real stress[6],real *virEwaldRec,real dBuffer[])
 {
 
     int i,l,m1,m2,m3,am2,am3,m2min,m3min;
-    double sx,sy,sz,rm,rrm,rmx,rmy,rmz;
-    double rm1x,rm1y,rm1z,rm2x,rm2y,rm2z;
-    double recCutOff,recCutOff2,rAlpha2,rVol;
-    double eEwaldRec,dEwaldRec,virtmp;
-    double eEwaldself,systq,eNonNeutral;
-    double cmss,smss,am,vam;
-    double fact0,fact1;
+    real sx,sy,sz,rm,rrm,rmx,rmy,rmz;
+    real rm1x,rm1y,rm1z,rm2x,rm2y,rm2z;
+    real recCutOff,recCutOff2,rAlpha2,rVol;
+    real eEwaldRec,dEwaldRec,virtmp;
+    real eEwaldself,systq,eNonNeutral;
+    real cmss,smss,am,vam;
+    real fact0,fact1;
 
     rVol=TWOPI/box->vol;
     rAlpha2=-0.25/(X2(ewald->alpha));
 
-    recCutOff=fmin( ( (double)ewald->m1max*box->u ) , ( (double)ewald->m2max*box->v ) );
-    recCutOff=fmin( recCutOff , (double)ewald->m3max*box->w );
+    recCutOff=fmin( ( (real)ewald->m1max*box->u ) , ( (real)ewald->m2max*box->v ) );
+    recCutOff=fmin( recCutOff , (real)ewald->m3max*box->w );
     recCutOff=recCutOff*1.05*TWOPI;
     recCutOff2=X2(recCutOff);
 
@@ -259,17 +259,17 @@ double ewald_rec(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const dou
     for(m1=0; m1<=ewald->m1max; m1++)
     {
 
-        rm1x=TWOPI*box->u1*(double)m1;
-        rm1y=TWOPI*box->u2*(double)m1;
-        rm1z=TWOPI*box->u3*(double)m1;
+        rm1x=TWOPI*box->u1*(real)m1;
+        rm1y=TWOPI*box->u2*(real)m1;
+        rm1z=TWOPI*box->u3*(real)m1;
 
         for(m2=m2min; m2<=ewald->m2max; m2++)
         {
             am2=abs(m2);
 
-            rm2x=rm1x+(TWOPI*box->v1*(double)m2);
-            rm2y=rm1y+(TWOPI*box->v2*(double)m2);
-            rm2z=rm1z+(TWOPI*box->v3*(double)m2);
+            rm2x=rm1x+(TWOPI*box->v1*(real)m2);
+            rm2y=rm1y+(TWOPI*box->v2*(real)m2);
+            rm2z=rm1z+(TWOPI*box->v3*(real)m2);
 
             if(m2>=0)
             {
@@ -292,9 +292,9 @@ double ewald_rec(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const dou
             {
                 am3=abs(m3);
 
-                rmx=rm2x+(TWOPI*box->w1*(double)m3);
-                rmy=rm2y+(TWOPI*box->w2*(double)m3);
-                rmz=rm2z+(TWOPI*box->w3*(double)m3);
+                rmx=rm2x+(TWOPI*box->w1*(real)m3);
+                rmy=rm2y+(TWOPI*box->w2*(real)m3);
+                rmz=rm2z+(TWOPI*box->w3*(real)m3);
 
                 rm=X2(rmx)+X2(rmy)+X2(rmz);
 
@@ -371,16 +371,16 @@ double ewald_rec(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const dou
         m2min=-ewald->m2max;
     }
 
-    eEwaldRec/=(double)parallel->nProc;
+    eEwaldRec/=(real)parallel->nProc;
 
     for(i=0; i<6; i++)
     {
-        stress[i]/=(double)parallel->nProc;
+        stress[i]/=(real)parallel->nProc;
     }
 
-    eNonNeutral=-(0.5*PI*param->chargeConst)*(X2(systq/ewald->alpha)/box->vol)/(double)parallel->nProc;;
+    eNonNeutral=-(0.5*PI*param->chargeConst)*(X2(systq/ewald->alpha)/box->vol)/(real)parallel->nProc;;
 
-    double etmp;
+    real etmp;
 
     etmp=eEwaldRec;
 
@@ -409,11 +409,11 @@ double ewald_rec(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const dou
 
 }
 
-double ewald_dir(EWALD *ewald,double *dEwaldDir,const double qel,
-                 const double r,const double rt)
+real ewald_dir(EWALD *ewald,real *dEwaldDir,const real qel,
+                 const real r,const real rt)
 {
 
-    double eEwaldDir,alphar;
+    real eEwaldDir,alphar;
 
     alphar=ewald->alpha*r;
 
@@ -424,11 +424,11 @@ double ewald_dir(EWALD *ewald,double *dEwaldDir,const double qel,
     return eEwaldDir;
 }
 
-double ewald_corr(EWALD *ewald,double *dEwaldCorr,const double qel,
-                  const double r,const double rt)
+real ewald_corr(EWALD *ewald,real *dEwaldCorr,const real qel,
+                  const real r,const real rt)
 {
 
-    double eEwaldCorr,alphar;
+    real eEwaldCorr,alphar;
 
     alphar=ewald->alpha*r;
 
@@ -439,11 +439,11 @@ double ewald_corr(EWALD *ewald,double *dEwaldCorr,const double qel,
     return eEwaldCorr;
 }
 
-double ewald_dir14(PARAM *param,EWALD *ewald,double *dEwaldDir,const double qel,
-                   const double r,const double rt)
+real ewald_dir14(PARAM *param,EWALD *ewald,real *dEwaldDir,const real qel,
+                   const real r,const real rt)
 {
 
-    double eEwaldDir,alphar;
+    real eEwaldDir,alphar;
 
     alphar=ewald->alpha*r;
 
@@ -454,11 +454,11 @@ double ewald_dir14(PARAM *param,EWALD *ewald,double *dEwaldDir,const double qel,
     return eEwaldDir;
 }
 
-double ewald_corr14(PARAM *param,EWALD *ewald,double *dEwaldCorr,const double qel,
-                    const double r,const double rt)
+real ewald_corr14(PARAM *param,EWALD *ewald,real *dEwaldCorr,const real qel,
+                    const real r,const real rt)
 {
 
-    double eEwaldCorr,alphar;
+    real eEwaldCorr,alphar;
 
     alphar=ewald->alpha*r;
 

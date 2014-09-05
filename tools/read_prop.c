@@ -23,7 +23,7 @@ int main(int argc, char* argv[])
 
     int i;
 
-    double buffer[29]= {0.};
+    real buffer[29]= {0.};
 
     enum OPT opt;
 
@@ -75,7 +75,7 @@ int main(int argc, char* argv[])
         while(!feof(propFile))
         {
 
-            test=fread(buffer,sizeof(double),29,propFile);
+            test=fread(buffer,sizeof(real),29,propFile);
 
             if(test!=count)
             {
@@ -102,7 +102,7 @@ int main(int argc, char* argv[])
         while(!feof(propFile))
         {
 
-            test=fread(buffer,sizeof(double),29,propFile);
+            test=fread(buffer,sizeof(real),29,propFile);
 
             if(test!=count)
             {

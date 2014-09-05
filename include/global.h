@@ -51,10 +51,14 @@ extern "C" {
 
 //#define COSDIH  1                       /*!< Cosine potential type for dihedral and improper angles. */
 //#define HARMDIH 2                       /*!< Harmonic potential type for dihedral and improper angles. */
-  
+
+#define nThrdsX 16
+#define nThrdsY 16
+#define nThrds 256
+
 # ifdef DOUBLE_CUDA
   typedef cuDoubleComplex cplx;
-  typedef double real;
+  typedef real real;
 #else
   typedef cuComplex cplx;
   typedef float real;
@@ -164,12 +168,12 @@ extern "C" {
     typedef struct
     {
         enum BOX_TYPE type; /*<  */
-        double a,a1,a2,a3,b,b1,b2,b3,c,c1,c2,c3;
-        double u,u1,u2,u3,v,v1,v2,v3,w,w1,w2,w3;
-        double pa,pb,pc,det,vol,vol0;
-        double stress1,stress2,stress3;
-        double stress4,stress5,stress6;
-        double stress7,stress8,stress9;
+        real a,a1,a2,a3,b,b1,b2,b3,c,c1,c2,c3;
+        real u,u1,u2,u3,v,v1,v2,v3,w,w1,w2,w3;
+        real pa,pb,pc,det,vol,vol0;
+        real stress1,stress2,stress3;
+        real stress4,stress5,stress6;
+        real stress7,stress8,stress9;
     } PBC;
 
     typedef struct
@@ -217,41 +221,41 @@ extern "C" {
 
         int nBond,nAngle,nUb,nDihedral,nImproper;
 
-        double timeStep,rTimeStep;
+        real timeStep,rTimeStep;
 
-        double chargeConst,tolShake,scal14;
+        real chargeConst,tolShake,scal14;
 
-        double cutOff,rcutOff,delr;
-        double cutOff2,rcutOff2;
-        double cutOn,cutOn2,switch2;
+        real cutOff,rcutOff,delr;
+        real cutOff2,rcutOff2;
+        real cutOn,cutOn2,switch2;
 	
-	double alpha,prec,tol;
-	double damp1,damp2;
+	real alpha,prec,tol;
+	real damp1,damp2;
 
-        double temp0,press0,kinTemp0;
+        real temp0,press0,kinTemp0;
 
-        double tolMinim,maxminsiz,maxminst;
+        real tolMinim,maxminsiz,maxminst;
 
     } PARAM;
 
     typedef struct
     {
-        double tauT,chiT;
-        double tauP,chiP,compress;
+        real tauT,chiT;
+        real tauP,chiP,compress;
     } BATH;
 
     typedef struct
     {
         enum BOND_TYPE type;
         int a,b;
-        double k,r0,beta;
+        real k,r0,beta;
     } BOND;
 
     typedef struct
     {
         enum ANGLE_TYPE type;
         int a,b,c;
-        double k,theta0;
+        real k,theta0;
     } ANGLE;
 
     typedef struct
@@ -259,7 +263,7 @@ extern "C" {
         enum DIHE_TYPE type;
         int order;
         int a,b,c,d;
-        double k,phi0,mult;
+        real k,phi0,mult;
     } DIHE;
 
     typedef struct
@@ -278,13 +282,13 @@ extern "C" {
      */
     typedef struct
     {
-        double tot,pot,kin;
-        double elec,vdw,epol;
-        double bond,ang,ub,dihe,impr;
-        double conint,consv;
-        double virelec,virvdw,virpol;
-	double virbond,virub;
-        double virshake,virpot,virtot;
+        real tot,pot,kin;
+        real elec,vdw,epol;
+        real bond,ang,ub,dihe,impr;
+        real conint,consv;
+        real virelec,virvdw,virpol;
+	real virbond,virub;
+        real virshake,virpot,virtot;
     } ENERGY;
 
     /*!
@@ -294,7 +298,7 @@ extern "C" {
     typedef struct
     {
         int a,b;
-        double rc2;
+        real rc2;
     } CONSTRAINT;
 
     /*!
@@ -303,21 +307,21 @@ extern "C" {
      */
     typedef struct
     {
-        double x,y,z;
+        real x,y,z;
     } DELTA;
 
     typedef struct
     {
         int nbsp;
         int mmax,m1max,m2max,m3max;
-        double prec,tol,tol1,alpha;
+        real prec,tol,tol1,alpha;
     } EWALD;
     
     typedef struct
     {
         int nAtPol,nPolTensor;
 	int maxCycle;
-        double tol;
+        real tol;
     } POLAR;
 
     typedef struct

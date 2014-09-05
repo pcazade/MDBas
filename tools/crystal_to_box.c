@@ -8,25 +8,25 @@
 
 #define X2(x) ((x)*(x))
 
-extern void dsyev_(char *jobz, char *uplo, int *n, double *A, int *lda,
-                   double *W, double *WORK, int *lwork, int *info);
+extern void dsyev_(char *jobz, char *uplo, int *n, real *A, int *lda,
+                   real *W, real *WORK, int *lwork, int *info);
 
 
 int main(int argc, char* argv[])
 {
 
-    double a,b,c,alpha,beta,gamma,aldeg,bedeg,gadeg;
-    double egvec[9],hth[9],crystal[6];
+    real a,b,c,alpha,beta,gamma,aldeg,bedeg,gadeg;
+    real egvec[9],hth[9],crystal[6];
 
     char jobz = 'V',uplo='L';
     int n = 3 ;
     int lda = n;
-    double *W = malloc(n*sizeof(double));
-    double *WORK = NULL;
+    real *W = malloc(n*sizeof(real));
+    real *WORK = NULL;
     int lwork = -1;
     int info=-42;
 
-    double siz = 0.0;
+    real siz = 0.0;
 
     if(argc>=7)
     {
@@ -86,7 +86,7 @@ int main(int argc, char* argv[])
         hth[3]=hth[1];
     }
 
-    memcpy(egvec,hth,9*sizeof(double));
+    memcpy(egvec,hth,9*sizeof(real));
 
 
     /**
@@ -109,7 +109,7 @@ int main(int argc, char* argv[])
     dsyev_(&jobz, &uplo, &n, egvec, &lda, W, &siz, &lwork, &info);
 
     if(info==0)
-        WORK = (double*)malloc((size_t)siz*sizeof(double));
+        WORK = (real*)malloc((size_t)siz*sizeof(real));
     else
     {
         printf("Error with DSYEV when initialising work array : lapack error code %d .\n",info);
@@ -118,7 +118,7 @@ int main(int argc, char* argv[])
 
     if (WORK == NULL)
     {
-        printf("Error when allocating a array of double of %d elements; FILE %s LINE %d",(int)siz,__FILE__,__LINE__);
+        printf("Error when allocating a array of real of %d elements; FILE %s LINE %d",(int)siz,__FILE__,__LINE__);
         exit(22);
     }
 
@@ -138,7 +138,7 @@ int main(int argc, char* argv[])
 
 //   printf("%lf\t%lf\t%lf\n\n",W[0],W[1],W[2]);
 
-//   memcpy(hth,egvec,9*sizeof(double));
+//   memcpy(hth,egvec,9*sizeof(real));
 
     crystal[0]=W[0]*X2(egvec[0])+W[1]*X2(egvec[3])+W[2]*X2(egvec[6]);
     crystal[2]=W[0]*X2(egvec[1])+W[1]*X2(egvec[4])+W[2]*X2(egvec[7]);
