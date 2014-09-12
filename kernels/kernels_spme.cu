@@ -190,7 +190,7 @@ void epl_cplx(EWALD *ewald)
     hm2max=ewald->m2max/2;
     hm3max=ewald->m3max/2;
 
-    epl1[0]=1.0+I*0.0;
+    epl1[0]=cudaComp(1.0);
 
     for(i=1; i<=hm1max; i++)
     {
@@ -198,7 +198,7 @@ void epl_cplx(EWALD *ewald)
         epl1[ewald->m1max-i]=cudaConj(epl1[i]);
     }
 
-    epl2[0]=1.0+I*0.0;
+    epl2[0]=cudaComp(1.0);
 
     for(i=1; i<=hm2max; i++)
     {
@@ -206,7 +206,7 @@ void epl_cplx(EWALD *ewald)
         epl2[ewald->m2max-i]=cudaConj(epl2[i]);
     }
 
-    epl3[0]=1.0+I*0.0;
+    epl3[0]=cudaComp(1.0);
 
     for(i=1; i<=hm3max; i++)
     {
@@ -239,29 +239,28 @@ void bspcoef(EWALD *ewald)
     for(i=0; i<ewald->m1max; i++)
     {
 
-        coeff.x=0.0;
-	coeff.y=0.0;
+        coeff=cudaComp(0.0);
 
         for(k=0; k<ewald->nbsp-1; k++)
         {
-            coeff=cudaAdd(coeff,cudaMul(bsp[k+1],epl1[( (i*k) % ewald->m1max )]);
+            coeff=cudaAdd(coeff,cudaMul(cudaComp(bsp[k+1]),epl1[( (i*k) % ewald->m1max )]));
         }
 
-        bspc1[i]=epl1[( ( i* (ewald->nbsp-1) ) % ewald->m1max )]/coeff;
+        bspc1[i]=cudaDiv(epl1[( ( i* (ewald->nbsp-1) ) % ewald->m1max )],coeff);
 
     }
 
     for(i=0; i<ewald->m2max; i++)
     {
 
-        coeff=0.+I*0.0;
+        coeff=cudaComp(0.0);
 
         for(k=0; k<ewald->nbsp-1; k++)
         {
-            coeff+=bsp[k+1]*epl2[( (i*k) % ewald->m2max )];
+            coeff=cudaAdd(coeff,cudaMul(cudaComp(bsp[k+1]),epl2[( (i*k) % ewald->m2max )]));
         }
 
-        bspc2[i]=epl2[( ( i* (ewald->nbsp-1) ) % ewald->m2max )]/coeff;
+        bspc2[i]=cudaDiv(epl2[( ( i* (ewald->nbsp-1) ) % ewald->m2max )],coeff);
 
     }
 
@@ -272,10 +271,10 @@ void bspcoef(EWALD *ewald)
 
         for(k=0; k<ewald->nbsp-1; k++)
         {
-            coeff+=bsp[k+1]*epl3[( (i*k) % ewald->m3max )];
+            coeff=cudaAdd(coeff,cudaMul(cudaComp(bsp[k+1]),epl3[( (i*k) % ewald->m3max )]));
         }
 
-        bspc3[i]=epl3[( ( i* (ewald->nbsp-1) ) % ewald->m3max )]/coeff;
+        bspc3[i]=cudaDiv(epl3[( ( i* (ewald->nbsp-1) ) % ewald->m3max )],coeff);
 
     }
 
@@ -400,6 +399,9 @@ real spme_energy(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const rea
     real fm[3];
     
     real d_x,d_y,d_z;
+    cplx *d_bspc1,*d_bspc2,*d_bspc3;
+    cplx *d_bsp1,*d_bsp2,*d_bsp3;
+    cplx *d_bsd1,*d_bsd2,*d_bsd3;
     
     dim3 threadsPerBlock(nThrdsX,nThrdsY);
     dim3 nAtBlocks(parallel->nAtProc/threadsPerBlock.x,parallel->nAtProc/threadsPerBlock.y);
@@ -471,11 +473,27 @@ real spme_energy(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const rea
     cudaMalloc((void**) &d_y,param->nAtom*sizeof(real));
     cudaMalloc((void**) &d_z,param->nAtom*sizeof(real));
     
+    cudaMalloc((void**) &d_bspc1,ewald->m1max*sizeof(cplx));
+    cudaMalloc((void**) &d_bspc2,ewald->m2max*sizeof(cplx));
+    cudaMalloc((void**) &d_bspc3,ewald->m3max*sizeof(cplx));
+    
+    cudaMalloc((void**) &d_bsp1,parallel->maxAtProc*ewald->nbsp*sizeof(cplx));
+    cudaMalloc((void**) &d_bsp2,parallel->maxAtProc*ewald->nbsp*sizeof(cplx));
+    cudaMalloc((void**) &d_bsp3,parallel->maxAtProc*ewald->nbsp*sizeof(cplx));
+    
+    cudaMalloc((void**) &d_bsd1,parallel->maxAtProc*ewald->nbsp*sizeof(cplx));
+    cudaMalloc((void**) &d_bsd2,parallel->maxAtProc*ewald->nbsp*sizeof(cplx));
+    cudaMalloc((void**) &d_bsd3,parallel->maxAtProc*ewald->nbsp*sizeof(cplx));
+    
 // Copy arrays from host to device
   
     cudaMemcpy(d_x,x,param->nAtom*sizeof(real),cudaMemcpyHostToDevice);
     cudaMemcpy(d_y,y,param->nAtom*sizeof(real),cudaMemcpyHostToDevice);
     cudaMemcpy(d_z,z,param->nAtom*sizeof(real),cudaMemcpyHostToDevice);
+    
+    cudaMemcpy(d_bspc1,bspc1,param->nAtom*sizeof(cplx),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_bspc2,bspc2,param->nAtom*sizeof(cplx),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_bspc3,bspc3,param->nAtom*sizeof(cplx),cudaMemcpyHostToDevice);
     
 //   Address atoms to the cells of the mesh [0...mimax]
     
@@ -485,6 +503,7 @@ real spme_energy(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const rea
 
 //   Construct the B-splines
     bspgen(parallel,ewald);
+    
 
 //   Initialise charge array Q(k1,k2,k3)
     for(i=0; i<ewald->mmax; i++)
@@ -546,8 +565,12 @@ real spme_energy(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const rea
     }
 
 //   Perform the Fourier Transform of Q(k1,k2,k3)
+# ifdef DOUBLE_CUDA
+    cufftExecZ2Z(d_fft3d,d_ftqsp,d_ftqsp,CUFFT_INVERSE);
+#else
     cufftExecC2C(d_fft3d,d_ftqsp,d_ftqsp,CUFFT_INVERSE);
-
+#endif
+    
     for(i=0; i<ewald->m1max; i++)
     {
         ii=i;
@@ -630,10 +653,10 @@ real spme_energy(PARAM *param,PARALLEL *parallel,EWALD *ewald,PBC *box,const rea
 
     /**   Beginning of the forces calculation section   */
 
-#ifdef FFTW
-    fftw_execute(fft3d2);
+# ifdef DOUBLE_CUDA
+    cufftExecZ2Z(d_fft3d,d_ftqsp,d_ftqsp,CUFFT_FORWARD);
 #else
-
+    cufftExecC2C(d_fft3d,d_ftqsp,d_ftqsp,CUFFT_FORWARD);
 #endif
 
     fact1=-2.0*rVol*param->chargeConst;
